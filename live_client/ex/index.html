@@ -1,0 +1,120 @@
+{{- $g := .Assigns.Game -}}
+{{- $h := .Assigns.Hints -}}
+<div class="score">
+  Score: {{.Assigns.Game.Score}}
+</div>
+<div class="moves">
+  Moves: {{.Assigns.Game.Moves}}
+</div>
+<div class="board">
+  {{- range $i, $cell := .Assigns.Game.ForTemplate.cells -}}
+  <div live-click="select-cell" live-value-i="{{$i}}" data-selected="" style="
+        {{- if eq $cell.Value 0 -}}
+          opacity:0.1;
+        {{- end -}}
+        {{- if $g.IsSelected $cell -}}
+            color: blue;
+        {{- end -}}
+
+  {{- if $h -}}
+  {{if $g.IsCellIndexPartOfHint $i (index $h 0) }}
+border: 8px dashed green;
+  {{- end -}}
+  {{- end -}}
+        order: {{$i}};">
+    {{- if gt $cell.Value 0 -}}
+    {{$cell.Value}}
+    {{- end -}}
+  </div>
+  {{- end }}
+</div>
+<pre>
+  {{.Assigns.Game.Print}}
+</pre>
+<hr>
+<div>
+  {{- range $i, $hint := .Assigns.Hints -}}
+  <div>{{$i}} - {{$hint.Value}} {{$hint.Path}}</div>
+  {{- end -}}
+</div>
+<button live-click="get-hint" live-key="h">Hint</button>
+<div>
+  <button live-click="swipe" live-value-dir="Up">Swipe up</button>
+</div>
+<div>
+  <button live-click="swipe" live-value-dir="Left">Swipe left</button>
+  <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
+</div>
+<button live-click="swipe" live-value-dir="Down">Swipe Down</button>
+
+<button live-click="new-game">New Gaem</button>
+
+<!-- Include to make live work -->
+<script src="/live.js"></script>
+<script type="module">
+  const leftButton = document.querySelector('button[live-value-dir="Left"]')
+  const rightButton = document.querySelector('button[live-value-dir="Right"]')
+  const upButton = document.querySelector('button[live-value-dir="Up"]')
+  const downButton = document.querySelector('button[live-value-dir="Down"]')
+  const hintButton = document.querySelector('button[live-click="get-hint"]')
+
+  const swipeLeft = () => leftButton.click()
+  const swipeRight = () => rightButton.click()
+  const swipeUp = () => upButton.click()
+  const swipeDown = () => downButton.click()
+  const getHint = () => hintButton.click()
+
+  document.onkeydown = (e) => {
+    switch (e.key) {
+      case "ArrowLeft":
+      case "a":
+        swipeLeft()
+        break
+      case "ArrowRight":
+      case "d":
+        swipeRight()
+        break
+      case "ArrowDown":
+      case "s":
+        swipeDown()
+        break
+      case "ArrowUp":
+      case "w":
+        swipeUp()
+        break
+      case "h":
+        getHint()
+        break
+
+      default:
+        console.log("key", e.key)
+        break
+    }
+  }
+
+</script>
+
+<style>
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    width: 100%;
+    grid-template-rows: repeat(5, 1fr);
+    height: 100%;
+    min-height: 50vh;
+    max-height: 90vh;
+  }
+
+  .board div {
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid hotpink;
+    margin: 2px;
+    border-radius: 8px;
+    background-color: rebeccapurple;
+    color: wheat;
+    font-size: 3rem;
+  }
+</style>
