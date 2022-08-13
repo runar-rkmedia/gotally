@@ -17,4 +17,5 @@ type BoardController interface {
 	Cells() []Cell
 	AreNeighboursByIndex(a, b int) bool
 	NeighboursForCellIndex(index int) ([]int, bool)
+	AddCellToBoard(c Cell, index int, overwrite bool) error
 }

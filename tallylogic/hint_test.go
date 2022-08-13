@@ -9,7 +9,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 	tests := []struct {
 		name  string
 		board TableBoard
-		want  []hint
+		want  []Hint
 	}{
 		// TODO: Add test cases.
 		{
@@ -23,7 +23,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 				rows:    3,
 				columns: 3,
 			},
-			[]hint{
+			[]Hint{
 				{
 					Value:  6,
 					Method: EvalMethodSum,
@@ -33,6 +33,29 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 					Value:  6,
 					Method: EvalMethodSum,
 					Path:   []int{3, 4, 5},
+				},
+			},
+		},
+		{
+			"Test for bigger board",
+			TableBoard{
+				cells: cellCreator(
+					6, 7, 6, 11, 14,
+					20, 18, 20, 8, 16,
+					11, 4, 18, 1, 12,
+					5, 11, 5, 10, 7,
+					10, 4, 6, 18, 4,
+				),
+				rows:    5,
+				columns: 5,
+			},
+			// There may be more hints, but there are at least one.
+			[]Hint{
+				{
+					Value:  20,
+					Method: EvalMethodSum,
+					// The bottom row , 10, 4, 6,
+					Path: []int{22, 21, 20},
 				},
 			},
 		},
@@ -69,7 +92,7 @@ func Test_hintCalculator_getHints(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []hint
+		want   []Hint
 	}{
 		// TODO: Add test cases.
 	}

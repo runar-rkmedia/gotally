@@ -37,7 +37,7 @@ func (tb TableBoard) GetCellAtIndex(n int) *Cell {
 }
 func (tb TableBoard) FindCell(c Cell) (int, bool) {
 	for i := 0; i < len(tb.cells); i++ {
-		if tb.cells[i].id == c.id {
+		if tb.cells[i].ID == c.ID {
 			return i, true
 		}
 	}
@@ -62,8 +62,13 @@ type Sprinter interface {
 }
 
 func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded string) string) string {
+	withColors := false
 	h := int64(tb.highestValue())
 	longest := len(strconv.FormatInt(h, 10))
+	headerPrinter := fmt.Sprintf
+	if withColors {
+		headerPrinter = color.Gray.Sprintf
+	}
 
 	s := "\n------ Table -------"
 	s += "\n    "
@@ -72,11 +77,11 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 		padLength := longest - len(formatted)
 		padding := strings.Repeat(" ", padLength)
 		valueStr := padding + formatted
-		s += color.Gray.Sprintf("  %s: ", valueStr)
+		s += headerPrinter("  %s: ", valueStr)
 
 	}
 	for i := 0; i < tb.rows; i++ {
-		s += "\n" + color.Gray.Sprintf(" %d: ", i)
+		s += "\n" + headerPrinter(" %d: ", i)
 		for j := 0; j < tb.columns; j++ {
 			index := ((i + 1) * tb.columns) - tb.columns + ((j + 1) + tb.rows) - tb.rows - 1
 			value := tb.cells[index].Value()
@@ -157,6 +162,9 @@ var (
 	ErrPathIndexOutsideBounds = errors.New("The path includes an item outside the current bounds")
 	ErrPathIndexInvalidCell   = errors.New("The path-index pointed to an invalid cell")
 	ErrPathIndexEmptyCell     = errors.New("The path-index pointed to an empty cell")
+
+	ErrIndexInvalid               = errors.New("The index for the path is invalid")
+	ErrCellAtIndexAlreadyHasValue = errors.New("The cell at the index already has a value")
 )
 
 func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
@@ -180,7 +188,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexOutsideBounds, index, i), i
 		}
 		c := tb.cells[index]
-		if c.id == "" {
+		if c.ID == "" {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexInvalidCell, index, i), i
 		}
 		if c.Value() == 0 {
@@ -234,7 +242,7 @@ func (tb TableBoard) evaluatesTo(indexes []int, targetValue int64) (int64, EvalM
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		cell := tb.cells[index]
-		if cell.id == "" {
+		if cell.ID == "" {
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		v := cell.Value()
@@ -299,7 +307,7 @@ func (tb *TableBoard) SwipeDirection(direction SwipeDirection) bool {
 outer:
 	for i := 0; i < len(tb.cells); i++ {
 		for j := 0; j < len(newCells); j++ {
-			if tb.cells[i].id != newCells[i].id {
+			if tb.cells[i].ID != newCells[i].ID {
 				changed = true
 				break outer
 			}
@@ -407,4 +415,16 @@ func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	}
 	// This should now be sorted, becouse of the ordering above
 	return neighbours, true
+}
+
+func (tb *TableBoard) AddCellToBoard(c Cell, index int, overwrite bool) error {
+	if !tb.ValidCellIndex(index) {
+		return ErrIndexInvalid
+	}
+	if !overwrite && tb.cells[index].Value() > 0 {
+		return ErrCellAtIndexAlreadyHasValue
+	}
+	tb.cells[index] = c
+	return nil
+
 }

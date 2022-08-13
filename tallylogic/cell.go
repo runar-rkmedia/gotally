@@ -8,7 +8,7 @@ import (
 )
 
 type Cell struct {
-	id        string
+	ID        string
 	baseValue int64
 	power     int
 }
@@ -18,7 +18,7 @@ func NewEmptyCell() Cell {
 }
 func NewCell(baseValue int64, power int) Cell {
 	return Cell{
-		id:        gonanoid.Must(),
+		ID:        gonanoid.Must(),
 		baseValue: baseValue,
 		power:     power,
 	}

@@ -17,7 +17,7 @@ func remove(slice []int, s int) []int {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func (g *hintCalculator) GetHints() (hints []hint) {
+func (g *hintCalculator) GetHints() (hints []Hint) {
 	valueForIndexMap := map[int]int64{}
 	for i, v := range g.Cells() {
 		valueForIndexMap[i] = v.Value()
@@ -46,7 +46,7 @@ outer:
 	return hints
 }
 
-type hint struct {
+type Hint struct {
 	Value  int64
 	Method EvalMethod
 	Path   []int
@@ -72,8 +72,8 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 	return hintCalculator{c, n, e}
 }
 
-func (g *hintCalculator) getHints(valueForIndexMap map[int]int64, path []int) []hint {
-	var hints []hint
+func (g *hintCalculator) getHints(valueForIndexMap map[int]int64, path []int) []Hint {
+	var hints []Hint
 	neightbours, ok := g.NeighboursForCellIndex(path[len(path)-1])
 	if !ok {
 		return hints
@@ -99,7 +99,7 @@ outer:
 			continue
 		}
 		if value > 0 {
-			hints = append(hints, hint{
+			hints = append(hints, Hint{
 				Value:  value * 2,
 				Method: method,
 				Path:   newPath,

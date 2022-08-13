@@ -2,6 +2,7 @@ package tallylogic
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type CellGenerator interface {
@@ -26,6 +27,7 @@ type GameRules struct {
 	RecreateOnSwipe bool
 	// TODO: not implemented
 	WithSuperPowers bool
+	StartingBricks  int
 }
 
 type GameMode int
@@ -33,34 +35,82 @@ type BoardType int
 
 const (
 	GameModeDefault GameMode = iota
+	GameModeTemplate
 )
 
 func NewGame(mode GameMode) (Game, error) {
-	game := Game{}
+	game := Game{
+		// Default rules
+		rules: GameRules{
+			SizeX:           5,
+			SizeY:           5,
+			RecreateOnSwipe: true,
+			WithSuperPowers: true,
+			StartingBricks:  5,
+		},
+		cellGenerator: NewCellGenerator(),
+	}
 	switch mode {
 	case GameModeDefault:
-		game.rules.SizeX = 5
-		game.rules.SizeY = 5
-		game.rules.RecreateOnSwipe = true
-		game.rules.WithSuperPowers = true
+		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
+	board := NewTableBoard(5, 5)
+	game.board = &board
+	for i := 0; i < game.rules.StartingBricks; i++ {
+		game.generateCellToEmptyCell()
+	}
 	return game, nil
+}
+
+func (g *Game) generateCellToEmptyCell() bool {
+	i := g.getRandomEmptyCell()
+	if i == nil {
+		return false
+	}
+	cell := g.cellGenerator.Generate()
+	err := g.board.AddCellToBoard(cell, *i, false)
+	return err == nil
+
+}
+func (g *Game) getRandomEmptyCell() *int {
+	empty := g.getEmptyCellIndexes()
+	if len(empty) == 0 {
+		return nil
+	}
+	i := rand.Intn(len(empty))
+	return &empty[i]
+
+}
+func (g *Game) getEmptyCellIndexes() []int {
+	cells := g.board.Cells()
+	var empty []int
+	for i, v := range cells {
+		if v.Value() == 0 {
+			empty = append(empty, i)
+		}
+	}
+	return empty
+}
+
+func (g *Game) inceaseMoveCount() {
+	g.moves++
+}
+func (g *Game) increaseScore(points int64) {
+	g.score += points
 }
 
 func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 	changed = g.board.SwipeDirection(direction)
 	g.ClearSelection()
 	if g.rules.RecreateOnSwipe {
-		// TODO: pic a random empty cell and generate new here
+		g.generateCellToEmptyCell()
 	}
 	if changed {
-		g.moves++
+		g.inceaseMoveCount()
 	}
-
 	return changed
-
 }
 
 // This is used to instruct the game using small data-values Not really sure
@@ -141,12 +191,59 @@ func (g *Game) EvaluateSelection() bool {
 	if err != nil {
 		return false
 	}
-	g.score += points
-	g.moves++
+	g.increaseScore(points)
+	g.inceaseMoveCount()
 	g.ClearSelection()
 	return true
 }
 
+func (g *Game) Print() string {
+	return g.board.String()
+}
+func (g *Game) ForTemplate() map[string]any {
+	m := map[string]any{}
+	m["cells"] = g.board.Cells()
+	return m
+}
+func (g *Game) IsSelected(requested Cell) bool {
+	cells := g.board.Cells()
+	for _, index := range g.selectedCells {
+		fmt.Println("checking if selected", len(cells), requested.ID, index)
+		if cells[index].ID == requested.ID {
+			return true
+		}
+
+	}
+	return false
+}
+
+func (g *Game) IsCellIndexPartOfHint(index int, hint Hint) bool {
+	if len(hint.Path) == 0 {
+		return false
+	}
+	for _, i := range hint.Path {
+		if index == i {
+			return true
+		}
+	}
+	return false
+}
+
 func (g Game) Score() int64 {
 	return g.score
+}
+func (g Game) Moves() int {
+	return g.moves
+}
+func (g Game) SelectedCells() []int {
+	return g.selectedCells
+}
+func (g Game) Cells() []Cell {
+	return g.board.Cells()
+}
+func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {
+	return g.board.NeighboursForCellIndex(index)
+}
+func (g Game) EvaluatesTo(indexes []int, commit bool) (int64, EvalMethod, error) {
+	return g.board.EvaluatesTo(indexes, commit)
 }
