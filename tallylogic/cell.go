@@ -13,12 +13,19 @@ type Cell struct {
 	power     int
 }
 
+func NewEmptyCell() Cell {
+	return NewCell(0, 0)
+}
 func NewCell(baseValue int64, power int) Cell {
 	return Cell{
 		id:        gonanoid.Must(),
 		baseValue: baseValue,
 		power:     power,
 	}
+}
+func (c *Cell) Double() *Cell {
+	c.power += 1
+	return c
 }
 func (c Cell) Doubled() Cell {
 	return NewCell(c.baseValue, c.power+1)

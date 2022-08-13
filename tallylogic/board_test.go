@@ -84,7 +84,7 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 			for i := 0; i < len(tb.cells); i++ {
 				tb.cells[i].baseValue = int64(i)
 			}
-			got, got1 := tb.neighboursForCellIndex(tt.args.index)
+			got, got1 := tb.NeighboursForCellIndex(tt.args.index)
 			t.Log(tb.PrintBoard(func(c Cell, index int, padded string) string {
 				p := color.Yellow
 				if index == tt.args.index {
@@ -115,13 +115,6 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 }
 
 func TestTableBoard_swipe(t *testing.T) {
-	cellCreator := func(vals ...int64) []Cell {
-		cells := make([]Cell, len(vals))
-		for i, v := range vals {
-			cells[i] = NewCell(v, 0)
-		}
-		return cells
-	}
 	type fields struct {
 		cells   []Cell
 		rows    int
@@ -217,7 +210,7 @@ func TestTableBoard_swipe(t *testing.T) {
 				rows:    tt.tb.rows,
 				columns: tt.tb.columns,
 			}
-			got := tb.swipeDirection(tt.direction)
+			got := tb.SwipeDirectionPreview(tt.direction)
 			if len(got) != len(tb.cells) {
 				t.Errorf("lengths did not match got %d, expected %d", len(got), len(tb.cells))
 			}
@@ -241,13 +234,6 @@ func TestTableBoard_swipe(t *testing.T) {
 }
 
 func TestTableBoard_EvaluatesTo(t *testing.T) {
-	cellCreator := func(vals ...int64) []Cell {
-		cells := make([]Cell, len(vals))
-		for i, v := range vals {
-			cells[i] = NewCell(v, 0)
-		}
-		return cells
-	}
 	type fields struct {
 		cells   []Cell
 		rows    int
@@ -350,7 +336,7 @@ func TestTableBoard_EvaluatesTo(t *testing.T) {
 				rows:    tt.fields.rows,
 				columns: tt.fields.columns,
 			}
-			gotNum, gotMethod, err := tb.EvaluatesTo(tt.args.indexes, tt.args.targetValue)
+			gotNum, gotMethod, err := tb.evaluatesTo(tt.args.indexes, tt.args.targetValue)
 			if err != tt.wantErr {
 				t.Errorf("TableBoard.EvaluatesTo() error = %v, wantErr %v", err, tt.wantErr)
 				return
