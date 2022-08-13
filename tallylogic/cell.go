@@ -9,11 +9,11 @@ import (
 
 type Cell struct {
 	id        string
-	baseValue int
+	baseValue int64
 	power     int
 }
 
-func NewCell(baseValue, power int) Cell {
+func NewCell(baseValue int64, power int) Cell {
 	return Cell{
 		id:        gonanoid.Must(),
 		baseValue: baseValue,
@@ -24,11 +24,11 @@ func (c Cell) Doubled() Cell {
 	return NewCell(c.baseValue, c.power+1)
 }
 
-func (c Cell) Value() int {
+func (c Cell) Value() int64 {
 	if c.power == 0 {
 		return c.baseValue
 	}
-	return c.baseValue * (int(math.Pow(2, float64(c.power))))
+	return c.baseValue * (int64(math.Pow(2, float64(c.power))))
 }
 func (c Cell) String() string {
 	return fmt.Sprintf("%d (%d**(2^%d))", c.Value(), c.baseValue, c.power)

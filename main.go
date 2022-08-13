@@ -20,6 +20,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	cell := tallylogic.NewCell(int(a), int(b))
+	cell := tallylogic.NewCell(a, int(b))
 	fmt.Println(cell)
 }

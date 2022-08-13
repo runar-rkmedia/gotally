@@ -1,6 +1,9 @@
 package tallylogic
 
 import (
+	"errors"
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -37,8 +40,8 @@ func (tb TableBoard) FindCell(c Cell) (int, bool) {
 func (tb TableBoard) String() string {
 	return tb.PrintBoard(nil)
 }
-func (tb TableBoard) highestValue() int {
-	var v int
+func (tb TableBoard) highestValue() int64 {
+	var v int64
 	for i := 0; i < len(tb.cells); i++ {
 		val := tb.cells[i].Value()
 		if val > v {
@@ -77,12 +80,12 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 			padding := strings.Repeat(" ", padLength)
 			valueStr := padding + formatted
 
-			var c Sprinter
+			// var c Sprinter
 			if highlighter != nil {
 				s += highlighter(tb.cells[index], index, valueStr)
 				continue
 			}
-			s += c.Sprintf("[ %s ]", valueStr)
+			s += fmt.Sprintf("[ %s ]", valueStr)
 		}
 	}
 	s += "\n---- End Table -----"
@@ -112,8 +115,144 @@ func (tb TableBoard) coordToIndex(x, y int) (int, bool) {
 		return 0, false
 	}
 
-	return y*tb.columns + x, false
+	return y*tb.columns + x, true
 
+}
+
+type EvalMethod = int
+
+const (
+	EvalMethodNil EvalMethod = iota
+	EvalMethodSum
+	EvalMethodProduct
+)
+
+var (
+	ErrResultInvalidCount  = errors.New("Too few items in the index")
+	ErrResultIndexOverflow = errors.New("Index overflow")
+	ErrResultNoCell        = errors.New("No cell at index")
+	ErrResultOvershot      = errors.New("The path evaluated to a higher value than the targetValue")
+	ErrResultNoMatch       = errors.New("The path evaluated to a higher value than the targetValue")
+)
+
+// Evaluates whether a path of indexes results in the targetValue.
+// This method should ideally be as performant as possible, as it will be run in loops.
+func (tb TableBoard) EvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
+	cellCount := len(tb.cells)
+	if len(indexes) < 2 {
+		return 0, EvalMethodNil, ErrResultInvalidCount
+	}
+	if len(indexes) > cellCount {
+		return 0, EvalMethodNil, ErrResultInvalidCount
+	}
+	// TODO: Check whether the path has duplicates
+	// return 0, EvalResultInvalidNonUnique
+	var sum int64
+	var product int64
+	for _, index := range indexes {
+		if index > cellCount {
+			return 0, EvalMethodNil, ErrResultIndexOverflow
+		}
+		cell := tb.cells[index]
+		if cell.id == "" {
+			return 0, EvalMethodNil, ErrResultIndexOverflow
+		}
+		sum += cell.Value()
+
+		// return early if we have overshow the targetValue
+		if sum > int64(targetValue) && product > targetValue {
+			return 0, EvalMethodNil, ErrResultOvershot
+		}
+	}
+	if sum == targetValue {
+		return sum, EvalMethodSum, nil
+	}
+	if product == targetValue {
+		return product, EvalMethodProduct, nil
+	}
+
+	return 0, EvalMethodNil, ErrResultNoMatch
+}
+
+func (tb TableBoard) getRows() [][]Cell {
+	return tb._getColumnsOrRows(true)
+}
+func (tb TableBoard) getColumns() [][]Cell {
+	return tb._getColumnsOrRows(false)
+}
+func (tb TableBoard) _getColumnsOrRows(rows bool) [][]Cell {
+	var columns = make([][]Cell, tb.rows)
+	for rowIndex := 0; rowIndex < tb.rows; rowIndex++ {
+		columns[rowIndex] = make([]Cell, tb.columns)
+		for colIndex := 0; colIndex < tb.columns; colIndex++ {
+			var index int
+			var ok bool
+			if rows {
+				index, ok = tb.coordToIndex(colIndex, rowIndex)
+			} else {
+				index, ok = tb.coordToIndex(rowIndex, colIndex)
+			}
+			if !ok {
+				panic(fmt.Sprintf("overflow in getRows %d %d", rowIndex, colIndex))
+			}
+			columns[rowIndex][colIndex] = tb.cells[index]
+		}
+	}
+	return columns
+}
+
+type SwipeDirection string
+
+const (
+	SwipeDirectionUp    SwipeDirection = "Up"
+	SwipeDirectionRight                = "Right"
+	SwipeDirectionDown                 = "Down"
+	SwipeDirectionLeft                 = "Left"
+)
+
+func (tb TableBoard) swipeDirection(direction SwipeDirection) []Cell {
+	switch direction {
+	case SwipeDirectionUp:
+		return tb.swipeVertical(false)
+	case SwipeDirectionRight:
+		return tb.swipeHorizontal(true)
+	case SwipeDirectionDown:
+		return tb.swipeVertical(true)
+	case SwipeDirectionLeft:
+		return tb.swipeHorizontal(false)
+	}
+	return tb.cells
+
+}
+func (tb TableBoard) swipeHorizontal(positive bool) []Cell {
+	rows := tb.getRows()
+	var tiles []Cell
+	for _, row := range rows {
+		sort.Slice(row, func(i, j int) bool {
+			if positive {
+				return row[i].Value() == 0
+			}
+			return row[j].Value() == 0
+		})
+		tiles = append(tiles, row...)
+	}
+	return tiles
+}
+func (tb TableBoard) swipeVertical(positive bool) []Cell {
+	columns := tb.getColumns()
+	tiles := make([]Cell, len(tb.cells))
+	for c, column := range columns {
+		sort.Slice(column, func(i, j int) bool {
+			if positive {
+				return column[i].Value() == 0
+			}
+			return column[j].Value() == 0
+		})
+		for i, cell := range column {
+			tiles[i*tb.columns+c] = cell
+		}
+	}
+	return tiles
 }
 
 func (tb TableBoard) neighboursForCellIndex(index int) ([]int, bool) {

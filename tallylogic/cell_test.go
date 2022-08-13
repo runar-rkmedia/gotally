@@ -7,9 +7,9 @@ import (
 
 func TestCell_Value(t *testing.T) {
 	tests := []struct {
-		baseValue int
+		baseValue int64
 		power     int
-		want      int
+		want      int64
 	}{
 		{0, 0, 0},
 		{1, 0, 1},
