@@ -132,14 +132,14 @@ var (
 	ErrResultIndexOverflow = errors.New("Index overflow")
 	ErrResultNoCell        = errors.New("No cell at index")
 	ErrResultOvershot      = errors.New("The path evaluated to a higher value than the targetValue")
-	ErrResultNoMatch       = errors.New("The path evaluated to a higher value than the targetValue")
+	ErrResultNoMatch       = errors.New("The path returned no result")
 )
 
 // Evaluates whether a path of indexes results in the targetValue.
 // This method should ideally be as performant as possible, as it will be run in loops.
 func (tb TableBoard) EvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
 	cellCount := len(tb.cells)
-	if len(indexes) < 2 {
+	if len(indexes) == 0 {
 		return 0, EvalMethodNil, ErrResultInvalidCount
 	}
 	if len(indexes) > cellCount {
@@ -148,7 +148,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, targetValue int64) (int64, EvalM
 	// TODO: Check whether the path has duplicates
 	// return 0, EvalResultInvalidNonUnique
 	var sum int64
-	var product int64
+	var product int64 = 1
 	for _, index := range indexes {
 		if index > cellCount {
 			return 0, EvalMethodNil, ErrResultIndexOverflow
@@ -157,7 +157,9 @@ func (tb TableBoard) EvaluatesTo(indexes []int, targetValue int64) (int64, EvalM
 		if cell.id == "" {
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
-		sum += cell.Value()
+		v := cell.Value()
+		sum += v
+		product *= v
 
 		// return early if we have overshow the targetValue
 		if sum > int64(targetValue) && product > targetValue {

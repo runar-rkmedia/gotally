@@ -239,3 +239,128 @@ func TestTableBoard_swipe(t *testing.T) {
 		})
 	}
 }
+
+func TestTableBoard_EvaluatesTo(t *testing.T) {
+	cellCreator := func(vals ...int64) []Cell {
+		cells := make([]Cell, len(vals))
+		for i, v := range vals {
+			cells[i] = NewCell(v, 0)
+		}
+		return cells
+	}
+	type fields struct {
+		cells   []Cell
+		rows    int
+		columns int
+	}
+	type args struct {
+		indexes     []int
+		targetValue int64
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		args       args
+		wantNum    int64
+		wantMethod EvalMethod
+		wantErr    error
+	}{
+		{
+			"Simple sum check",
+			fields{
+				cellCreator(
+					0, 1, 3, 4,
+					5, 6, 7, 8,
+					8, 9, 10, 11,
+					0, 0, 0, 0,
+				),
+				4, 4,
+			},
+			args{
+				[]int{1, 2, 3},
+				8,
+			},
+			8,
+			EvalMethodSum,
+			nil,
+		},
+		{
+			"Simple product check",
+			fields{
+				cellCreator(
+					0, 1, 3, 4,
+					5, 6, 7, 8,
+					8, 9, 10, 11,
+					0, 0, 0, 0,
+				),
+				4, 4,
+			},
+			args{
+				[]int{1, 2, 3},
+				12,
+			},
+			12,
+			EvalMethodProduct,
+			nil,
+		},
+		{
+			"Simple overshot check",
+			fields{
+				cellCreator(
+					0, 1, 3, 4,
+					5, 6, 7, 8,
+					8, 9, 10, 11,
+					0, 0, 0, 0,
+				),
+				4, 4,
+			},
+			args{
+				[]int{1, 2, 3},
+				-2,
+			},
+			0,
+			EvalMethodNil,
+			ErrResultOvershot,
+		},
+		{
+			"Invalid path check (too few)",
+			fields{
+				cellCreator(
+					0, 1, 3, 4,
+					5, 6, 7, 8,
+					8, 9, 10, 11,
+					0, 0, 0, 0,
+				),
+				4, 4,
+			},
+			args{
+				[]int{},
+				2,
+			},
+			0,
+			EvalMethodNil,
+			ErrResultInvalidCount,
+		},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tb := TableBoard{
+				cells:   tt.fields.cells,
+				rows:    tt.fields.rows,
+				columns: tt.fields.columns,
+			}
+			gotNum, gotMethod, err := tb.EvaluatesTo(tt.args.indexes, tt.args.targetValue)
+			if err != tt.wantErr {
+				t.Errorf("TableBoard.EvaluatesTo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotNum != tt.wantNum {
+				t.Errorf("TableBoard.EvaluatesTo() got = %v, want %v", gotNum, tt.wantNum)
+			}
+			if !reflect.DeepEqual(gotMethod, tt.wantMethod) {
+				t.Errorf("TableBoard.EvaluatesTo() Method: got1 = %v, want %v", gotMethod, tt.wantMethod)
+			}
+		})
+	}
+}
