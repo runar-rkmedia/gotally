@@ -191,7 +191,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 	return nil, 0
 }
 
-func (tb TableBoard) EvaluatesTo(indexes []int) (int64, EvalMethod, error) {
+func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool) (int64, EvalMethod, error) {
 	err, _ := tb.ValidatePath(indexes)
 	if err != nil {
 		return 0, EvalMethodNil, err
@@ -205,7 +205,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int) (int64, EvalMethod, error) {
 	if method == EvalMethodNil {
 		return v, method, err
 	}
-	if v == 0 {
+	if v == 0 || !commitResultToBoard {
 		return v, method, err
 	}
 	tb.GetCellAtIndex(last).Double()
@@ -326,6 +326,9 @@ func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []Cell {
 	}
 	return tb.cells
 
+}
+func (tb *TableBoard) Cells() []Cell {
+	return tb.cells
 }
 func (tb *TableBoard) swipeHorizontal(positive bool) []Cell {
 	rows := tb.getRows()

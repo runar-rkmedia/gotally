@@ -137,7 +137,7 @@ func (g *Game) EvaluateSelection() bool {
 		g.ClearSelection()
 		return false
 	}
-	points, _, err := g.board.EvaluatesTo(g.selectedCells)
+	points, _, err := g.board.EvaluatesTo(g.selectedCells, true)
 	if err != nil {
 		return false
 	}
