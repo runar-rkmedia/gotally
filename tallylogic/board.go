@@ -177,6 +177,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 		return fmt.Errorf("%w with length %d of maximum %d", ErrPathTooLong, nIndexes, nCells), -1
 	}
 	seen := map[int]int{}
+	prevIndex := -1
 	for i, index := range indexes {
 		if duplicate, ok := seen[index]; ok {
 			return fmt.Errorf("%w for index %d at position %d / %d", ErrPathIndexDuplicate, index, duplicate, i), i
@@ -194,7 +195,12 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 		if c.Value() == 0 {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexEmptyCell, index, i), i
 		}
+		if prevIndex >= 0 && !tb.AreNeighboursByIndex(index, prevIndex) {
+			return fmt.Errorf("Not a neighbour %d %d", index, prevIndex), i
+
+		}
 		seen[index] = i
+		prevIndex = index
 	}
 	return nil, 0
 }
@@ -380,7 +386,9 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	ac, ar := tb.indexToCord(a)
 	bc, br := tb.indexToCord(b)
 
-	if (ac-bc)+(ar-br) != 1 {
+	diff := (ac - bc) + (ar - br)
+
+	if diff != 1 && diff != -1 {
 		return false
 	}
 	return true

@@ -39,6 +39,7 @@ const (
 )
 
 func NewGame(mode GameMode) (Game, error) {
+	fmt.Println("creating game", mode)
 	game := Game{
 		// Default rules
 		rules: GameRules{
@@ -52,12 +53,23 @@ func NewGame(mode GameMode) (Game, error) {
 	}
 	switch mode {
 	case GameModeDefault:
+		board := NewTableBoard(5, 5)
+		game.board = &board
+		break
+	case GameModeTemplate:
+		game.board = &FirstDailyBoard
+		game.rules = GameRules{
+			BoardType:       0,
+			GameMode:        GameModeDefault,
+			SizeX:           FirstDailyBoard.columns,
+			SizeY:           FirstDailyBoard.rows,
+			RecreateOnSwipe: false,
+			WithSuperPowers: false,
+		}
 		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
-	board := NewTableBoard(5, 5)
-	game.board = &board
 	for i := 0; i < game.rules.StartingBricks; i++ {
 		game.generateCellToEmptyCell()
 	}
@@ -182,9 +194,9 @@ func (g *Game) ClearSelection() {
 	g.selectedCells = []int{}
 }
 func (g *Game) EvaluateSelection() bool {
+	defer g.ClearSelection()
 	err, _ := g.board.ValidatePath(g.selectedCells)
 	if err != nil {
-		g.ClearSelection()
 		return false
 	}
 	points, _, err := g.board.EvaluatesTo(g.selectedCells, true)
@@ -193,7 +205,6 @@ func (g *Game) EvaluateSelection() bool {
 	}
 	g.increaseScore(points)
 	g.inceaseMoveCount()
-	g.ClearSelection()
 	return true
 }
 
@@ -205,10 +216,25 @@ func (g *Game) ForTemplate() map[string]any {
 	m["cells"] = g.board.Cells()
 	return m
 }
+func (g *Game) IsLastSelection(requested Cell) bool {
+	if len(g.selectedCells) == 0 {
+		return false
+	}
+	cells := g.board.Cells()
+	last := g.selectedCells[len(g.selectedCells)-1]
+	if cells[last].ID == requested.ID {
+		return true
+	}
+
+	return false
+
+}
 func (g *Game) IsSelected(requested Cell) bool {
+	if len(g.selectedCells) == 0 {
+		return false
+	}
 	cells := g.board.Cells()
 	for _, index := range g.selectedCells {
-		fmt.Println("checking if selected", len(cells), requested.ID, index)
 		if cells[index].ID == requested.ID {
 			return true
 		}
