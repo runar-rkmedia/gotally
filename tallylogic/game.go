@@ -16,6 +16,7 @@ type Game struct {
 	rules         GameRules
 	score         int64
 	moves         int
+	Description   string
 }
 
 type GameRules struct {
@@ -55,17 +56,31 @@ func NewGame(mode GameMode) (Game, error) {
 	case GameModeDefault:
 		board := NewTableBoard(5, 5)
 		game.board = &board
+		game.Description = "Default game, 5x5"
 		break
 	case GameModeTemplate:
-		game.board = &FirstDailyBoard
+
+		board := TableBoard{
+			rows:    5,
+			columns: 5,
+			cells: cellCreator(
+				0, 2, 1, 0, 1,
+				64, 4, 4, 1, 2,
+				64, 8, 4, 1, 0,
+				12, 3, 1, 0, 0,
+				16, 0, 0, 0, 0,
+			),
+		}
+		game.board = &board
 		game.rules = GameRules{
 			BoardType:       0,
 			GameMode:        GameModeDefault,
-			SizeX:           FirstDailyBoard.columns,
-			SizeY:           FirstDailyBoard.rows,
+			SizeX:           board.columns,
+			SizeY:           board.rows,
 			RecreateOnSwipe: false,
 			WithSuperPowers: false,
 		}
+		game.Description = "Get to 512 points withing 10 moves"
 		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)

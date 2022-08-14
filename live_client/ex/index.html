@@ -1,16 +1,31 @@
-{{- $g := .Assigns.Game -}}
-{{- $h := .Assigns.Hints -}}
+<!DOCTYPE html>
+<html lang="en">
 
-<h1>TallyBoard</h1>
-<div class="score">
-  Score: {{.Assigns.Game.Score}}
-</div>
-<div class="moves">
-  Moves: {{.Assigns.Game.Moves}}
-</div>
-<div class="board" id="board">
-  {{- range $i, $cell := .Assigns.Game.ForTemplate.cells -}}
-  <div live-hook="clear-anim" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
+<head>
+  <title></title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14141b">
+  <link rel="stylesheet" href="https://unpkg.com/pollen-css@4.3.1" />
+</head>
+
+<body>
+
+
+  {{- $g := .Assigns.Game -}}
+  {{- $h := .Assigns.Hints -}}
+
+  <h1>TallyBoard</h1>
+  <p>Early development-build</p>
+  <div class="score">
+    Score: {{.Assigns.Game.Score}}
+  </div>
+  <div class="moves">
+    Moves: {{.Assigns.Game.Moves}}
+  </div>
+  <div class="board" id="board">
+    {{- range $i, $cell := .Assigns.Game.ForTemplate.cells -}}
+    <div live-hook="clear-anim" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
         {{- if eq $cell.Value 0 }} blank{{ end -}}
         {{- if $g.IsSelected $cell }} selected
           {{- if $g.IsLastSelection $cell }} selectedLast{{ end -}}
@@ -20,310 +35,350 @@
     {{if $g.IsCellIndexPartOfHint $i (index $h 0) }} hinted{{- end -}}
   {{- end -}}
   ">
-    {{- if gt $cell.Value 0 -}}
-    {{$cell.Value}}
-    {{- end -}}
+      {{- if gt $cell.Value 0 -}}
+      {{$cell.Value}}
+      {{- end -}}
+    </div>
+    {{- end }}
   </div>
-  {{- end }}
-</div>
 
-<div>
-  <pre>
-    {{$g.Print}}
-  </pre>
-</div>
+  <p>{{$g.Description}}</p>
 
-<div class="controls">
-  <div>
-    {{- range $i, $hint := .Assigns.Hints -}}
-    <div>{{$i}} - {{$hint.Value}} {{$hint.Path}}</div>
-    {{- end -}}
+  <div class="controls">
+    <div>
+      {{- range $i, $hint := .Assigns.Hints -}}
+      <div>{{$i}} - {{$hint.Value}} {{$hint.Path}}</div>
+      {{- end -}}
+    </div>
+    <div>
+      <button live-click="swipe" live-value-dir="Up">Swipe up</button>
+    </div>
+    <div>
+      <button live-click="swipe" live-value-dir="Left">Swipe left</button>
+      <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
+    </div>
+    <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
   </div>
-  <div>
-    <button live-click="swipe" live-value-dir="Up">Swipe up</button>
+  <game-buttons>
+
+    <button live-click="get-hint" live-key="h">Hint</button>
+    <button live-click="new-game">New Random Game</button>
+    <button live-click="new-game" live-value-mode="1">New Daily Game</button>
+  </game-buttons>
+
+  <hr>
+  <div class="instructions">
+    <h2>Instructions</h2>
+
+    <ol>
+      <li>Select a brick by clicking on it</li>
+      <li>Select the next one from one of the last connected brick's direct neighbour to make a chain</li>
+      <li>Make a chain of bricks that either are the <strong>sum</strong> or <strong>product</strong> of the target
+        brick.</li>
+      <li>You can target a brick after making a chain where that brick is the last selected item, and then clicking it
+        again</li>
+      <li>Swipe in any direction to move the board. Note that is regular game-modes, this also gives you a new random
+        brick</li>
+
+    </ol>
+
   </div>
-  <div>
-    <button live-click="swipe" live-value-dir="Left">Swipe left</button>
-    <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
-  </div>
-  <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
-</div>
-<game-buttons>
 
-  <button live-click="get-hint" live-key="h">Hint</button>
-  <button live-click="new-game">New Random Game</button>
-  <button live-click="new-game" live-value-mode="1">New Daily Game</button>
-</game-buttons>
-<!-- Include to make live work -->
-<script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
-<script type="module">
-  const nRows = 5
-  const nColumns = 5
-  const leftButton = document.querySelector('button[live-value-dir="Left"]')
-  const rightButton = document.querySelector('button[live-value-dir="Right"]')
-  const upButton = document.querySelector('button[live-value-dir="Up"]')
-  const downButton = document.querySelector('button[live-value-dir="Down"]')
-  const hintButton = document.querySelector('button[live-click="get-hint"]')
-  const boardEl = document.getElementById('board')
-  const swipeAnimationTime = 300
-  const state = {
-    didAnimate: false,
-    isAnimating: false,
-  };
-
-
-  const getRows = () => {
-    const cells = [...boardEl.children]
-    const rows = new Array(nRows).fill(null).map((_, i) => cells.slice(i * nRows, i * nRows + nRows))
-    return rows
-  }
-  const getColumns = () => {
-    const cells = [...boardEl.children]
-
-    const columns = new Array(nColumns).fill(null).map(() => ([]))
-    for (let i = 0; i < columns.length; i++) {
-      for (let j = 0; j < columns.length; j++) {
-        columns[i][j] = cells[j * nColumns + i]
-      }
-    }
-    return columns
-  }
-
-  const cellIsEmpty = (cell) => cell.classList.contains('blank')
-
-  var cumulativeOffset = function (element) {
-    var top = 0, left = 0;
-    do {
-      top += element.offsetTop || 0;
-      left += element.offsetLeft || 0;
-      element = element.offsetParent;
-    } while (element);
-
-    return {
-      top: top,
-      left: left
+  <!-- <div> -->
+  <!--   <pre> -->
+  <!--     {{$g.Print}} -->
+  <!--   </pre> -->
+  <!-- </div> -->
+  <!-- Include to make live work -->
+  <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
+  <script type="module">
+    const nRows = 5
+    const nColumns = 5
+    const leftButton = document.querySelector('button[live-value-dir="Left"]')
+    const rightButton = document.querySelector('button[live-value-dir="Right"]')
+    const upButton = document.querySelector('button[live-value-dir="Up"]')
+    const downButton = document.querySelector('button[live-value-dir="Down"]')
+    const hintButton = document.querySelector('button[live-click="get-hint"]')
+    const boardEl = document.getElementById('board')
+    const swipeAnimationTime = 300
+    const state = {
+      didAnimate: false,
+      isAnimating: false,
     };
-  };
 
 
-  const swipe = (positive, vertical) => {
+    const getRows = () => {
+      const cells = [...boardEl.children]
+      const rows = new Array(nRows).fill(null).map((_, i) => cells.slice(i * nRows, i * nRows + nRows))
+      return rows
+    }
+    const getColumns = () => {
+      const cells = [...boardEl.children]
 
-    const rows = vertical ? getColumns() : getRows()
-    console.log('vertical', vertical, rows[0].map(c => c.innerText))
-    let didAnimate = false
-    for (const [r, row] of rows.entries()) {
-      let empties = 0
-      for (let i = positive ? row.length - 1 : 0; positive ? i > -1 : i < row.length; i += positive ? -1 : 1) {
-        const nextIndex = positive ? i + 1 : i - 1
-        const current = row[i]
-
-        if (cellIsEmpty(current)) {
-          empties++
-          continue
+      const columns = new Array(nColumns).fill(null).map(() => ([]))
+      for (let i = 0; i < columns.length; i++) {
+        for (let j = 0; j < columns.length; j++) {
+          columns[i][j] = cells[j * nColumns + i]
         }
-        if (!empties) {
-          continue
-        }
-        const next = row[nextIndex]
-        if (!next) {
-          continue
-        }
-        didAnimate = true
-        state.didAnimate = true
-        state.isAnimating = true
-        const targetIndex = positive ? (i + empties) : (i - empties)
-        const target = row[targetIndex]
+      }
+      return columns
+    }
 
-        const pos = cumulativeOffset(current)
-        const posNext = cumulativeOffset(target)
-        if (vertical) {
-          const diffY = (posNext.top - pos.top)
-          current.style.transform = `translateY(${diffY}px)`;
-        } else {
-          const diffX = (posNext.left - pos.left)
-          current.style.transform = `translateX(${diffX}px)`;
+    const cellIsEmpty = (cell) => cell.classList.contains('blank')
+
+    var cumulativeOffset = function (element) {
+      var top = 0, left = 0;
+      do {
+        top += element.offsetTop || 0;
+        left += element.offsetLeft || 0;
+        element = element.offsetParent;
+      } while (element);
+
+      return {
+        top: top,
+        left: left
+      };
+    };
+
+
+    const swipe = (positive, vertical) => {
+
+      const rows = vertical ? getColumns() : getRows()
+      console.log('vertical', vertical, rows[0].map(c => c.innerText))
+      let didAnimate = false
+      for (const [r, row] of rows.entries()) {
+        let empties = 0
+        for (let i = positive ? row.length - 1 : 0; positive ? i > -1 : i < row.length; i += positive ? -1 : 1) {
+          const nextIndex = positive ? i + 1 : i - 1
+          const current = row[i]
+
+          if (cellIsEmpty(current)) {
+            empties++
+            continue
+          }
+          if (!empties) {
+            continue
+          }
+          const next = row[nextIndex]
+          if (!next) {
+            continue
+          }
+          didAnimate = true
+          state.didAnimate = true
+          state.isAnimating = true
+          const targetIndex = positive ? (i + empties) : (i - empties)
+          const target = row[targetIndex]
+
+          const pos = cumulativeOffset(current)
+          const posNext = cumulativeOffset(target)
+          if (vertical) {
+            const diffY = (posNext.top - pos.top)
+            current.style.transform = `translateY(${diffY}px)`;
+          } else {
+            const diffX = (posNext.left - pos.left)
+            current.style.transform = `translateX(${diffX}px)`;
+          }
+          current.style.transition = `transform ${swipeAnimationTime}ms var(--easing-standard)`
         }
-        current.style.transition = `transform ${swipeAnimationTime}ms ease-out`
+      }
+      return didAnimate
+    }
+
+    const swipeUp = () => {
+      const didAnimate = swipe(false, true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        upButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeDown = () => {
+      const didAnimate = swipe(true, true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        downButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeLeft = () => {
+      const didAnimate = swipe(false)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        leftButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeRight = () => {
+      const didAnimate = swipe(true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        rightButton.click();
+      }, swipeAnimationTime)
+    }
+    window.Hooks = window.Hooks || {}
+    window.Hooks["clear-anim"] = {
+      beforeUpdate: (e) => {
+        if (state.didAnimate) {
+          console.log('Im update', e);
+          [...boardEl.children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
+          state.didAnimate = false
+        }
       }
     }
-    return didAnimate
-  }
 
-  const swipeUp = () => {
-    const didAnimate = swipe(false, true)
-    if (!didAnimate) {
-      return
-    }
-    setTimeout(s => {
-      upButton.click();
-    }, swipeAnimationTime)
-  }
-  const swipeDown = () => {
-    const didAnimate = swipe(true, true)
-    if (!didAnimate) {
-      return
-    }
-    setTimeout(s => {
-      downButton.click();
-    }, swipeAnimationTime)
-  }
-  const swipeLeft = () => {
-    const didAnimate = swipe(false)
-    if (!didAnimate) {
-      return
-    }
-    setTimeout(s => {
-      leftButton.click();
-    }, swipeAnimationTime)
-  }
-  const swipeRight = () => {
-    const didAnimate = swipe(true)
-    if (!didAnimate) {
-      return
-    }
-    setTimeout(s => {
-      rightButton.click();
-    }, swipeAnimationTime)
-  }
-  window.Hooks = window.Hooks || {}
-  window.Hooks["clear-anim"] = {
-    beforeUpdate: (e) => {
-      if (state.didAnimate) {
-        console.log('Im update', e);
-        [...boardEl.children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
-        state.didAnimate = false
+
+    const getHint = () => hintButton.click()
+
+    document.onkeydown = (e) => {
+      switch (e.key) {
+        case "ArrowLeft":
+        case "a":
+          swipeLeft()
+          break
+        case "ArrowRight":
+        case "d":
+          swipeRight()
+          break
+        case "ArrowDown":
+        case "s":
+          swipeDown()
+          break
+        case "ArrowUp":
+        case "w":
+          swipeUp()
+          break
+        case "h":
+          getHint()
+          break
+
+        default:
+          console.log("key", e.key)
+          break
       }
     }
-  }
+
+    const hammerTime = new Hammer(boardEl, {
+      recognizers: [
+        [Hammer.Swipe, {direction: Hammer.DIRECTION_ALL}],
+      ]
+    })
+    hammerTime.on('swipe', (e) => {
+      switch (e.direction) {
+        case Hammer.DIRECTION_UP:
+          swipeUp()
+          break
+        case Hammer.DIRECTION_DOWN:
+          swipeDown()
+          break
+        case Hammer.DIRECTION_LEFT:
+          swipeLeft()
+          break
+        case Hammer.DIRECTION_RIGHT:
+          swipeRight()
+          break
+      }
+    })
 
 
-  const getHint = () => hintButton.click()
+  </script>
 
-  document.onkeydown = (e) => {
-    switch (e.key) {
-      case "ArrowLeft":
-      case "a":
-        swipeLeft()
-        break
-      case "ArrowRight":
-      case "d":
-        swipeRight()
-        break
-      case "ArrowDown":
-      case "s":
-        swipeDown()
-        break
-      case "ArrowUp":
-      case "w":
-        swipeUp()
-        break
-      case "h":
-        getHint()
-        break
-
-      default:
-        console.log("key", e.key)
-        break
+  <style>
+    .board {
+      margin-inline: -4px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      width: calc(100% + 8px);
+      grid-template-rows: repeat(5, 1fr);
+      height: 100%;
+      min-height: 30vw;
+      max-height: 100vw;
+      border: 2px solid var(--color-blue-700);
+      border-radius: var(--radius-lg);
     }
-  }
 
-  const hammerTime = new Hammer(boardEl, {
-    recognizers: [
-      [Hammer.Swipe, {direction: Hammer.DIRECTION_ALL}],
-    ]
-  })
-  hammerTime.on('swipe', (e) => {
-    switch (e.direction) {
-      case Hammer.DIRECTION_UP:
-        swipeUp()
-        break
-      case Hammer.DIRECTION_DOWN:
-        swipeDown()
-        break
-      case Hammer.DIRECTION_LEFT:
-        swipeLeft()
-        break
-      case Hammer.DIRECTION_RIGHT:
-        swipeRight()
-        break
+    .cell {
+      user-select: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 2px solid var(--border-blue-700);
+      margin: 2px;
+      border-radius: 8px;
+      background-color: var(--color-blue-700);
+      font-size: 2rem;
+      position: relative;
+      box-shadow: var(--elevation-4);
     }
-  })
 
+    .cell::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url(https://images.freecreatives.com/wp-content/uploads/2016/02/Sky-Blue-Textured-Background-For-Free.jpg);
+      background-size: cover;
+      opacity: 0.4;
+      z-index: 1;
+    }
 
-</script>
+    .cell.blank {
+      opacity: 0;
+    }
 
-<style>
-  .board {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    width: 100%;
-    grid-template-rows: repeat(5, 1fr);
-    height: 100%;
-    min-height: 30vw;
-    max-height: 100vw;
-    border: 2px solid var(--color-blue-700);
-    border-radius: var(--radius-lg);
-  }
+    .cell.hinted:not(.selected) {
+      background-color: var(--color-blue-500);
+      outline-color: var(--color-purple-700);
+      outline-width: 5px;
+      outline-style: dotted;
+    }
 
-  .cell {
-    user-select: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border: 2px solid var(--border-blue-700);
-    margin: 2px;
-    border-radius: 8px;
-    background-color: var(--color-blue-700);
-    font-size: 3rem;
-  }
+    .cell.selected {
+      background-color: var(--color-green);
+      color: var(--color-black)
+    }
 
-  .cell.blank {
-    opacity: 0;
-  }
+    .cell.selectedLast {
+      background-color: var(--color-green-300);
+      color: var(--color-black)
+    }
 
-  .cell.hinted:not(.selected) {
-    background-color: var(--color-blue-500);
-    border-color: var(--color-green-700);
-    border-width: 5;
-    border-style: dotted;
-  }
+    body {
+      background-color: var(--color-black);
+      color: var(--color-grey-50);
+    }
 
-  .cell.selected {
-    background-color: var(--color-green);
-    color: var(--color-black)
-  }
+    .controls {
+      display: none;
+    }
 
-  .cell.selectedLast {
-    background-color: var(--color-green-300);
-    color: var(--color-black)
-  }
+    game-buttons {
+      display: flex;
 
-  body {
-    background-color: var(--color-black);
-    color: var(--color-grey-50);
-  }
+    }
 
-  .controls {
-    display: none;
-  }
+    game-buttons button {
+      display: block;
+      flex-grow: 1;
+      background-color: var(--color-purple-700);
+      color: var(--color-gey-50);
 
-  game-buttons {
-    display: flex;
+      font-size: 1.5rem;
+      padding: var(--size-3);
+    }
 
-  }
+    html {
+      font-size: 16;
+      font-family: var(--font-sans);
+    }
+  </style>
+  <script src="/live.js"></script>
+</body>
 
-  game-buttons button {
-    display: block;
-    flex-grow: 1;
-    background-color: var(--color-orange);
-    font-size: 1.5rem;
-    padding: var(--size-3);
-  }
-
-  html {
-    font-size: 16;
-    font-family: var(--font-sans);
-  }
-</style>
-<script src="/live.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/pollen-css" />
+</html>
