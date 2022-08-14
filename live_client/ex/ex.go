@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/jfyne/live"
@@ -156,7 +157,10 @@ func Example() {
 
 	// This serves the JS needed to make live work.
 	http.Handle("/live.js", live.Javascript{})
-
-	fmt.Println("starting...")
-	http.ListenAndServe(":8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Printf("starting... on port %s\n", port)
+	http.ListenAndServe(":"+port, nil)
 }
