@@ -50,9 +50,9 @@ func getSesssionId(s live.Socket) string {
 	return ""
 }
 
-func NewGameModel() *GameModel {
+func NewGameModel(mode tally.GameMode) *GameModel {
 	m := GameModel{}
-	game, err := tally.NewGame(tally.GameModeDefault)
+	game, err := tally.NewGame(mode)
 	if err != nil {
 		panic("Starting game failed")
 	}
@@ -61,18 +61,16 @@ func NewGameModel() *GameModel {
 
 }
 
-// Helper function to get the model from the socket data.
 func NewThermoModel(s live.Socket) *GameModel {
 	m, ok := s.Assigns().(*GameModel)
-	// cookieStore.
-	// If we haven't already initialised set up.
 	if !ok {
 		sessionID := getSesssionId(s)
 		ex := cache.GetGame(sessionID)
 		if ex != nil {
 			return ex
 		}
-		m = NewGameModel()
+		var mode tally.GameMode
+		m = NewGameModel(mode)
 		cache.SetGame(sessionID, m)
 
 	}
@@ -109,7 +107,7 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 	return model, nil
 }
 func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
-	model := NewGameModel()
+	model := NewGameModel(tally.GameMode(p.Int("mode")))
 	sess := getSesssionId(s)
 	cache.SetGame(sess, model)
 	return model, nil
