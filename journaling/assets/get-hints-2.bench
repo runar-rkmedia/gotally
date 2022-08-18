@@ -1,0 +1,8 @@
+goos: linux
+goarch: amd64
+pkg: github.com/runar-rkmedia/gotally/tallylogic
+cpu: 12th Gen Intel(R) Core(TM) i9-12900H
+BenchmarkGetHints5x5ofOnes-20    	       2	 790660950 ns/op	1855460728 B/op	17860677 allocs/op
+BenchmarkGetHints3x3ofOnes-20    	    8562	    139177 ns/op	  138359 B/op	    3270 allocs/op
+PASS
+ok  	github.com/runar-rkmedia/gotally/tallylogic	3.586s

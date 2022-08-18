@@ -16,14 +16,30 @@ func (g *hintCalculator) GetHints() map[string]Hint {
 	for i, v := range g.Cells() {
 		valueForIndexMap[i] = v.Value()
 	}
+	length := len(valueForIndexMap)
+	ch := make(chan Hint, length)
+	doneCh := make(chan struct{}, length)
+	done := 0
 	for i := 0; i < len(valueForIndexMap); i++ {
-		h := g.getHints(valueForIndexMap, []int{i})
-		for _, v := range h {
-			hints[v.pathHash] = v
-
+		go func(i int) {
+			h := g.getHints(valueForIndexMap, []int{i})
+			for _, v := range h {
+				ch <- v
+			}
+			doneCh <- struct{}{}
+		}(i)
+	}
+	for {
+		select {
+		case <-doneCh:
+			done++
+			if done == length {
+				return hints
+			}
+		case h := <-ch:
+			hints[h.pathHash] = h
 		}
 	}
-	return hints
 }
 
 type Hint struct {
