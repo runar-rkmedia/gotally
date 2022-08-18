@@ -205,10 +205,12 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 	return nil, 0
 }
 
-func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool) (int64, EvalMethod, error) {
-	err, _ := tb.ValidatePath(indexes)
-	if err != nil {
-		return 0, EvalMethodNil, err
+func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error) {
+	if !noValidate {
+		err, _ := tb.ValidatePath(indexes)
+		if err != nil {
+			return 0, EvalMethodNil, err
+		}
 	}
 	last := indexes[len(indexes)-1]
 	rest := indexes[0 : len(indexes)-1]

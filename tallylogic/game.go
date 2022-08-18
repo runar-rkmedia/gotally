@@ -221,7 +221,7 @@ func (g *Game) EvaluateSelection() bool {
 	if err != nil {
 		return false
 	}
-	points, _, err := g.board.EvaluatesTo(g.selectedCells, true)
+	points, _, err := g.board.EvaluatesTo(g.selectedCells, true, false)
 	if err != nil {
 		return false
 	}
@@ -292,6 +292,6 @@ func (g Game) Cells() []Cell {
 func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {
 	return g.board.NeighboursForCellIndex(index)
 }
-func (g Game) EvaluatesTo(indexes []int, commit bool) (int64, EvalMethod, error) {
-	return g.board.EvaluatesTo(indexes, commit)
+func (g Game) EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error) {
+	return g.board.EvaluatesTo(indexes, commit, noValidate)
 }

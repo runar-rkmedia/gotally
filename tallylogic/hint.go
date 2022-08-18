@@ -17,15 +17,12 @@ func (g *hintCalculator) GetHints() map[string]Hint {
 		valueForIndexMap[i] = v.Value()
 	}
 	length := len(valueForIndexMap)
-	ch := make(chan Hint, length)
+	ch := make(chan Hint)
 	doneCh := make(chan struct{}, length)
 	done := 0
 	for i := 0; i < len(valueForIndexMap); i++ {
 		go func(i int) {
-			h := g.getHints(valueForIndexMap, []int{i})
-			for _, v := range h {
-				ch <- v
-			}
+			g.getHints(ch, valueForIndexMap, []int{i})
 			doneCh <- struct{}{}
 		}(i)
 	}
@@ -56,7 +53,7 @@ type NeighbourRetriever interface {
 	NeighboursForCellIndex(index int) ([]int, bool)
 }
 type Evaluator interface {
-	EvaluatesTo(indexes []int, commit bool) (int64, EvalMethod, error)
+	EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error)
 }
 
 type hintCalculator struct {
@@ -69,15 +66,13 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 	return hintCalculator{c, n, e}
 }
 
-func (g *hintCalculator) getHints(valueForIndexMap map[int]int64, path []int) []Hint {
-	var hints []Hint
+func (g *hintCalculator) getHints(ch chan Hint, valueForIndexMap map[int]int64, path []int) {
 	neightbours, ok := g.NeighboursForCellIndex(path[0])
 	if !ok {
-		return hints
+		return
 	}
 outer:
 	for _, neightbourIndex := range neightbours {
-		// debug = debug && (neightbourIndex == 22 || neightbourIndex == 21 || neightbourIndex == 20)
 		// Remove already visited
 		for _, p := range path {
 			if p == neightbourIndex {
@@ -86,9 +81,7 @@ outer:
 		}
 		var newPath = []int{neightbourIndex}
 		newPath = append(newPath, path...)
-		// var newPath = path
-		// newPath := append(path, neightbourIndex)
-		value, method, err := g.EvaluatesTo(newPath, false)
+		value, method, err := g.EvaluatesTo(newPath, false, true)
 		if errors.Is(err, ErrResultNoCell) {
 			continue
 		}
@@ -99,19 +92,14 @@ outer:
 			continue
 		}
 		if value > 0 {
-			hints = append(hints, NewHint(
+			ch <- NewHint(
 				value*2,
 				method,
 				newPath,
-			))
+			)
 		}
-		moreHints := g.getHints(valueForIndexMap, newPath)
-		if len(moreHints) > 0 {
-			hints = append(hints, moreHints...)
-		}
+		g.getHints(ch, valueForIndexMap, newPath)
 	}
-
-	return hints
 }
 
 func NewHint(value int64, method EvalMethod, path []int) Hint {

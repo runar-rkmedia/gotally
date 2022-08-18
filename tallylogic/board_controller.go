@@ -11,7 +11,7 @@ type BoardController interface {
 	ValidCellIndex(index int) bool
 	CoordToIndex(x, y int) (int, bool)
 	ValidatePath(indexes []int) (err error, invalidIndex int)
-	EvaluatesTo(indexes []int, commitResultToBoard bool) (int64, EvalMethod, error)
+	EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error)
 	SwipeDirection(direction SwipeDirection) bool
 	SwipeDirectionPreview(direction SwipeDirection) []Cell
 	Cells() []Cell

@@ -1,6 +1,4 @@
-# Journal
-
-## Tinkering with [golive](https://github.com/jfyne/live)
+# Tinkering with [golive](https://github.com/jfyne/live)
 
 For a while now, I've been working a bit with off-mainstream techniques to
 common web-problems. The goal has been to gain a bit more experience with other
@@ -25,7 +23,7 @@ It also lets me prototype fairly quickly.
 
 I must confess though, that this will most likely not be the final product.
 
-## Initial experience
+# Initial experience
 
 Golive seems like a great kind of technology, although the project is not at
 all ready for larger projects.
@@ -42,7 +40,12 @@ and all the complexities that involves.
 The basic game was rendered and working nicely within half an hour, although
 without animations and only the bare minimum of styling.
 
-## Problems
+![Early version of the game](./images/cleary_more_hints.png)
+
+I added some sliding-animations, and for now, I am done. It works great for
+prototyping, but for production a better solution is needed.
+
+# Problems
 
 Payloads which rerender often can accumulate to a larger binary-size than using
 a regular SPA with an api for serving data, since 
@@ -50,4 +53,9 @@ golive sends the updated html, even though it only sends the parts that are chan
 
 Adding client-side logic can be a bit weird without hooking into their
 npm-package and creating a js-build-step. For this project, I wanted to add
-some animations
+some animations.
+
+
+
+
+
