@@ -17,24 +17,33 @@ func NewDailyBoard() *TableBoard {
 	}
 }
 
+func GetGameTemplateById(ID string) *GameTemplate {
+	for _, g := range ChallengeGames {
+		if g.ID == ID {
+			return &g
+		}
+	}
+	return nil
+}
+
 var (
 	ChallengeGames []GameTemplate = []GameTemplate{
 
-		*NewGameTemplate("Sum & Product", "Get a brick to 36. Bricks can be added, or multiplied together. Try combining 5,4 into 9. What can you do with that 3 and 6?", 3, 3).
+		*NewGameTemplate("Sum&Product", "Sum & Product", "Get a brick to 36. Bricks can be added, or multiplied together. Try combining 5,4 into 9. What can you do with that 3 and 6?", 3, 3).
 			SetStartingLayout(
 				0, 0, 5,
 				0, 0, 4,
 				3, 6, 9,
 			).
 			SetGoalCheckerLargestValue(36).SetMaxMoves(8),
-		*NewGameTemplate("Times One", "Get a brick to 1000. Learning the usefulness of 1 times X", 3, 3).
+		*NewGameTemplate("TimesOne", "Times One", "Get a brick to 1000. Learning the usefulness of 1 times X", 3, 3).
 			SetStartingLayout(
 				500, 1, 0,
 				1, 0, 100,
 				0, 0, 5,
 			).
 			SetGoalCheckerLargestValue(1000).SetMaxMoves(5),
-		*NewGameTemplate("All Lined Up", "Get a brick to 512. Can you combine them all into one?", 4, 4).
+		*NewGameTemplate("AllLinedUp", "All Lined Up", "Get a brick to 512. Can you combine them all into one?", 4, 4).
 			SetStartingLayout(
 				4, 1, 1, 4,
 				2, 16, 8, 4,
@@ -43,7 +52,7 @@ var (
 			).
 			SetGoalCheckerLargestValue(512).SetMaxMoves(7),
 
-		*NewGameTemplate("Challenge: Not the obvious path", "Get a brick to 512. Multiplication is your friend.", 5, 5).
+		*NewGameTemplate("Ch:NotTheObviousPath", "Challenge: Not the obvious path", "Get a brick to 512. Multiplication is your friend.", 5, 5).
 			SetStartingLayout(
 				0, 2, 1, 0, 1,
 				64, 4, 4, 1, 2,
@@ -95,12 +104,12 @@ func (g GoalCheckerMaxMoves) Check(game Game) bool {
 }
 
 type GameTemplate struct {
-	Name, Description string
-	Rows, Columns     int
-	Rules             GameRules
-	Board             TableBoard
-	GoalChecker       GoalChecker
-	DefeatChecker     GoalChecker
+	ID, Name, Description string
+	Rows, Columns         int
+	Rules                 GameRules
+	Board                 TableBoard
+	GoalChecker           GoalChecker
+	DefeatChecker         GoalChecker
 }
 
 func DefaultGameRules(sizeX, sizeY int) GameRules {
@@ -122,8 +131,9 @@ func DefaultChallengeGameRules(sizeX, sizeY int) GameRules {
 	return rules
 }
 
-func NewGameTemplate(name, description string, rows, columns int) *GameTemplate {
+func NewGameTemplate(id, name, description string, rows, columns int) *GameTemplate {
 	return &GameTemplate{
+		ID:          id,
 		Name:        name,
 		Description: description,
 		Board:       NewTableBoard(rows, columns),

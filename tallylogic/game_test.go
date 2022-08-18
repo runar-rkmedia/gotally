@@ -29,8 +29,8 @@ func BoardHightlighter(g *Game) func(Cell, int, string) string {
 	}
 }
 
-func mustCreateNewGame(mode GameMode) Game {
-	game, err := NewGame(mode)
+func mustCreateNewGame(mode GameMode, template *GameTemplate) Game {
+	game, err := NewGame(mode, template)
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func TestGame_Play(t *testing.T) {
 	}{
 		{
 			"Play the first daily board",
-			mustCreateNewGame(GameModeTemplate),
+			mustCreateNewGame(GameModeTemplate, GetGameTemplateById("Ch:NotTheObviousPath")),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					// Combine 4 into 4 (+) resulting in 8
@@ -122,7 +122,7 @@ func TestGame_Play(t *testing.T) {
 				board:         tt.fields.board,
 				selectedCells: tt.fields.selectedCells,
 				cellGenerator: tt.fields.cellGenerator,
-				rules:         tt.fields.rules,
+				Rules:         tt.fields.Rules,
 				score:         tt.fields.score,
 			}
 			tt.play(g, t)

@@ -40,7 +40,6 @@ const (
 )
 
 func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
-	fmt.Println("creating game", mode, template)
 	game := Game{
 		// Default rules
 		Rules: GameRules{

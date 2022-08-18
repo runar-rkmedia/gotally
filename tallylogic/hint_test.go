@@ -27,7 +27,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 				{
 					Value:  6,
 					Method: EvalMethodSum,
-					Path:   []int{2, 5},
+					Path:   []int{5, 2},
 				},
 				{
 					Value:  6,
@@ -49,8 +49,19 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 				rows:    5,
 				columns: 5,
 			},
-			// There may be more hints, but there are at least one.
 			[]Hint{
+				{
+					Value:  36,
+					Method: EvalMethodSum,
+					// The bottom row , 10, 4, 6,
+					Path: []int{19, 18, 13, 12},
+				},
+				{
+					Value:  22,
+					Method: EvalMethodSum,
+					// The bottom row , 10, 4, 6,
+					Path: []int{22, 17, 16},
+				},
 				{
 					Value:  20,
 					Method: EvalMethodSum,
@@ -72,7 +83,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 					t.Logf("hint %d %v", i, v)
 
 				}
-				t.Errorf("hintCalculator.GetHints() = (count %d wanted %d) %v, want %v", len(got), len(tt.want), got, tt.want)
+				t.Errorf("hintCalculator.GetHints() = (count %d wanted %d) \ngot : %#v, \nwant: %#v", len(got), len(tt.want), got, tt.want)
 			}
 		})
 	}

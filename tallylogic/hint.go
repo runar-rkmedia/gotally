@@ -74,20 +74,23 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 
 func (g *hintCalculator) getHints(valueForIndexMap map[int]int64, path []int) []Hint {
 	var hints []Hint
-	neightbours, ok := g.NeighboursForCellIndex(path[len(path)-1])
+	neightbours, ok := g.NeighboursForCellIndex(path[0])
 	if !ok {
 		return hints
 	}
 outer:
 	for _, neightbourIndex := range neightbours {
+		// debug = debug && (neightbourIndex == 22 || neightbourIndex == 21 || neightbourIndex == 20)
 		// Remove already visited
 		for _, p := range path {
 			if p == neightbourIndex {
 				continue outer
 			}
 		}
-		var newPath = path
-		newPath = append(newPath, neightbourIndex)
+		var newPath = []int{neightbourIndex}
+		newPath = append(newPath, path...)
+		// var newPath = path
+		// newPath := append(path, neightbourIndex)
 		value, method, err := g.EvaluatesTo(newPath, false)
 		if errors.Is(err, ErrResultNoCell) {
 			continue
