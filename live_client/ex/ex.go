@@ -16,7 +16,7 @@ import (
 
 // Model of our thermostat.
 type GameModel struct {
-	Hints             []tally.Hint
+	Hints             map[string]tally.Hint
 	HintButtonCounter int
 	tally.Game
 }
@@ -90,7 +90,7 @@ func swipe(ctx context.Context, s live.Socket, p live.Params) (interface{}, erro
 	model := NewThermoModel(s)
 	changed := model.Swipe(tally.SwipeDirection(p.String("dir")))
 	if changed {
-		model.Hints = []tally.Hint{}
+		model.Hints = map[string]tally.Hint{}
 	}
 	return model, nil
 }
@@ -101,7 +101,7 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 	if len(selection) > 0 && selection[len(selection)-1] == index {
 		ok := model.EvaluateSelection()
 		if ok {
-			model.Hints = []tally.Hint{}
+			model.Hints = map[string]tally.Hint{}
 		}
 	} else {
 		model.SelectCell(index)

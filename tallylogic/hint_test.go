@@ -7,9 +7,10 @@ import (
 
 func Test_hintCalculator_GetHints(t *testing.T) {
 	tests := []struct {
-		name  string
-		board TableBoard
-		want  []Hint
+		name      string
+		board     TableBoard
+		want      []Hint
+		wantCount int
 	}{
 		// TODO: Add test cases.
 		{
@@ -35,6 +36,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 					Path:   []int{3, 4, 5},
 				},
 			},
+			2,
 		},
 		{
 			"Test for bigger board",
@@ -69,6 +71,24 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 					Path: []int{22, 21, 20},
 				},
 			},
+			3,
+		},
+		{
+			"Test for stupid amount of hints",
+			TableBoard{
+				cells: cellCreator(
+					1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1,
+				),
+				rows:    5,
+				columns: 5,
+			},
+			nil,
+			// This is not verified, but it seems reasonable
+			1626,
 		},
 	}
 	for _, tt := range tests {
@@ -78,44 +98,24 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 				NeighbourRetriever: tt.board,
 				Evaluator:          tt.board,
 			}
-			if got := g.GetHints(); !reflect.DeepEqual(got, tt.want) {
-				for i, v := range got {
-					t.Logf("hint %d %v", i, v)
+			gotHints := g.GetHints()
 
+			if tt.want != nil {
+				wantMap := map[string]Hint{}
+				for _, h := range tt.want {
+					hash := h.Hash()
+					h.pathHash = hash
+					wantMap[h.pathHash] = h
 				}
-				t.Errorf("hintCalculator.GetHints() = (count %d wanted %d) \ngot : %#v, \nwant: %#v", len(got), len(tt.want), got, tt.want)
+				if !reflect.DeepEqual(gotHints, wantMap) {
+					// for i, v := range gotHints {
+					// 	// t.Logf("hint %s %v", i, v)
+					// }
+					t.Errorf("hintCalculator.GetHints() = (count %d wanted %d) \ngot : %v, \nwant: %#v", len(gotHints), len(tt.want), gotHints, tt.want)
+				}
 			}
-		})
-	}
-}
-
-func Test_hintCalculator_getHints(t *testing.T) {
-	type fields struct {
-		CellRetriever      CellRetriever
-		NeighbourRetriever NeighbourRetriever
-		Evaluator          Evaluator
-	}
-	type args struct {
-		valueForIndexMap map[int]int64
-		path             []int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   []Hint
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &hintCalculator{
-				CellRetriever:      tt.fields.CellRetriever,
-				NeighbourRetriever: tt.fields.NeighbourRetriever,
-				Evaluator:          tt.fields.Evaluator,
-			}
-			if got := g.getHints(tt.args.valueForIndexMap, tt.args.path); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("hintCalculator.getHints() = %v, want %v", got, tt.want)
+			if tt.wantCount != len(gotHints) {
+				t.Errorf("fail gotCount %d, wantCount %d", len(gotHints), tt.wantCount)
 			}
 		})
 	}

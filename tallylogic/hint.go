@@ -2,54 +2,35 @@ package tallylogic
 
 import (
 	"errors"
-	"fmt"
 	"sort"
+	"strconv"
 )
-
-func copyAndSortSliceToString(slice []int) string {
-	var hi []int
-	hi = append(hi, slice...)
-	sort.Ints(hi)
-	return fmt.Sprintf("%v", hi)
-}
 
 func remove(slice []int, s int) []int {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func (g *hintCalculator) GetHints() (hints []Hint) {
+func (g *hintCalculator) GetHints() map[string]Hint {
 	valueForIndexMap := map[int]int64{}
+	hints := map[string]Hint{}
 	for i, v := range g.Cells() {
 		valueForIndexMap[i] = v.Value()
 	}
 	for i := 0; i < len(valueForIndexMap); i++ {
-		hints = append(hints, g.getHints(valueForIndexMap, []int{i})...)
-	}
-
-outer:
-	for i := len(hints) - 1; i >= 0; i-- {
-
-		hintI := copyAndSortSliceToString(hints[i].Path)
-		for j := 0; j < len(hints); j++ {
-			if i == j {
-				continue
-			}
-			if hintI == copyAndSortSliceToString(hints[j].Path) {
-				hints = append(hints[:i], hints[i+1:]...)
-				continue outer
-			}
+		h := g.getHints(valueForIndexMap, []int{i})
+		for _, v := range h {
+			hints[v.pathHash] = v
 
 		}
-
 	}
-	// TODO: remove duplicates (where path is just reversed)
 	return hints
 }
 
 type Hint struct {
-	Value  int64
-	Method EvalMethod
-	Path   []int
+	Value    int64
+	Method   EvalMethod
+	Path     []int
+	pathHash string
 }
 
 type CellRetriever interface {
@@ -102,11 +83,11 @@ outer:
 			continue
 		}
 		if value > 0 {
-			hints = append(hints, Hint{
-				Value:  value * 2,
-				Method: method,
-				Path:   newPath,
-			})
+			hints = append(hints, NewHint(
+				value*2,
+				method,
+				newPath,
+			))
 		}
 		moreHints := g.getHints(valueForIndexMap, newPath)
 		if len(moreHints) > 0 {
@@ -115,4 +96,29 @@ outer:
 	}
 
 	return hints
+}
+
+func NewHint(value int64, method EvalMethod, path []int) Hint {
+	h := Hint{
+		Value:  value,
+		Method: method,
+		Path:   path,
+	}
+	h.pathHash = h.Hash()
+	return h
+}
+
+func (h Hint) Hash() string {
+	if h.pathHash != "" {
+		return h.pathHash
+	}
+	pathSorted := h.Path
+	sort.Ints(pathSorted)
+	for _, v := range pathSorted {
+		h.pathHash += strconv.FormatInt(int64(v), 36) + ";"
+	}
+	return h.pathHash
+}
+func (h Hint) AreEqaul(hint Hint) bool {
+	return h.pathHash == hint.pathHash
 }
