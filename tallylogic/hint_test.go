@@ -120,3 +120,48 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkGetHints5x5ofOnes(b *testing.B) {
+	board := TableBoard{
+		cells: cellCreator(
+			1, 1, 1, 1, 1,
+			1, 1, 1, 1, 1,
+			1, 1, 1, 1, 1,
+			1, 1, 1, 1, 1,
+			1, 1, 1, 1, 1,
+		),
+		rows:    5,
+		columns: 5,
+	}
+	g := &hintCalculator{
+		CellRetriever:      &board,
+		NeighbourRetriever: board,
+		Evaluator:          board,
+	}
+
+	for i := 0; i < b.N; i++ {
+		g.GetHints()
+	}
+
+}
+func BenchmarkGetHints3x3ofOnes(b *testing.B) {
+	board := TableBoard{
+		cells: cellCreator(
+			1, 1, 1,
+			1, 1, 1,
+			1, 1, 1,
+		),
+		rows:    3,
+		columns: 3,
+	}
+	g := &hintCalculator{
+		CellRetriever:      &board,
+		NeighbourRetriever: board,
+		Evaluator:          board,
+	}
+
+	for i := 0; i < b.N; i++ {
+		g.GetHints()
+	}
+
+}
