@@ -16,3 +16,165 @@ func NewDailyBoard() *TableBoard {
 		),
 	}
 }
+
+var (
+	ChallengeGames []GameTemplate = []GameTemplate{
+
+		*NewGameTemplate("Sum & Product", "Get a brick to 36. Bricks can be added, or multiplied together. Try combining 5,4 into 9. What can you do with that 3 and 6?", 3, 3).
+			SetStartingLayout(
+				0, 0, 5,
+				0, 0, 4,
+				3, 6, 9,
+			).
+			SetGoalCheckerLargestValue(36).SetMaxMoves(8),
+		*NewGameTemplate("Times One", "Get a brick to 1000. Learning the usefulness of 1 times X", 3, 3).
+			SetStartingLayout(
+				500, 1, 0,
+				1, 0, 100,
+				0, 0, 5,
+			).
+			SetGoalCheckerLargestValue(1000).SetMaxMoves(5),
+		*NewGameTemplate("All Lined Up", "Get a brick to 512. Can you combine them all into one?", 4, 4).
+			SetStartingLayout(
+				4, 1, 1, 4,
+				2, 16, 8, 4,
+				8, 32, 4, 4,
+				2, 8, 8, 1,
+			).
+			SetGoalCheckerLargestValue(512).SetMaxMoves(7),
+
+		*NewGameTemplate("Challenge: Not the obvious path", "Get a brick to 512. Multiplication is your friend.", 5, 5).
+			SetStartingLayout(
+				0, 2, 1, 0, 1,
+				64, 4, 4, 1, 2,
+				64, 8, 4, 1, 0,
+				12, 3, 1, 0, 0,
+				16, 0, 0, 0, 0,
+			).
+			SetGoalCheckerLargestValue(512).SetMaxMoves(10),
+	}
+)
+
+type GoalChecker interface {
+	Description() string
+	Check(Game) bool
+}
+
+type GoalCheck struct {
+	description string
+}
+
+type GoalCheckLargestCell struct {
+	GoalCheck
+	TargetCellValue int64
+}
+type GoalCheckerMaxMoves struct {
+	GoalCheck
+	MaxMoves int
+}
+
+func (g GoalCheck) Description() string {
+	return g.description
+}
+
+func (g GoalCheck) Check(game Game) bool {
+	return false
+}
+func (g GoalCheckLargestCell) Check(game Game) bool {
+	for _, c := range game.Cells() {
+		value := c.Value()
+		if value >= g.TargetCellValue {
+			return true
+		}
+
+	}
+	return false
+}
+func (g GoalCheckerMaxMoves) Check(game Game) bool {
+	return g.MaxMoves > game.Moves()
+}
+
+type GameTemplate struct {
+	Name, Description string
+	Rows, Columns     int
+	Rules             GameRules
+	Board             TableBoard
+	GoalChecker       GoalChecker
+	DefeatChecker     GoalChecker
+}
+
+func DefaultGameRules(sizeX, sizeY int) GameRules {
+	return GameRules{
+		BoardType:       0,
+		GameMode:        GameModeDefault,
+		SizeX:           sizeX,
+		SizeY:           sizeY,
+		RecreateOnSwipe: true,
+		WithSuperPowers: true,
+		StartingBricks:  6,
+	}
+}
+func DefaultChallengeGameRules(sizeX, sizeY int) GameRules {
+	rules := DefaultGameRules(sizeX, sizeY)
+	rules.StartingBricks = 0
+	rules.RecreateOnSwipe = false
+	rules.GameMode = GameModeDefault
+	return rules
+}
+
+func NewGameTemplate(name, description string, rows, columns int) *GameTemplate {
+	return &GameTemplate{
+		Name:        name,
+		Description: description,
+		Board:       NewTableBoard(rows, columns),
+		Rows:        rows,
+		Columns:     columns,
+		Rules:       DefaultChallengeGameRules(rows, columns),
+	}
+}
+
+func (t *GameTemplate) SetGoalCheckerLargestValue(targetCellValue int64) *GameTemplate {
+	t.GoalChecker = GoalCheckLargestCell{
+		TargetCellValue: targetCellValue,
+	}
+	return t
+
+}
+func (t *GameTemplate) SetMaxMoves(moves int) *GameTemplate {
+	t.GoalChecker = GoalCheckerMaxMoves{
+		MaxMoves: moves,
+	}
+	return t
+
+}
+func (t *GameTemplate) SetStartingLayout(brickValue ...int64) *GameTemplate {
+	t.Board.cells = cellCreator(brickValue...)
+	return t
+}
+func (t *GameTemplate) Create() GameTemplate {
+	g := GameTemplate{
+		Name:        t.Name,
+		Description: t.Description,
+		Rows:        t.Rows,
+		Columns:     t.Columns,
+		Rules: GameRules{
+			BoardType:       t.Rules.BoardType,
+			GameMode:        t.Rules.GameMode,
+			SizeX:           t.Rules.SizeX,
+			SizeY:           t.Rules.SizeY,
+			RecreateOnSwipe: t.Rules.RecreateOnSwipe,
+			WithSuperPowers: t.Rules.WithSuperPowers,
+			StartingBricks:  t.Rules.StartingBricks,
+		},
+		Board: TableBoard{
+			rows:    t.Board.rows,
+			columns: t.Board.columns,
+		},
+		GoalChecker:   t.GoalChecker,
+		DefeatChecker: t.DefeatChecker,
+	}
+
+	g.Board.cells = append(g.Board.cells, t.Board.cells...)
+
+	return g
+}

@@ -13,7 +13,7 @@ type Game struct {
 	board         BoardController
 	selectedCells []int
 	cellGenerator CellGenerator
-	rules         GameRules
+	Rules         GameRules
 	score         int64
 	moves         int
 	Description   string
@@ -39,11 +39,11 @@ const (
 	GameModeTemplate
 )
 
-func NewGame(mode GameMode) (Game, error) {
-	fmt.Println("creating game", mode)
+func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
+	fmt.Println("creating game", mode, template)
 	game := Game{
 		// Default rules
-		rules: GameRules{
+		Rules: GameRules{
 			SizeX:           5,
 			SizeY:           5,
 			RecreateOnSwipe: true,
@@ -59,33 +59,41 @@ func NewGame(mode GameMode) (Game, error) {
 		game.Description = "Default game, 5x5"
 		break
 	case GameModeTemplate:
+		if template != nil {
+			t := template.Create()
+			game.board = &t.Board
+			game.Rules = t.Rules
+			game.Description = t.Description
 
-		board := TableBoard{
-			rows:    5,
-			columns: 5,
-			cells: cellCreator(
-				0, 2, 1, 0, 1,
-				64, 4, 4, 1, 2,
-				64, 8, 4, 1, 0,
-				12, 3, 1, 0, 0,
-				16, 0, 0, 0, 0,
-			),
+		} else {
+
+			board := TableBoard{
+				rows:    5,
+				columns: 5,
+				cells: cellCreator(
+					0, 2, 1, 0, 1,
+					64, 4, 4, 1, 2,
+					64, 8, 4, 1, 0,
+					12, 3, 1, 0, 0,
+					16, 0, 0, 0, 0,
+				),
+			}
+			game.board = &board
+			game.Rules = GameRules{
+				BoardType:       0,
+				GameMode:        GameModeDefault,
+				SizeX:           board.columns,
+				SizeY:           board.rows,
+				RecreateOnSwipe: false,
+				WithSuperPowers: false,
+			}
+			game.Description = "Get to 512 points withing 10 moves"
 		}
-		game.board = &board
-		game.rules = GameRules{
-			BoardType:       0,
-			GameMode:        GameModeDefault,
-			SizeX:           board.columns,
-			SizeY:           board.rows,
-			RecreateOnSwipe: false,
-			WithSuperPowers: false,
-		}
-		game.Description = "Get to 512 points withing 10 moves"
 		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
-	for i := 0; i < game.rules.StartingBricks; i++ {
+	for i := 0; i < game.Rules.StartingBricks; i++ {
 		game.generateCellToEmptyCell()
 	}
 	return game, nil
@@ -131,7 +139,7 @@ func (g *Game) increaseScore(points int64) {
 func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 	changed = g.board.SwipeDirection(direction)
 	g.ClearSelection()
-	if g.rules.RecreateOnSwipe {
+	if g.Rules.RecreateOnSwipe {
 		g.generateCellToEmptyCell()
 	}
 	if changed {

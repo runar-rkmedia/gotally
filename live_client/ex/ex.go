@@ -51,9 +51,9 @@ func getSesssionId(s live.Socket) string {
 	return ""
 }
 
-func NewGameModel(mode tally.GameMode) *GameModel {
+func NewGameModel(mode tally.GameMode, template *tally.GameTemplate) *GameModel {
 	m := GameModel{}
-	game, err := tally.NewGame(mode)
+	game, err := tally.NewGame(mode, template)
 	if err != nil {
 		panic("Starting game failed")
 	}
@@ -70,8 +70,9 @@ func NewThermoModel(s live.Socket) *GameModel {
 		if ex != nil {
 			return ex
 		}
-		var mode tally.GameMode
-		m = NewGameModel(mode)
+		mode := tally.GameModeTemplate
+		m = NewGameModel(mode, &tally.ChallengeGames[0])
+		fmt.Println("creating new game")
 		cache.SetGame(sessionID, m)
 
 	}
@@ -108,7 +109,15 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 	return model, nil
 }
 func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
-	model := NewGameModel(tally.GameMode(p.Int("mode")))
+	mode := tally.GameMode(p.Int("mode"))
+	var template *tally.GameTemplate
+	if mode == tally.GameModeTemplate {
+		i := p.Int("template")
+		template = &tally.ChallengeGames[i]
+	}
+	model := NewGameModel(mode, template)
+	fmt.Println("new-game", mode, template)
+
 	sess := getSesssionId(s)
 	cache.SetGame(sess, model)
 	return model, nil
@@ -138,7 +147,13 @@ func Example() {
 
 	h.HandleRender(func(ctx context.Context, data *live.RenderContext) (io.Reader, error) {
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
+		d := map[string]interface{}{
+			"data":          data,
+			"templateGames": &tally.ChallengeGames,
+		}
+		d["data"] = data
+
+		if err := tmpl.Execute(&buf, d); err != nil {
 			return nil, err
 		}
 		return &buf, nil

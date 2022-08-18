@@ -12,19 +12,26 @@
 <body>
 
 
-  {{- $g := .Assigns.Game -}}
-  {{- $h := .Assigns.Hints -}}
+  {{- $g := .data.Assigns.Game -}}
+  {{- $h := .data.Assigns.Hints -}}
+  {{- $t := .templateGames -}}
 
   <h1>TallyBoard</h1>
   <p>Early development-build</p>
   <div class="score">
-    Score: {{.Assigns.Game.Score}}
+    Score: {{$g.Score}}
   </div>
   <div class="moves">
-    Moves: {{.Assigns.Game.Moves}}
+    Moves: {{$g.Moves}}
   </div>
-  <div class="board" id="board">
-    {{- range $i, $cell := .Assigns.Game.ForTemplate.cells -}}
+  <div>
+    GameSize: {{$g.Rules.SizeX}}x{{$g.Rules.SizeY}}
+  </div>
+  <div class="board" id="board" style="
+    grid-template-columns: repeat({{- $g.Rules.SizeX -}}, 1fr);
+    grid-template-rows: repeat({{- $g.Rules.SizeY -}}, 1fr);
+    ">
+    {{- range $i, $cell := $g.ForTemplate.cells -}}
     <div live-hook="clear-anim" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
         {{- if eq $cell.Value 0 }} blank{{ end -}}
         {{- if $g.IsSelected $cell }} selected
@@ -46,7 +53,7 @@
 
   <div class="controls">
     <div>
-      {{- range $i, $hint := .Assigns.Hints -}}
+      {{- range $i, $hint := $h -}}
       <div>{{$i}} - {{$hint.Value}} {{$hint.Path}}</div>
       {{- end -}}
     </div>
@@ -60,14 +67,28 @@
     <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
   </div>
   <game-buttons>
-
     <button live-click="get-hint" live-key="h">Hint</button>
-    <button live-click="new-game">New Random Game</button>
-    <button live-click="new-game" live-value-mode="1">New Daily Game</button>
+    <button onclick="document.querySelector('.games').style.display = 'block'">New Game</button>
+    <button onclick="document.querySelector('.instructions').style.display = 'block'">Instructions</button>
   </game-buttons>
+  <div class="overlay games" onclick="document.querySelector('.games').style.display = 'none'">
+    <button>Cancel</button>
+    <button live-click="new-game">New Random
+      Game</button>
+    {{- range $i, $tg := $t -}}
+    <button live-click="new-game" live-value-mode="1" live-value-template="{{$i}}">
+      <div class="gameTitle">
+        {{$i}} {{$tg.Name}}
+      </div>
+      <div class="gameDescription">
+        {{$tg.Description}}
+      </div>
+    </button>
+    {{- end -}}
+  </div>
 
   <hr>
-  <div class="instructions">
+  <div class="overlay instructions" onclick="document.querySelector('.instructions').style.display = 'none'">
     <h2>Instructions</h2>
 
     <ol>
@@ -92,8 +113,8 @@
   <!-- Include to make live work -->
   <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
   <script type="module">
-    const nRows = 5
-    const nColumns = 5
+    const nRows = {{$g.Rules.SizeY}}
+    const nColumns = {{$g.Rules.SizeX}}
     const leftButton = document.querySelector('button[live-value-dir="Left"]')
     const rightButton = document.querySelector('button[live-value-dir="Right"]')
     const upButton = document.querySelector('button[live-value-dir="Up"]')
@@ -105,6 +126,12 @@
       didAnimate: false,
       isAnimating: false,
     };
+    [...boardEl.children].forEach((cEl) => {
+      cEl.onclick = (c) => {
+        cEl.classList.add('selected')
+      }
+    })
+
 
 
     const getRows = () => {
@@ -178,7 +205,7 @@
             const diffX = (posNext.left - pos.left)
             current.style.transform = `translateX(${diffX}px)`;
           }
-          current.style.transition = `transform ${swipeAnimationTime}ms var(--easing-standard)`
+          current.style.transition = `all ${swipeAnimationTime}ms var(--easing-standard)`
         }
       }
       return didAnimate
@@ -224,7 +251,6 @@
     window.Hooks["clear-anim"] = {
       beforeUpdate: (e) => {
         if (state.didAnimate) {
-          console.log('Im update', e);
           [...boardEl.children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
           state.didAnimate = false
         }
@@ -288,14 +314,24 @@
   </script>
 
   <style>
+    /* Disables most touch-interactions */
+    * {
+      touch-action: none;
+    }
+
+    /* disable scrolling. I don't really like this at all, but scrolling in a game is not too good. */
+    body {
+      overflow: hidden;
+    }
+
     .board {
       margin-inline: -4px;
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+
       width: calc(100% + 8px);
-      grid-template-rows: repeat(5, 1fr);
+
       height: 100%;
-      min-height: 30vw;
+      min-height: 60vw;
       max-height: 100vw;
       border: 2px solid var(--color-blue-700);
       border-radius: var(--radius-lg);
@@ -360,18 +396,40 @@
 
     game-buttons {
       display: flex;
-
     }
 
+    .games button,
     game-buttons button {
       display: block;
       flex-grow: 1;
-      background-color: var(--color-purple-700);
+      background-color: var(--color-green-700);
       color: var(--color-gey-50);
 
       font-size: 1.5rem;
       padding: var(--size-3);
     }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      min-height: 100%;
+      ;
+      min-width: 100%;
+      ;
+      padding-block: 10%;
+      background-color: #000000;
+      z-index: 9999;
+    }
+
+    .games button {
+      background-color: var(--color-purple-700);
+      width: 100%;
+    }
+
 
     html {
       font-size: 16;
