@@ -1,8 +1,11 @@
 package tallylogic
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/gookit/color"
 )
 
 func Test_hintCalculator_GetHints(t *testing.T) {
@@ -88,7 +91,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 			},
 			nil,
 			// This is not verified, but it seems reasonable
-			1626,
+			15448,
 		},
 	}
 	for _, tt := range tests {
@@ -108,9 +111,17 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 					wantMap[h.pathHash] = h
 				}
 				if !reflect.DeepEqual(gotHints, wantMap) {
-					// for i, v := range gotHints {
-					// 	// t.Logf("hint %s %v", i, v)
-					// }
+					for i, hint := range gotHints {
+						t.Logf("hint %s %d, %s", i, hint.Value, tt.board.PrintBoard(func(c Cell, index int, padded string) string {
+							s := fmt.Sprintf("[ %s ]", padded)
+							for _, v := range hint.Path {
+								if v == index {
+									return color.Red.Sprintf(s)
+								}
+							}
+							return s
+						}))
+					}
 					t.Errorf("hintCalculator.GetHints() = (count %d wanted %d) \ngot : %v, \nwant: %#v", len(gotHints), len(tt.want), gotHints, tt.want)
 				}
 			}

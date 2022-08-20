@@ -395,6 +395,8 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	}
 	return true
 }
+
+// Returns the neighbours for a gives cell. Note that the cells might be empty
 func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	var neighbours []int
 

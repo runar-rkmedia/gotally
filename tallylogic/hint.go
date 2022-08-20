@@ -73,6 +73,10 @@ func (g *hintCalculator) getHints(ch chan Hint, valueForIndexMap map[int]int64, 
 	}
 outer:
 	for _, neightbourIndex := range neightbours {
+		// Remove empty
+		if valueForIndexMap[neightbourIndex] == 0 {
+			continue
+		}
 		// Remove already visited
 		for _, p := range path {
 			if p == neightbourIndex {
