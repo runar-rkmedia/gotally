@@ -40,3 +40,6 @@ func (c Cell) Value() int64 {
 func (c Cell) String() string {
 	return fmt.Sprintf("%d (%d**(2^%d))", c.Value(), c.baseValue, c.power)
 }
+func (c Cell) Hash() string {
+	return fmt.Sprintf("%d*%d", c.baseValue, c.power)
+}

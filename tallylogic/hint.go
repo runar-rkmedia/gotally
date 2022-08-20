@@ -2,8 +2,8 @@ package tallylogic
 
 import (
 	"errors"
-	"sort"
 	"strconv"
+	"strings"
 )
 
 func remove(slice []int, s int) []int {
@@ -11,18 +11,22 @@ func remove(slice []int, s int) []int {
 }
 
 func (g *hintCalculator) GetHints() map[string]Hint {
-	valueForIndexMap := map[int]int64{}
+	cells := g.Cells()
+	length := len(cells)
+	valueForIndex := make([]int64, length)
+	neighboursForIndex := make([][]int, length)
 	hints := map[string]Hint{}
-	for i, v := range g.Cells() {
-		valueForIndexMap[i] = v.Value()
+	for i := 0; i < length; i++ {
+		valueForIndex[i] = cells[i].Value()
+		n, _ := g.NeighboursForCellIndex(i)
+		neighboursForIndex[i] = n
 	}
-	length := len(valueForIndexMap)
 	ch := make(chan Hint)
 	doneCh := make(chan struct{}, length)
 	done := 0
-	for i := 0; i < len(valueForIndexMap); i++ {
+	for i := 0; i < len(valueForIndex); i++ {
 		go func(i int) {
-			g.getHints(ch, valueForIndexMap, []int{i})
+			g.getHints(ch, &valueForIndex, &neighboursForIndex, []int{i})
 			doneCh <- struct{}{}
 		}(i)
 	}
@@ -54,6 +58,7 @@ type NeighbourRetriever interface {
 }
 type Evaluator interface {
 	EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error)
+	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 }
 
 type hintCalculator struct {
@@ -66,15 +71,13 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 	return hintCalculator{c, n, e}
 }
 
-func (g *hintCalculator) getHints(ch chan Hint, valueForIndexMap map[int]int64, path []int) {
-	neightbours, ok := g.NeighboursForCellIndex(path[0])
-	if !ok {
-		return
-	}
+func (g *hintCalculator) getHints(ch chan Hint, valueForIndex *[]int64, neighboursForIndex *[][]int, path []int) {
+	neightbours := (*neighboursForIndex)[path[0]]
+	// fmt.Println("adding", neightbours, path[0], neighboursForIndex, len(*neighboursForIndex))
 outer:
 	for _, neightbourIndex := range neightbours {
 		// Remove empty
-		if valueForIndexMap[neightbourIndex] == 0 {
+		if (*valueForIndex)[neightbourIndex] == 0 {
 			continue
 		}
 		// Remove already visited
@@ -102,7 +105,7 @@ outer:
 				newPath,
 			)
 		}
-		g.getHints(ch, valueForIndexMap, newPath)
+		g.getHints(ch, valueForIndex, neighboursForIndex, newPath)
 	}
 }
 
@@ -116,16 +119,19 @@ func NewHint(value int64, method EvalMethod, path []int) Hint {
 	return h
 }
 
+// Returns a hash used to compare for the path of the hint
+// This is mostly used for hashmaps, comparing etc.
 func (h Hint) Hash() string {
 	if h.pathHash != "" {
 		return h.pathHash
 	}
-	pathSorted := h.Path
-	sort.Ints(pathSorted)
-	for _, v := range pathSorted {
-		h.pathHash += strconv.FormatInt(int64(v), 36) + ";"
+	b := strings.Builder{}
+	for i := 0; i < len(h.Path); i++ {
+		b.WriteString(strconv.FormatInt(int64(h.Path[i]), 36))
+		b.WriteString(";")
 	}
-	return h.pathHash
+	return b.String()
+
 }
 func (h Hint) AreEqaul(hint Hint) bool {
 	return h.pathHash == hint.pathHash

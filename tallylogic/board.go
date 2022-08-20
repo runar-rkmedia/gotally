@@ -29,6 +29,18 @@ func NewTableBoard(columns, rows int) TableBoard {
 	return tb
 }
 
+func (tb *TableBoard) Copy() BoardController {
+	board := TableBoard{
+		cells:   make([]Cell, len(tb.cells)),
+		rows:    tb.rows,
+		columns: tb.columns,
+	}
+	for i, v := range tb.cells {
+		board.cells[i] = NewCell(v.baseValue, v.power)
+	}
+	return &board
+
+}
 func (tb TableBoard) GetCellAtIndex(n int) *Cell {
 	if tb.ValidCellIndex(n) {
 		return &tb.cells[n]
@@ -104,6 +116,16 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 	}
 	s += "\n---- End Table -----"
 	return s
+}
+
+// Uniqely identifies the board by its value. ID's etc are ignored.
+func (tb TableBoard) Hash() string {
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("%dx%d;", tb.columns, tb.rows))
+	for _, v := range tb.cells {
+		builder.WriteString(v.Hash() + ";")
+	}
+	return builder.String()
 }
 
 func (tb TableBoard) cellRow(i int) int {
@@ -206,6 +228,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 }
 
 func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error) {
+	// debug := len(indexes) == 4 && indexes[0] == 0 && indexes[1] == 1 && indexes[2] == 2 && indexes[3] == 5
 	if !noValidate {
 		err, _ := tb.ValidatePath(indexes)
 		if err != nil {
@@ -214,7 +237,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noVali
 	}
 	last := indexes[len(indexes)-1]
 	rest := indexes[0 : len(indexes)-1]
-	v, method, err := tb.evaluatesTo(rest, tb.cells[last].Value())
+	v, method, err := tb.SoftEvaluatesTo(rest, tb.cells[last].Value())
 	if err != nil {
 		return v, method, err
 	}
@@ -233,7 +256,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noVali
 
 // Evaluates whether a path of indexes results in the targetValue.
 // This method should ideally be as performant as possible, as it will be run in loops.
-func (tb TableBoard) evaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
+func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
 	cellCount := len(tb.cells)
 	if len(indexes) == 0 {
 		return 0, EvalMethodNil, ErrResultInvalidCount
@@ -312,9 +335,16 @@ func (tb *TableBoard) SwipeDirection(direction SwipeDirection) bool {
 	newCells := tb.SwipeDirectionPreview(direction)
 	changed := false
 
+	// Find if anything actually changed, ignoring empty cells
 outer:
 	for i := 0; i < len(tb.cells); i++ {
+		if tb.cells[i].Value() == 0 {
+			continue
+		}
 		for j := 0; j < len(newCells); j++ {
+			if tb.cells[j].Value() == 0 {
+				continue
+			}
 			if tb.cells[i].ID != newCells[i].ID {
 				changed = true
 				break outer

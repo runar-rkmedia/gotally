@@ -124,8 +124,7 @@ func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 }
 func getHint(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 	model := NewThermoModel(s)
-	hinter := tally.NewHintCalculator(model.Game, model.Game, model.Game)
-	model.Hints = hinter.GetHints()
+	model.Hints = model.Game.GetHint()
 	model.HintButtonCounter++
 	return model, nil
 }

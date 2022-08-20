@@ -4,6 +4,7 @@ package tallylogic
 
 // BoardController ...
 type BoardController interface {
+	Copy() BoardController
 	GetCellAtIndex(n int) *Cell
 	FindCell(c Cell) (int, bool)
 	String() string
@@ -12,10 +13,12 @@ type BoardController interface {
 	CoordToIndex(x, y int) (int, bool)
 	ValidatePath(indexes []int) (err error, invalidIndex int)
 	EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error)
+	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 	SwipeDirection(direction SwipeDirection) bool
 	SwipeDirectionPreview(direction SwipeDirection) []Cell
 	Cells() []Cell
 	AreNeighboursByIndex(a, b int) bool
 	NeighboursForCellIndex(index int) ([]int, bool)
 	AddCellToBoard(c Cell, index int, overwrite bool) error
+	Hash() string 
 }

@@ -77,6 +77,10 @@ type GoalCheckLargestCell struct {
 	GoalCheck
 	TargetCellValue int64
 }
+
+type DefeatCheckerNoMoreMoves struct {
+	GoalCheck
+}
 type GoalCheckerMaxMoves struct {
 	GoalCheck
 	MaxMoves int
@@ -88,6 +92,36 @@ func (g GoalCheck) Description() string {
 
 func (g GoalCheck) Check(game Game) bool {
 	return false
+}
+func (g DefeatCheckerNoMoreMoves) Check(game Game) bool {
+	hints := game.GetHint()
+	if len(hints) > 0 {
+		return false
+	}
+
+	hash := game.board.Hash()
+
+	// Swipe in all directions and see if we get new hints, or if that results in the same board
+	var copy Game
+	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
+
+		copy = game.Copy()
+		copy.board.SwipeDirection(dir)
+		hints = copy.GetHint()
+		if len(hints) > 0 {
+			return false
+		}
+	}
+
+	// If we have swiped in all directions, not found any hints, and then the board is the same,
+	// the user should be game over.
+	// TODO: Verify that there are no edge-cases here, where a some other combination of swipes would make the game game-over
+	if hash == copy.board.Hash() {
+		return true
+	}
+
+	return false
+
 }
 func (g GoalCheckLargestCell) Check(game Game) bool {
 	for _, c := range game.Cells() {
@@ -151,7 +185,7 @@ func (t *GameTemplate) SetGoalCheckerLargestValue(targetCellValue int64) *GameTe
 
 }
 func (t *GameTemplate) SetMaxMoves(moves int) *GameTemplate {
-	t.GoalChecker = GoalCheckerMaxMoves{
+	t.DefeatChecker = GoalCheckerMaxMoves{
 		MaxMoves: moves,
 	}
 	return t

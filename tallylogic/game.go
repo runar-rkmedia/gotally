@@ -17,6 +17,10 @@ type Game struct {
 	score         int64
 	moves         int
 	Description   string
+	Hinter        hintCalculator
+	GoalChecker   GoalChecker
+	DefeatChecker GoalChecker
+	History       []any
 }
 
 type GameRules struct {
@@ -39,6 +43,26 @@ const (
 	GameModeTemplate
 )
 
+// Copies the game and all values to a new game
+func (g Game) Copy() Game {
+	game := Game{
+		board:         g.board.Copy(),
+		selectedCells: g.selectedCells,
+		cellGenerator: g.cellGenerator,
+		Rules:         g.Rules,
+		score:         g.score,
+		moves:         g.moves,
+		Description:   g.Description,
+		GoalChecker:   g.GoalChecker,
+		DefeatChecker: g.DefeatChecker,
+	}
+	game.Hinter = NewHintCalculator(
+		game.board, game.board, game.board,
+	)
+	game.History = append(game.History, g.History...)
+	return game
+
+}
 func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 	game := Game{
 		// Default rules
@@ -50,12 +74,15 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			StartingBricks:  5,
 		},
 		cellGenerator: NewCellGenerator(),
+		History:       []any{},
 	}
 	switch mode {
 	case GameModeDefault:
 		board := NewTableBoard(5, 5)
 		game.board = &board
 		game.Description = "Default game, 5x5"
+		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+		game.GoalChecker = GoalCheck{"Game runs forever"}
 		break
 	case GameModeTemplate:
 		if template != nil {
@@ -63,6 +90,8 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			game.board = &t.Board
 			game.Rules = t.Rules
 			game.Description = t.Description
+			game.DefeatChecker = t.DefeatChecker
+			game.GoalChecker = t.GoalChecker
 
 		} else {
 
@@ -95,9 +124,13 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 	for i := 0; i < game.Rules.StartingBricks; i++ {
 		game.generateCellToEmptyCell()
 	}
+	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
 	return game, nil
 }
 
+func (g *Game) GetHint() map[string]Hint {
+	return g.Hinter.GetHints()
+}
 func (g *Game) generateCellToEmptyCell() bool {
 	i := g.getRandomEmptyCell()
 	if i == nil {
@@ -143,6 +176,7 @@ func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 	}
 	if changed {
 		g.inceaseMoveCount()
+		g.History = append(g.History, direction)
 	}
 	return changed
 }
@@ -216,17 +250,25 @@ func (g *Game) ClearSelection() {
 	g.selectedCells = []int{}
 }
 func (g *Game) EvaluateSelection() bool {
-	defer g.ClearSelection()
-	err, _ := g.board.ValidatePath(g.selectedCells)
+	ok := g.EvaluateForPath(g.selectedCells)
+	g.ClearSelection()
+	return ok
+}
+func (g *Game) EvaluateForPath(path []int) bool {
+	err, _ := g.board.ValidatePath(path)
 	if err != nil {
+		// fmt.Println("invalid path", path, err, g.board.String())
 		return false
 	}
-	points, _, err := g.board.EvaluatesTo(g.selectedCells, true, false)
+	points, _, err := g.board.EvaluatesTo(path, true, false)
 	if err != nil {
+		fmt.Println("Does not ev", path, err, g.board.String())
 		return false
 	}
+	// fmt.Printf("\nIncreasing score %p", g, g.score)
 	g.increaseScore(points)
 	g.inceaseMoveCount()
+	g.History = append(g.History, path)
 	return true
 }
 
@@ -294,4 +336,14 @@ func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {
 }
 func (g Game) EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error) {
 	return g.board.EvaluatesTo(indexes, commit, noValidate)
+}
+func (g Game) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
+	return g.board.SoftEvaluatesTo(indexes, targetValue)
+}
+
+func (g Game) IsGameWon() bool {
+	return g.GoalChecker.Check(g)
+}
+func (g Game) IsGameOver() bool {
+	return g.DefeatChecker.Check(g)
 }
