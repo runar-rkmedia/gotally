@@ -1,6 +1,7 @@
 package tallylogic
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 )
@@ -41,6 +42,7 @@ type BoardType int
 const (
 	GameModeDefault GameMode = iota
 	GameModeTemplate
+	GameModeRandomChallenge
 )
 
 // Copies the game and all values to a new game
@@ -84,7 +86,7 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
 		game.GoalChecker = GoalCheck{"Game runs forever"}
 		break
-	case GameModeTemplate:
+	case GameModeTemplate, GameModeRandomChallenge:
 		if template != nil {
 			t := template.Create()
 			game.board = &t.Board
@@ -121,8 +123,10 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
-	for i := 0; i < game.Rules.StartingBricks; i++ {
-		game.generateCellToEmptyCell()
+	if len(game.Cells()) == 0 {
+		for i := 0; i < game.Rules.StartingBricks; i++ {
+			game.generateCellToEmptyCell()
+		}
 	}
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
 	return game, nil
@@ -257,15 +261,12 @@ func (g *Game) EvaluateSelection() bool {
 func (g *Game) EvaluateForPath(path []int) bool {
 	err, _ := g.board.ValidatePath(path)
 	if err != nil {
-		// fmt.Println("invalid path", path, err, g.board.String())
 		return false
 	}
 	points, _, err := g.board.EvaluatesTo(path, true, false)
 	if err != nil {
-		fmt.Println("Does not ev", path, err, g.board.String())
 		return false
 	}
-	// fmt.Printf("\nIncreasing score %p", g, g.score)
 	g.increaseScore(points)
 	g.inceaseMoveCount()
 	g.History = append(g.History, path)
@@ -307,6 +308,17 @@ func (g *Game) IsSelected(requested Cell) bool {
 	return false
 }
 
+func (g *Game) IsCellIndexPartOfFirstHint(index int, hints map[string]Hint) bool {
+	if hints == nil {
+		return false
+	}
+	for _, h := range hints {
+
+		return g.IsCellIndexPartOfHint(index, h)
+
+	}
+	return false
+}
 func (g *Game) IsCellIndexPartOfHint(index int, hint Hint) bool {
 	if len(hint.Path) == 0 {
 		return false
@@ -346,4 +358,8 @@ func (g Game) IsGameWon() bool {
 }
 func (g Game) IsGameOver() bool {
 	return g.DefeatChecker.Check(g)
+}
+func (g Game) Hash() string {
+	b := []byte(g.board.Hash())
+	return base64.URLEncoding.EncodeToString(b)
 }

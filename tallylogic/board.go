@@ -378,15 +378,17 @@ func (tb *TableBoard) Cells() []Cell {
 }
 func (tb *TableBoard) swipeHorizontal(positive bool) []Cell {
 	rows := tb.getRows()
-	var tiles []Cell
-	for _, row := range rows {
+	tiles := make([]Cell, len(tb.cells))
+	for r, row := range rows {
 		sort.Slice(row, func(i, j int) bool {
 			if positive {
 				return row[i].Value() == 0
 			}
 			return row[j].Value() == 0
 		})
-		tiles = append(tiles, row...)
+		for i, cell := range row {
+			tiles[i+tb.rows*r] = cell
+		}
 	}
 	return tiles
 }

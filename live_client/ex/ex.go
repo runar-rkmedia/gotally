@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"sync"
 
 	"github.com/jfyne/live"
+	"github.com/pelletier/go-toml/v2"
+	"github.com/runar-rkmedia/gotally/generated"
 	tally "github.com/runar-rkmedia/gotally/tallylogic"
 )
 
@@ -55,7 +59,7 @@ func NewGameModel(mode tally.GameMode, template *tally.GameTemplate) *GameModel 
 	m := GameModel{}
 	game, err := tally.NewGame(mode, template)
 	if err != nil {
-		panic("Starting game failed")
+		panic("Starting game failed: " + err.Error())
 	}
 	m.Game = game
 	return &m
@@ -71,10 +75,14 @@ func NewThermoModel(s live.Socket) *GameModel {
 			return ex
 		}
 		mode := tally.GameModeTemplate
-		m = NewGameModel(mode, &tally.ChallengeGames[0])
-		fmt.Println("creating new game")
+		if len(generatedTemplates) > 0 {
+			mode := tally.GameModeRandomChallenge
+			i := tally.NewRandomizer().Intn(len(generatedTemplates))
+			m = NewGameModel(mode, &generatedTemplates[i])
+		} else {
+			m = NewGameModel(mode, &tally.ChallengeGames[0])
+		}
 		cache.SetGame(sessionID, m)
-
 	}
 	return m
 }
@@ -111,12 +119,19 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 	mode := tally.GameMode(p.Int("mode"))
 	var template *tally.GameTemplate
+	if mode == tally.GameModeRandomChallenge {
+		if len(generatedTemplates) == 0 {
+			// panic("no games")
+			return nil, fmt.Errorf("could not find any generated games")
+		}
+		i := tally.NewRandomizer().Intn(len(generatedTemplates) - 1)
+		template = &generatedTemplates[i]
+	}
 	if mode == tally.GameModeTemplate {
 		i := p.Int("template")
 		template = &tally.ChallengeGames[i]
 	}
 	model := NewGameModel(mode, template)
-	fmt.Println("new-game", mode, template)
 
 	sess := getSesssionId(s)
 	cache.SetGame(sess, model)
@@ -129,9 +144,49 @@ func getHint(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 	return model, nil
 }
 
+var generatedTemplates []tally.GameTemplate
+
+func ReadGeneratedBoardsFromDisk() error {
+	// generatorDir := path.Join("./generated")
+	// generatorDir := generated.GenDir
+	err := fs.WalkDir(generated.GenDir, ".", func(p string, info fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		b, err := fs.ReadFile(generated.GenDir, p)
+		if err != nil {
+			return err
+		}
+		var gen tally.GeneratedGame
+		err = toml.Unmarshal(b, &gen)
+		if err != nil {
+			return err
+		}
+		template := tally.NewGameTemplate(gen.Hash, path.Base(p), "", 4, 4).
+			SetGoalCheckerLargestValue(int64(gen.GeneratorOptions.TargetCellValue)).
+			SetMaxMoves(gen.GeneratorOptions.MaxMoves).
+			SetStartingLayout(gen.Cells...)
+
+		generatedTemplates = append(generatedTemplates, *template)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
 // Example shows a simple temperature control using the
 // "live-click" event.
 func Example() {
+	err := ReadGeneratedBoardsFromDisk()
+	if err != nil {
+		fmt.Println(fmt.Errorf("failed to read generated files: %w", err))
+	}
 
 	// Setup the handler.
 	h := live.NewHandler()

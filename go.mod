@@ -6,6 +6,8 @@ require (
 	github.com/gookit/color v1.5.1
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
+	github.com/pelletier/go-toml/v2 v2.0.3
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 require (

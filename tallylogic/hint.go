@@ -73,7 +73,6 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 
 func (g *hintCalculator) getHints(ch chan Hint, valueForIndex *[]int64, neighboursForIndex *[][]int, path []int) {
 	neightbours := (*neighboursForIndex)[path[0]]
-	// fmt.Println("adding", neightbours, path[0], neighboursForIndex, len(*neighboursForIndex))
 outer:
 	for _, neightbourIndex := range neightbours {
 		// Remove empty

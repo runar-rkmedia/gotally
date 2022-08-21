@@ -39,7 +39,7 @@
         {{- end -}}
 
   {{- if $h -}}
-    {{if $g.IsCellIndexPartOfHint $i (index $h 0) }} hinted{{- end -}}
+    {{if $g.IsCellIndexPartOfFirstHint $i $h }} hinted{{- end -}}
   {{- end -}}
   ">
       {{- if gt $cell.Value 0 -}}
@@ -73,8 +73,8 @@
   </game-buttons>
   <div class="overlay games" onclick="document.querySelector('.games').style.display = 'none'">
     <button>Cancel</button>
-    <button live-click="new-game">New Random
-      Game</button>
+    <button live-click="new-game">New Infinite Game </button>
+    <button live-click="new-game" live-value-mode="2">New Random Challenge</button>
     {{- range $i, $tg := $t -}}
     <button live-click="new-game" live-value-mode="1" live-value-template="{{$i}}">
       <div class="gameTitle">
@@ -105,12 +105,6 @@
 
   </div>
 
-  <!-- <div> -->
-  <!--   <pre> -->
-  <!--     {{$g.Print}} -->
-  <!--   </pre> -->
-  <!-- </div> -->
-  <!-- Include to make live work -->
   <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
   <script type="module">
     const nRows = {{$g.Rules.SizeY}}
@@ -400,12 +394,11 @@
 
     .games button,
     game-buttons button {
-      display: block;
       flex-grow: 1;
       background-color: var(--color-green-700);
       color: var(--color-gey-50);
 
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       padding: var(--size-3);
     }
 

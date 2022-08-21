@@ -9,16 +9,20 @@ type BoardController interface {
 	FindCell(c Cell) (int, bool)
 	String() string
 	PrintBoard(highlighter func(c Cell, index int, padded string) string) string
+	// Uniqely identifies the board by its value. ID's etc are ignored.
+	Hash() string
 	ValidCellIndex(index int) bool
 	CoordToIndex(x, y int) (int, bool)
 	ValidatePath(indexes []int) (err error, invalidIndex int)
 	EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error)
+	// Evaluates whether a path of indexes results in the targetValue.
+	// This method should ideally be as performant as possible, as it will be run in loops.
 	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 	SwipeDirection(direction SwipeDirection) bool
 	SwipeDirectionPreview(direction SwipeDirection) []Cell
 	Cells() []Cell
 	AreNeighboursByIndex(a, b int) bool
+	// Returns the neighbours for a gives cell. Note that the cells might be empty
 	NeighboursForCellIndex(index int) ([]int, bool)
 	AddCellToBoard(c Cell, index int, overwrite bool) error
-	Hash() string 
 }

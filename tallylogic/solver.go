@@ -3,36 +3,50 @@ package tallylogic
 import "fmt"
 
 type bruteSolver struct {
-	hinter    Hinter
-	seen      map[string]struct{}
-	maxDepth  int
-	maxVisits int
+	hinter Hinter
+	SolveOptions
 }
 
 type Hinter interface {
 	GetHints() map[string]Hint
 }
 
-func NewBruteSolver() bruteSolver {
+func NewBruteSolver(options SolveOptions) bruteSolver {
+	if options.MaxDepth == 0 {
+		options.MaxDepth = 1_000
+	}
+	if options.MaxVisits == 0 {
+		options.MaxVisits = 10_000
+	}
 	return bruteSolver{
-		maxDepth:  1000,
-		maxVisits: 10000,
+		SolveOptions: options,
 	}
 }
 
-func (b *bruteSolver) SolveGame(g Game, maxSolutions int) ([]Game, error) {
-	seen := map[string]struct{}{}
-	return b.solveGame(g, []Game{}, maxSolutions, -1, &seen)
+type SolveOptions struct {
+	MaxDepth     int
+	MaxVisits    int
+	MinMoves     int
+	MaxMoves     int
+	MaxSolutions int
 }
-func (b *bruteSolver) solveGame(g Game, solutions []Game, maxSolutions int, depth int, seen *map[string]struct{}) ([]Game, error) {
+
+func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
+	seen := map[string]struct{}{}
+	return b.solveGame(g, []Game{}, -1, &seen)
+}
+func (b *bruteSolver) solveGame(g Game, solutions []Game, depth int, seen *map[string]struct{}) ([]Game, error) {
 	depth++
-	if depth > b.maxDepth {
+	if depth > b.MaxDepth {
 		return solutions, fmt.Errorf("Game-depth overflow %d (seen: %d)", depth, len(*seen))
 	}
-	if len(*seen) > b.maxVisits {
+	if len(*seen) > b.MaxVisits {
 		return solutions, fmt.Errorf("Game-seen overflow")
 	}
-	// fmt.Println("Solving", depth, g.board.String(), len(seen))
+
+	if b.MaxMoves > 0 && b.MaxMoves < g.Moves() {
+		return solutions, fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d", g.Moves(), b.MaxMoves)
+	}
 	hash := g.board.Hash()
 	if _, ok := (*seen)[hash]; ok {
 		return solutions, nil
@@ -42,34 +56,40 @@ func (b *bruteSolver) solveGame(g Game, solutions []Game, maxSolutions int, dept
 	for _, h := range hints {
 		gameCopy := g.Copy()
 		ok := gameCopy.EvaluateForPath(h.Path)
-		// fmt.Printf("Game won %#v, %d (%d)\n\n", gameCopy.GoalChecker, gameCopy.score, g.score)
 		if !ok {
 			return solutions, fmt.Errorf("Failed in game-solving for hint")
 		}
 		if gameCopy.IsGameWon() {
+			// if b.MinMoves > 0 && b.MinMoves > gameCopy.Moves() {
+			// 	return solutions, fmt.Errorf("Game solved in less moves than required: %d moves wanted at least %d", gameCopy.Moves(), b.MinMoves)
+			// }
 			solutions = append(solutions, gameCopy)
-			if maxSolutions > 0 && len(solutions) >= maxSolutions {
+			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
 				return solutions, nil
 			}
 		} else {
-			more, err := b.solveGame(gameCopy, solutions, maxSolutions, depth, seen)
+			more, err := b.solveGame(gameCopy, solutions, depth, seen)
 			if err != nil {
 				return solutions, err
 			}
 			solutions = more
+			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
+				return solutions, nil
+			}
 		}
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
 		gameCopy := g.Copy()
-		// fmt.Println("Swiping", dir, gameCopy.board.String())
 		changed := gameCopy.Swipe(dir)
 		if changed {
-			// fmt.Println("Swiped", dir, gameCopy.History, gameCopy.board.String()) //gameCopy.board.Hash(), seen)
-			more, err := b.solveGame(gameCopy, solutions, maxSolutions, depth, seen)
+			more, err := b.solveGame(gameCopy, solutions, depth, seen)
 			if err != nil {
 				return solutions, err
 			}
 			solutions = more
+			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
+				return solutions, nil
+			}
 		}
 
 	}

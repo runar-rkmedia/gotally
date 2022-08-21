@@ -24,10 +24,10 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := NewBruteSolver()
+			b := NewBruteSolver(SolveOptions{})
 			h := NewHintCalculator(tt.g.board, tt.g.board, tt.g.board)
 			b.hinter = &h
-			solutions, err := b.SolveGame(tt.g, 0)
+			solutions, err := b.SolveGame(tt.g)
 			if err != nil {
 				t.Error(err)
 				return
