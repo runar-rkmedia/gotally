@@ -12,6 +12,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/skiver/utils"
 )
 
 func main() {
@@ -71,14 +72,25 @@ func generateGame() {
 			case sg := <-gameCh:
 				fmt.Println("got a gammmmmmmme", sg.Game.Print())
 				cells := sg.Cells()
+				hashName, _ := utils.GetRandomName()
 				out := tallylogic.GeneratedGame{
 					GeneratorOptions: sg.GeneratorOptions,
+					Solutions:        make([]tallylogic.GeneratedSolution, len(sg.Solutions)),
+					Name:             hashName,
 					Preview:          sg.Print(),
 					Hash:             sg.Hash(),
 					Cells:            make([]int64, len(cells)),
 				}
 				for i, c := range cells {
 					out.Cells[i] = c.Value()
+				}
+				for i, s := range sg.Solutions {
+					out.Solutions[i] = tallylogic.GeneratedSolution{
+						History:          s.History,
+						HighestCellValue: s.HighestCellValue(),
+						Score:            s.Score(),
+						Moves:            s.Moves(),
+					}
 				}
 				buf := bytes.Buffer{}
 				e := toml.NewEncoder(&buf)
@@ -87,7 +99,6 @@ func generateGame() {
 				if err != nil {
 					panic(err)
 				}
-				fmt.Println("buf", buf.String())
 				dir := path.Join(
 					"./",
 					"generated",
@@ -98,7 +109,7 @@ func generateGame() {
 				if err != nil {
 					panic(err)
 				}
-				fp := path.Join(dir, sg.Game.Hash()+".toml")
+				fp := path.Join(dir, hashName+"_"+sg.Game.Hash()+".toml")
 				os.WriteFile(fp, buf.Bytes(), 0755)
 
 			}

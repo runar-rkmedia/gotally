@@ -1,5 +1,7 @@
 package tallylogic
 
+import "fmt"
+
 // These are a collection of constructed gamepositions that are intended to
 // give a challenge
 
@@ -122,6 +124,9 @@ func (g DefeatCheckerNoMoreMoves) Check(game Game) bool {
 
 	return false
 
+}
+func (g GoalCheckLargestCell) Description() string {
+	return fmt.Sprintf("Get a cell to at least a value of %d", g.TargetCellValue)
 }
 func (g GoalCheckLargestCell) Check(game Game) bool {
 	for _, c := range game.Cells() {

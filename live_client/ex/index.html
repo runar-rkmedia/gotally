@@ -17,22 +17,32 @@
   {{- $t := .templateGames -}}
 
   <h1>TallyBoard</h1>
-  <p>Early development-build</p>
+  <p>Early development-build <span id="status"></span> </p>
   <div class="score">
     Score: {{$g.Score}}
   </div>
   <div class="moves">
     Moves: {{$g.Moves}}
   </div>
+  {{- if .data.Assigns.Error}}
+  <div class="error">
+    {{.data.Assigns.Error}}
+  </div>
+  {{- end -}}
   <div>
-    GameSize: {{$g.Rules.SizeX}}x{{$g.Rules.SizeY}}
+    GameSize: <span id="columns" live-hook="cell-update">{{$g.Rules.SizeX}}</span>x<span id="rows"
+      live-hook="cell-update">{{$g.Rules.SizeY}}</span>
+    ({{$g.ForTemplate.cells | len}})
+    <small style="color: var(--color-grey-500); float: right">
+      {{$g.Name}}
+    </small>
   </div>
   <div class="board" id="board" style="
     grid-template-columns: repeat({{- $g.Rules.SizeX -}}, 1fr);
     grid-template-rows: repeat({{- $g.Rules.SizeY -}}, 1fr);
     ">
     {{- range $i, $cell := $g.ForTemplate.cells -}}
-    <div live-hook="clear-anim" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
+    <div live-hook="cell-update" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
         {{- if eq $cell.Value 0 }} blank{{ end -}}
         {{- if $g.IsSelected $cell }} selected
           {{- if $g.IsLastSelection $cell }} selectedLast{{ end -}}
@@ -67,10 +77,12 @@
     <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
   </div>
   <game-buttons>
+    <button live-click="restart" live-key="h">Restart</button>
     <button live-click="get-hint" live-key="h">Hint</button>
     <button onclick="document.querySelector('.games').style.display = 'block'">New Game</button>
     <button onclick="document.querySelector('.instructions').style.display = 'block'">Instructions</button>
   </game-buttons>
+  <button live-click="new-game" live-value-mode="2">New Random Challenge</button>
   <div class="overlay games" onclick="document.querySelector('.games').style.display = 'none'">
     <button>Cancel</button>
     <button live-click="new-game">New Infinite Game </button>
@@ -107,20 +119,23 @@
 
   <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
   <script type="module">
-    const nRows = {{$g.Rules.SizeY}}
-    const nColumns = {{$g.Rules.SizeX}}
+    let nRows = {{$g.Rules.SizeY}}
+    let nColumns = {{$g.Rules.SizeX}}
+    const statusEl = document.querySelector('#status')
     const leftButton = document.querySelector('button[live-value-dir="Left"]')
     const rightButton = document.querySelector('button[live-value-dir="Right"]')
     const upButton = document.querySelector('button[live-value-dir="Up"]')
     const downButton = document.querySelector('button[live-value-dir="Down"]')
     const hintButton = document.querySelector('button[live-click="get-hint"]')
-    const boardEl = document.getElementById('board')
+    const restartButton = document.querySelector('button[live-click="restart"]')
+    const newRandomButton = document.querySelector('button[live-value-mode="2"]')
+    let boardEl = () => document.getElementById('board')
     const swipeAnimationTime = 300
     const state = {
       didAnimate: false,
       isAnimating: false,
     };
-    [...boardEl.children].forEach((cEl) => {
+    [...boardEl().children].forEach((cEl) => {
       cEl.onclick = (c) => {
         cEl.classList.add('selected')
       }
@@ -129,12 +144,12 @@
 
 
     const getRows = () => {
-      const cells = [...boardEl.children]
+      const cells = [...boardEl().children]
       const rows = new Array(nRows).fill(null).map((_, i) => cells.slice(i * nRows, i * nRows + nRows))
       return rows
     }
     const getColumns = () => {
-      const cells = [...boardEl.children]
+      const cells = [...boardEl().children]
 
       const columns = new Array(nColumns).fill(null).map(() => ([]))
       for (let i = 0; i < columns.length; i++) {
@@ -145,9 +160,10 @@
       return columns
     }
 
-    const cellIsEmpty = (cell) => cell.classList.contains('blank')
+    const cellIsEmpty = (cell) => !cell || cell.classList.contains('blank')
 
-    var cumulativeOffset = function (element) {
+    var cumulativeOffset = function (el) {
+      let element = el
       var top = 0, left = 0;
       do {
         top += element.offsetTop || 0;
@@ -165,13 +181,16 @@
     const swipe = (positive, vertical) => {
 
       const rows = vertical ? getColumns() : getRows()
-      console.log('vertical', vertical, rows[0].map(c => c.innerText))
       let didAnimate = false
       for (const [r, row] of rows.entries()) {
         let empties = 0
         for (let i = positive ? row.length - 1 : 0; positive ? i > -1 : i < row.length; i += positive ? -1 : 1) {
           const nextIndex = positive ? i + 1 : i - 1
           const current = row[i]
+          if (!current) {
+            console.warn('cell was undefined', {r, row, i, rows, boardLength: boardEl().children.length, boardChildren: boardEl().children})
+            return false
+          }
 
           if (cellIsEmpty(current)) {
             empties++
@@ -199,7 +218,7 @@
             const diffX = (posNext.left - pos.left)
             current.style.transform = `translateX(${diffX}px)`;
           }
-          current.style.transition = `all ${swipeAnimationTime}ms var(--easing-standard)`
+          current.style.transition = `transform ${swipeAnimationTime}ms var(--easing-standard)`
         }
       }
       return didAnimate
@@ -242,10 +261,25 @@
       }, swipeAnimationTime)
     }
     window.Hooks = window.Hooks || {}
-    window.Hooks["clear-anim"] = {
-      beforeUpdate: (e) => {
+    const formatTime = (d) => Intl.DateTimeFormat(undefined, {hour: 'numeric', minute: 'numeric', second: 'numeric', }).format(d || new Date())
+    window.Hooks["cell-update"] = {
+
+      disconnected: () => {
+        statusEl.innerText = `disconnected ${formatTime()}`
+        statusEl.style.color = 'var(--color-red)'
+      },
+      reconnected: () => {
+        statusEl.innerText = `reconnected ${formatTime()}`
+        statusEl.style.color = 'var(--color-green)'
+      },
+      updated: () => {
+        statusEl.innerText = `updated ${formatTime()}`
+        nColumns = Number(document.getElementById('columns').innerText || nColumns)
+        nRows = Number(document.getElementById('rows').innerText || nRows)
+      },
+      beforeUpdate: () => {
         if (state.didAnimate) {
-          [...boardEl.children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
+          [...boardEl().children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
           state.didAnimate = false
         }
       }
@@ -275,6 +309,12 @@
         case "h":
           getHint()
           break
+        case "c":
+          restartButton.click()
+          break
+        case "n":
+          newRandomButton.click()
+          break
 
         default:
           console.log("key", e.key)
@@ -282,7 +322,7 @@
       }
     }
 
-    const hammerTime = new Hammer(boardEl, {
+    const hammerTime = new Hammer(boardEl(), {
       recognizers: [
         [Hammer.Swipe, {direction: Hammer.DIRECTION_ALL}],
       ]
@@ -332,6 +372,7 @@
     }
 
     .cell {
+      transition: transform 300ms var(--easing-standard);
       user-select: none;
       display: flex;
       justify-content: center;
@@ -392,6 +433,12 @@
       display: flex;
     }
 
+    button {
+      background-color: var(--color-blue-700);
+      padding: var(--size-2);
+      color: var(--color-grey-50);
+    }
+
     .games button,
     game-buttons button {
       flex-grow: 1;
@@ -400,6 +447,14 @@
 
       font-size: 1.2rem;
       padding: var(--size-3);
+    }
+
+    .error {
+      color: var(--color-red);
+    }
+
+    .success {
+      color: var(--color-green);
     }
 
     .overlay {

@@ -58,7 +58,7 @@ func (tb TableBoard) FindCell(c Cell) (int, bool) {
 func (tb TableBoard) String() string {
 	return tb.PrintBoard(nil)
 }
-func (tb TableBoard) highestValue() int64 {
+func (tb TableBoard) HighestValue() int64 {
 	var v int64
 	for i := 0; i < len(tb.cells); i++ {
 		val := tb.cells[i].Value()
@@ -75,7 +75,7 @@ type Sprinter interface {
 
 func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded string) string) string {
 	withColors := false
-	h := int64(tb.highestValue())
+	h := int64(tb.HighestValue())
 	longest := len(strconv.FormatInt(h, 10))
 	headerPrinter := fmt.Sprintf
 	if withColors {

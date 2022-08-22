@@ -7,7 +7,19 @@ require (
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/pelletier/go-toml/v2 v2.0.3
-	gopkg.in/yaml.v2 v2.2.8
+)
+
+require (
+	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/rs/zerolog v1.26.2-0.20220312163309-e9344a8c507b // indirect
+	github.com/runar-rkmedia/go-common v0.0.5 // indirect
+	github.com/schollz/mnemonicode v1.0.1 // indirect
+	golang.org/x/text v0.3.7 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
@@ -16,9 +28,10 @@ require (
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/rs/xid v1.4.0 // indirect
+	github.com/runar-rkmedia/skiver v0.8.0
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
-	golang.org/x/net v0.0.0-20220325170049-de3da57026de // indirect
-	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect
+	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )

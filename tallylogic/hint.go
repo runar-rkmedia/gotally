@@ -24,7 +24,7 @@ func (g *hintCalculator) GetHints() map[string]Hint {
 	ch := make(chan Hint)
 	doneCh := make(chan struct{}, length)
 	done := 0
-	for i := 0; i < len(valueForIndex); i++ {
+	for i := 0; i < length; i++ {
 		go func(i int) {
 			g.getHints(ch, &valueForIndex, &neighboursForIndex, []int{i})
 			doneCh <- struct{}{}

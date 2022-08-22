@@ -7,10 +7,11 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
-	"path"
 	"sync"
+	"time"
 
 	"github.com/jfyne/live"
 	"github.com/pelletier/go-toml/v2"
@@ -20,10 +21,16 @@ import (
 
 // Model of our thermostat.
 type GameModel struct {
+	Template          *tally.GameTemplate
 	Hints             map[string]tally.Hint
+	Error             string
 	HintButtonCounter int
 	tally.Game
 }
+
+var (
+	startedAt time.Time
+)
 
 type stupidcache struct {
 	games map[string]*GameModel
@@ -57,9 +64,13 @@ func getSesssionId(s live.Socket) string {
 
 func NewGameModel(mode tally.GameMode, template *tally.GameTemplate) *GameModel {
 	m := GameModel{}
+	m.Template = template
 	game, err := tally.NewGame(mode, template)
 	if err != nil {
-		panic("Starting game failed: " + err.Error())
+		log.Printf("creating new game failed: ", err)
+		m.Error = err.Error()
+	} else {
+		m.Error = ""
 	}
 	m.Game = game
 	return &m
@@ -74,6 +85,7 @@ func NewThermoModel(s live.Socket) *GameModel {
 		if ex != nil {
 			return ex
 		}
+		log.Println("no session-id, new game")
 		mode := tally.GameModeTemplate
 		if len(generatedTemplates) > 0 {
 			mode := tally.GameModeRandomChallenge
@@ -114,6 +126,16 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 	} else {
 		model.SelectCell(index)
 	}
+	return model, nil
+}
+func restart(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
+	ex := NewThermoModel(s)
+	if ex.Template == nil {
+		return ex, fmt.Errorf("cannot do that")
+	}
+
+	fmt.Println("ex", ex.Rules.GameMode, ex.Template)
+	model := NewGameModel(tally.GameModeRandomChallenge, ex.Template)
 	return model, nil
 }
 func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
@@ -165,7 +187,15 @@ func ReadGeneratedBoardsFromDisk() error {
 		if err != nil {
 			return err
 		}
-		template := tally.NewGameTemplate(gen.Hash, path.Base(p), "", 4, 4).
+		// if gen.GeneratorOptions.Rows != 3 {
+		// 	return nil
+		// }
+		var description string
+		if len(gen.Solutions) > 0 {
+			description = fmt.Sprintf("Get at least one cell to a value of %d. This game can be solved in %d moves, with the highest cell at %d", gen.GeneratorOptions.TargetCellValue, gen.Solutions[0].Moves, gen.Solutions[0].HighestCellValue)
+
+		}
+		template := tally.NewGameTemplate(gen.Hash, gen.Name, description, gen.GeneratorOptions.Columns, gen.GeneratorOptions.Rows).
 			SetGoalCheckerLargestValue(int64(gen.GeneratorOptions.TargetCellValue)).
 			SetMaxMoves(gen.GeneratorOptions.MaxMoves).
 			SetStartingLayout(gen.Cells...)
@@ -183,9 +213,10 @@ func ReadGeneratedBoardsFromDisk() error {
 // Example shows a simple temperature control using the
 // "live-click" event.
 func Example() {
+	startedAt = time.Now()
 	err := ReadGeneratedBoardsFromDisk()
 	if err != nil {
-		fmt.Println(fmt.Errorf("failed to read generated files: %w", err))
+		log.Printf("failed to read generated files: %s", err.Error())
 	}
 
 	// Setup the handler.
@@ -202,10 +233,10 @@ func Example() {
 	h.HandleRender(func(ctx context.Context, data *live.RenderContext) (io.Reader, error) {
 		var buf bytes.Buffer
 		d := map[string]interface{}{
+			"startedAt":     startedAt,
 			"data":          data,
 			"templateGames": &tally.ChallengeGames,
 		}
-		d["data"] = data
 
 		if err := tmpl.Execute(&buf, d); err != nil {
 			return nil, err
@@ -221,6 +252,7 @@ func Example() {
 	h.HandleEvent("new-game", newGame)
 	h.HandleEvent("select-cell", selectCell)
 	h.HandleEvent("get-hint", getHint)
+	h.HandleEvent("restart", restart)
 
 	http.Handle("/", live.NewHttpHandler(cookieStore, h))
 
@@ -230,6 +262,6 @@ func Example() {
 	if port == "" {
 		port = "8080"
 	}
-	fmt.Printf("starting... on port %s\n", port)
+	log.Printf("starting... on port %s\n", port)
 	http.ListenAndServe(":"+port, nil)
 }

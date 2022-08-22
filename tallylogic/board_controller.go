@@ -8,6 +8,7 @@ type BoardController interface {
 	GetCellAtIndex(n int) *Cell
 	FindCell(c Cell) (int, bool)
 	String() string
+	HighestValue() int64
 	PrintBoard(highlighter func(c Cell, index int, padded string) string) string
 	// Uniqely identifies the board by its value. ID's etc are ignored.
 	Hash() string

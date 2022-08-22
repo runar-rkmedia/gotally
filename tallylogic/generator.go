@@ -235,7 +235,16 @@ func (gb GameGenerator) GenerateBoardValues() []Cell {
 
 type GeneratedGame struct {
 	GeneratorOptions GameGeneratorOptions
+	Solutions        []GeneratedSolution
+	Name             string
 	Preview          string `toml:",multiline,literal"`
 	Hash             string
 	Cells            []int64
+}
+
+type GeneratedSolution struct {
+	History          []any
+	HighestCellValue int64
+	Score            int64
+	Moves            int
 }

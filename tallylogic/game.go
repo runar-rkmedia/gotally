@@ -18,6 +18,7 @@ type Game struct {
 	score         int64
 	moves         int
 	Description   string
+	Name          string
 	Hinter        hintCalculator
 	GoalChecker   GoalChecker
 	DefeatChecker GoalChecker
@@ -54,6 +55,7 @@ func (g Game) Copy() Game {
 		Rules:         g.Rules,
 		score:         g.score,
 		moves:         g.moves,
+		Name:          g.Name,
 		Description:   g.Description,
 		GoalChecker:   g.GoalChecker,
 		DefeatChecker: g.DefeatChecker,
@@ -92,8 +94,13 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			game.board = &t.Board
 			game.Rules = t.Rules
 			game.Description = t.Description
+			game.Name = t.Name
 			game.DefeatChecker = t.DefeatChecker
 			game.GoalChecker = t.GoalChecker
+
+			if game.Description == "" {
+				game.Description = game.GoalChecker.Description()
+			}
 
 		} else {
 
@@ -123,12 +130,23 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
-	if len(game.Cells()) == 0 {
+	allEmpty := true
+	for _, c := range game.Cells() {
+		if c.Value() > 0 {
+			allEmpty = false
+			break
+		}
+
+	}
+	if allEmpty || len(game.Cells()) == 0 {
 		for i := 0; i < game.Rules.StartingBricks; i++ {
 			game.generateCellToEmptyCell()
 		}
 	}
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
+	if len(game.board.Cells()) != (game.Rules.SizeX * game.Rules.SizeY) {
+		return game, fmt.Errorf("Game has invalid size: %d cells, %dx%d, mode %v template %v", len(game.board.Cells()), game.Rules.SizeX, game.Rules.SizeY, mode, template)
+	}
 	return game, nil
 }
 
@@ -333,6 +351,9 @@ func (g *Game) IsCellIndexPartOfHint(index int, hint Hint) bool {
 
 func (g Game) Score() int64 {
 	return g.score
+}
+func (g Game) HighestCellValue() int64 {
+	return g.board.HighestValue()
 }
 func (g Game) Moves() int {
 	return g.moves
