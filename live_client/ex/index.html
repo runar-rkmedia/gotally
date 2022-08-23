@@ -4,7 +4,7 @@
 <head>
   <title></title>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="theme-color" content="#14141b">
   <link rel="stylesheet" href="https://unpkg.com/pollen-css@4.3.1" />
 </head>
@@ -15,27 +15,56 @@
   {{- $g := .data.Assigns.Game -}}
   {{- $h := .data.Assigns.Hints -}}
   {{- $t := .templateGames -}}
+  {{- $T := .data.Assigns.Template -}}
+  {{- $SV := .data.Assigns.SelfVotes -}}
+  <small id="userName" style="float: right; color: var(--color-grey-500)">{{.data.Assigns.UserName}}</small>
 
-  <h1>TallyBoard</h1>
-  <p>Early development-build <span id="status"></span> </p>
-  <div class="score">
-    Score: {{$g.Score}}
-  </div>
-  <div class="moves">
-    Moves: {{$g.Moves}}
-  </div>
-  {{- if .data.Assigns.Error}}
-  <div class="error">
-    {{.data.Assigns.Error}}
-  </div>
-  {{- end -}}
-  <div>
-    GameSize: <span id="columns" live-hook="cell-update">{{$g.Rules.SizeX}}</span>x<span id="rows"
-      live-hook="cell-update">{{$g.Rules.SizeY}}</span>
-    ({{$g.ForTemplate.cells | len}})
-    <small style="color: var(--color-grey-500); float: right">
-      {{$g.Name}}
-    </small>
+  <h1>TallyBoard </h1>
+  <p>Early dev-build <small style="float: right" id="status"></small> </p>
+  <div class="headControls">
+    <div>
+      <div class="score">
+        Score: {{$g.Score}}
+      </div>
+      <div class="moves">
+        Moves: {{$g.Moves}}
+      </div>
+      {{- if .data.Assigns.Error}}
+      <div class="error">
+        {{.data.Assigns.Error}}
+      </div>
+      {{- end -}}
+      <div style="display: none;">
+        GameSize: <span id="columns" live-hook="cell-update">{{$g.Rules.SizeX}}</span>x<span id="rows"
+          live-hook="cell-update">{{$g.Rules.SizeY}}</span>
+        ({{$g.ForTemplate.cells | len}})
+      </div>
+    </div>
+    <div>
+
+      <small style="color: var(--color-grey-500);">
+        <div>
+          {{- if $T -}}
+          {{- if eq (index $SV $T.ID) 0 -}}
+          <div class="voteButtons">
+            <button live-click="vote" live-value-vote="1">⭐</button>
+            <button live-click="vote" live-value-vote="2">⭐</button>
+            <button live-click="vote" live-value-vote="3">⭐</button>
+            <button live-click="vote" live-value-vote="4">⭐</button>
+            <button live-click="vote" live-value-vote="5">⭐</button>
+          </div>
+          {{- else -}}
+          <div>
+            Thanks for voting
+          </div>
+          {{- end -}}
+          {{- end -}}
+          <span style="float: right">
+            {{$g.Name}}
+          </span>
+        </div>
+      </small>
+    </div>
   </div>
   <div class="board" id="board" style="
     grid-template-columns: repeat({{- $g.Rules.SizeX -}}, 1fr);
@@ -75,6 +104,7 @@
       <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
     </div>
     <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
+    <button live-click="set-username" live-value-username=""></button>
   </div>
   <game-buttons>
     <button live-click="restart" live-key="h">Restart</button>
@@ -83,6 +113,15 @@
     <button onclick="document.querySelector('.instructions').style.display = 'block'">Instructions</button>
   </game-buttons>
   <button live-click="new-game" live-value-mode="2">New Random Challenge</button>
+  <div class="overlay init">
+    <h2>Welcome</h2>
+
+    <label>
+      Username
+      <input type="text" name="username" / placeholder="Username">
+    </label>
+    <button id="save-form">Save</button>
+  </div>
   <div class="overlay games" onclick="document.querySelector('.games').style.display = 'none'">
     <button>Cancel</button>
     <button live-click="new-game">New Infinite Game </button>
@@ -129,17 +168,88 @@
     const hintButton = document.querySelector('button[live-click="get-hint"]')
     const restartButton = document.querySelector('button[live-click="restart"]')
     const newRandomButton = document.querySelector('button[live-value-mode="2"]')
+    const getVoteButtion = (n) => document.querySelector(`button[live-value-vote="${n}"]`)
+    const saveFormButton = document.querySelector('#save-form')
+    const voteButtons = [...document.querySelectorAll('.voteButtons button')]
     let boardEl = () => document.getElementById('board')
     const swipeAnimationTime = 300
     const state = {
       didAnimate: false,
       isAnimating: false,
+      stored: {}
     };
     [...boardEl().children].forEach((cEl) => {
       cEl.onclick = (c) => {
         cEl.classList.add('selected')
       }
     })
+
+    const getStoredState = () => {
+      try {
+        const raw = localStorage.getItem('appState')
+        if (!raw) {
+          return
+        }
+        state.stored = JSON.parse(raw)
+        return state.stored
+      } catch (err) {
+        console.warn("failed to load storedState", err)
+      }
+    }
+
+    const init = () => {
+      getStoredState()
+      console.log('state', state.stored)
+      if (state.stored.userName) {
+        setUsername(state.stored.userName)
+      } else {
+        const initEl = document.querySelector('.overlay.init')
+        initEl.style.display = 'block'
+        console.log('saveFormButton', saveFormButton)
+        saveFormButton.onclick = () => {
+          const usernameEl = document.querySelector('input[name="username"]')
+          if (!usernameEl) {
+            return
+          }
+          const userName = usernameEl.value?.trim()
+          if (!userName) {
+            return
+          }
+          const ok = setUsername(userName)
+          if (!ok) {
+          }
+          initEl.style.display = 'none'
+        }
+      }
+
+    }
+    const setUsername = (userName) => {
+      console.log('setting username', userName)
+      userName = userName?.trim() || state.stored.userName
+      if (!userName) {
+        console.log('no username')
+        return
+      }
+      const currentUserName = document.getElementById('userName').innerText.trim()
+      if (userName === currentUserName) {
+        console.log('username already set')
+        return true
+      }
+      state.stored.userName = userName
+      localStorage.setItem('appState', JSON.stringify(state.stored))
+      const els = [...document.querySelectorAll('*[live-value-username], .voteButtons button')]
+      console.log('els', els)
+      for (const b of els) {
+        b.setAttribute('live-value-username', state.stored.userName || '')
+      }
+      console.log('clicking button')
+      // retry in case liveness is not quite ready yet.
+      setTimeout(() => setUsername(), 250)
+      document.querySelector('button[live-click="set-username"]').click()
+      return true
+    }
+    init();
+
 
 
 
@@ -269,13 +379,15 @@
         statusEl.style.color = 'var(--color-red)'
       },
       reconnected: () => {
-        statusEl.innerText = `reconnected ${formatTime()}`
+        statusEl.innerText = `online ${formatTime()}`
         statusEl.style.color = 'var(--color-green)'
       },
       updated: () => {
         statusEl.innerText = `updated ${formatTime()}`
+        statusEl.style.color = 'var(--color-blue)'
         nColumns = Number(document.getElementById('columns').innerText || nColumns)
         nRows = Number(document.getElementById('rows').innerText || nRows)
+        setUsername(state.stored.userName)
       },
       beforeUpdate: () => {
         if (state.didAnimate) {
@@ -353,6 +465,11 @@
       touch-action: none;
     }
 
+    label,
+    input {
+      font-size: 1.8rem;
+    }
+
     /* disable scrolling. I don't really like this at all, but scrolling in a game is not too good. */
     body {
       overflow: hidden;
@@ -397,6 +514,21 @@
       background-size: cover;
       opacity: 0.4;
       z-index: 1;
+    }
+
+    .headControls {
+      display: flex;
+      justify-content: space-between;
+      min-height: 54px;
+    }
+
+    .voteButtons {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .voteButtons button {
+      min-width: 52px;
     }
 
     .cell.blank {

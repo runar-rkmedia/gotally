@@ -10,11 +10,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/jfyne/live"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/runar-rkmedia/gotally/database"
 	"github.com/runar-rkmedia/gotally/generated"
 	tally "github.com/runar-rkmedia/gotally/tallylogic"
 )
@@ -25,6 +27,8 @@ type GameModel struct {
 	Hints             map[string]tally.Hint
 	Error             string
 	HintButtonCounter int
+	UserName          string
+	SelfVotes         map[string]int
 	tally.Game
 }
 
@@ -63,7 +67,8 @@ func getSesssionId(s live.Socket) string {
 }
 
 func NewGameModel(mode tally.GameMode, template *tally.GameTemplate) *GameModel {
-	m := GameModel{}
+	m := GameModel{SelfVotes: map[string]int{}}
+	fmt.Println("created new model")
 	m.Template = template
 	game, err := tally.NewGame(mode, template)
 	if err != nil {
@@ -93,6 +98,21 @@ func NewThermoModel(s live.Socket) *GameModel {
 			m = NewGameModel(mode, &generatedTemplates[i])
 		} else {
 			m = NewGameModel(mode, &tally.ChallengeGames[0])
+		}
+		if m.SelfVotes == nil {
+			m.SelfVotes = map[string]int{}
+		}
+		if m.UserName != "" {
+			if votes, err := db.GetVotesForBoardByUserName(m.UserName); err == nil {
+				for k, v := range votes {
+					m.SelfVotes[k] = v.FunVote
+					fmt.Println("user vote", k, v.FunVote)
+				}
+			} else {
+				log.Println("faield to retrieve votes", err)
+			}
+		} else {
+			fmt.Println("no username")
 		}
 		cache.SetGame(sessionID, m)
 	}
@@ -129,16 +149,80 @@ func selectCell(ctx context.Context, s live.Socket, p live.Params) (interface{},
 	return model, nil
 }
 func restart(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
-	ex := NewThermoModel(s)
-	if ex.Template == nil {
-		return ex, fmt.Errorf("cannot do that")
+	model := NewThermoModel(s)
+	if model.Template == nil {
+		return model, fmt.Errorf("currently, only tempated games can be restarted")
 	}
 
-	fmt.Println("ex", ex.Rules.GameMode, ex.Template)
-	model := NewGameModel(tally.GameModeRandomChallenge, ex.Template)
+	fmt.Println("ex", model.Rules.GameMode, model.Template)
+	v := NewGameModel(tally.GameModeRandomChallenge, model.Template)
+	model.Game = v.Game
+	model.Error = v.Error
+	model.Hints = v.Hints
 	return model, nil
 }
+
+var db database.DB
+
+func init() {
+	d, err := database.NewDatabase("")
+	if err != nil {
+		panic(err)
+	}
+	db = d
+
+}
+
+func setUserName(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
+
+	userName := strings.TrimSpace(p.String("username"))
+	fmt.Println("estuser", userName)
+	ex := NewThermoModel(s)
+	if userName == "" {
+		return ex, fmt.Errorf("no username")
+	}
+	ex.UserName = userName
+	if votes, err := db.GetVotesForBoardByUserName(ex.UserName); err == nil {
+		log.Printf("\nFound %d votes user %s", len(votes), ex.UserName)
+		for k, v := range votes {
+			ex.SelfVotes[k] = v.FunVote
+			fmt.Println("user vote", k, v.FunVote)
+		}
+	} else {
+		log.Println("faield to retrieve votes", err)
+	}
+
+	return ex, nil
+}
+func vote(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
+	voteValue := p.Int("vote")
+	userName := p.String("username")
+	ex := NewThermoModel(s)
+	if userName == "" {
+		return ex, fmt.Errorf("username is required")
+	}
+	ex.UserName = userName
+	if voteValue == 0 {
+		return ex, fmt.Errorf("no value")
+	}
+	if ex.Template == nil {
+		return ex, fmt.Errorf("only templated games can be voted on")
+	}
+	sessID := getSesssionId(s)
+	vote, err := db.VoteForBoard(ex.Template.ID, sessID, userName, int(voteValue))
+	if err != nil {
+		return ex, err
+	}
+	ex.SelfVotes[vote.ID] = voteValue
+	for k, v := range ex.SelfVotes {
+		fmt.Println("User has votes", k, v)
+
+	}
+
+	return ex, nil
+}
 func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
+	model := NewThermoModel(s)
 	mode := tally.GameMode(p.Int("mode"))
 	var template *tally.GameTemplate
 	if mode == tally.GameModeRandomChallenge {
@@ -153,7 +237,11 @@ func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 		i := p.Int("template")
 		template = &tally.ChallengeGames[i]
 	}
-	model := NewGameModel(mode, template)
+	v := NewGameModel(mode, template)
+	model.Game = v.Game
+	model.Hints = v.Hints
+	model.Error = v.Error
+	model.Template = v.Template
 
 	sess := getSesssionId(s)
 	cache.SetGame(sess, model)
@@ -162,6 +250,25 @@ func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 func getHint(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 	model := NewThermoModel(s)
 	model.Hints = model.Game.GetHint()
+	if model.Template != nil && false {
+		solver := tally.NewBruteSolver(tally.SolveOptions{
+			MaxDepth:     0,
+			MaxVisits:    0,
+			MinMoves:     0,
+			MaxMoves:     20,
+			MaxSolutions: 1,
+		})
+		solutions, err := solver.SolveGame(model.Game)
+		if err != nil {
+			log.Println("failed to solve game", err)
+		} else if len(solutions) > 0 {
+			// model.Hints = map[string]tally.Hint{}
+			// for _, s := range solutions[0].History {
+			// 	model.Hints["s"] = tally.Hint{
+			// 	}
+			// }
+		}
+	}
 	model.HintButtonCounter++
 	return model, nil
 }
@@ -253,6 +360,8 @@ func Example() {
 	h.HandleEvent("select-cell", selectCell)
 	h.HandleEvent("get-hint", getHint)
 	h.HandleEvent("restart", restart)
+	h.HandleEvent("vote", vote)
+	h.HandleEvent("set-username", setUserName)
 
 	http.Handle("/", live.NewHttpHandler(cookieStore, h))
 

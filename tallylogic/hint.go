@@ -46,6 +46,7 @@ func (g *hintCalculator) GetHints() map[string]Hint {
 type Hint struct {
 	Value    int64
 	Method   EvalMethod
+	Swipe    SwipeDirection
 	Path     []int
 	pathHash string
 }
