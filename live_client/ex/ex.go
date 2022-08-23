@@ -72,7 +72,7 @@ func NewGameModel(mode tally.GameMode, template *tally.GameTemplate) *GameModel 
 	m.Template = template
 	game, err := tally.NewGame(mode, template)
 	if err != nil {
-		log.Printf("creating new game failed: ", err)
+		log.Printf("creating new game failed: %v", err)
 		m.Error = err.Error()
 	} else {
 		m.Error = ""
@@ -197,11 +197,16 @@ func setUserName(ctx context.Context, s live.Socket, p live.Params) (interface{}
 func vote(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 	voteValue := p.Int("vote")
 	userName := p.String("username")
+	fmt.Println("username???", userName, voteValue, p)
 	ex := NewThermoModel(s)
+	if userName == "" {
+		userName = ex.UserName
+	} else {
+		ex.UserName = userName
+	}
 	if userName == "" {
 		return ex, fmt.Errorf("username is required")
 	}
-	ex.UserName = userName
 	if voteValue == 0 {
 		return ex, fmt.Errorf("no value")
 	}

@@ -15,15 +15,30 @@ func NewDatabase(dsn string) (DB, error) {
 	if dsn == "" {
 		dsn = os.Getenv("DSN")
 	}
+	if dsn == "" {
+		dsn = "root:secret@tcp(localhost)/tallyboard"
+	}
+
+	hostAndSuch := strings.Split(dsn, "@")
+	if len(hostAndSuch) >= 2 {
+		log.Println("connecting to database: ", hostAndSuch[len(hostAndSuch)-1])
+	} else {
+		log.Println("attempting to connect to database (hiding details)")
+	}
 	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return DB{}, err
+	}
+	d := DB{db}
 	go func() {
+		d.Deploy()
 		err := db.Ping()
 		if err != nil {
 			log.Fatal("could not ping database")
 		}
 		log.Println("successfully connected to database")
 	}()
-	return DB{db}, err
+	return d, err
 }
 
 type DB struct {

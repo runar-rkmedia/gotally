@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/rand"
+	"strconv"
+	"strings"
 )
 
 type CellGenerator interface {
@@ -22,7 +24,7 @@ type Game struct {
 	Hinter        hintCalculator
 	GoalChecker   GoalChecker
 	DefeatChecker GoalChecker
-	History       []any
+	History       Instruction
 }
 
 type GameRules struct {
@@ -198,9 +200,61 @@ func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 	}
 	if changed {
 		g.inceaseMoveCount()
-		g.History = append(g.History, direction)
+		g.History.AddSwipe(direction)
 	}
 	return changed
+}
+
+type Instruction []any
+
+func (i *Instruction) AddSwipe(dir SwipeDirection) {
+	(*i) = append(*i, dir)
+}
+func (i *Instruction) AddSelectIndex(index int) {
+	(*i) = append(*i, index)
+}
+func (i *Instruction) AddSelectCoord(column, row int) {
+	(*i) = append(*i, [2]int{column, row})
+}
+func (i *Instruction) AddPath(indexes []int) {
+	(*i) = append(*i, indexes)
+}
+func (i *Instruction) AddEvaluateSelection(indexes []int) {
+	(*i) = append(*i, indexes)
+}
+func (i Instruction) Hash() string {
+	b := strings.Builder{}
+	for _, ins := range i {
+		switch ins {
+		case true:
+			b.WriteString("t")
+		case SwipeDirectionUp:
+			b.WriteString("U")
+		case SwipeDirectionRight:
+			b.WriteString("R")
+		case SwipeDirectionDown:
+			b.WriteString("D")
+		case SwipeDirectionLeft:
+			b.WriteString("L")
+		default:
+			switch t := ins.(type) {
+			case int:
+				b.WriteString(strconv.FormatInt(int64(t), 46))
+			case [2]int:
+				b.WriteString(strconv.FormatInt(int64(t[0]), 46))
+				b.WriteString("x")
+				b.WriteString(strconv.FormatInt(int64(t[1]), 46))
+			case []int:
+				for i := 0; i < len(t); i++ {
+					b.WriteString(strconv.FormatInt(int64(t[i]), 46))
+
+				}
+			}
+		}
+		b.WriteString(";")
+	}
+
+	return b.String()
 }
 
 // This is used to instruct the game using small data-values Not really sure
@@ -285,9 +339,9 @@ func (g *Game) EvaluateForPath(path []int) bool {
 	if err != nil {
 		return false
 	}
-	g.increaseScore(points)
+	g.increaseScore(points * int64(len(path)))
 	g.inceaseMoveCount()
-	g.History = append(g.History, path)
+	g.History.AddPath(path)
 	return true
 }
 
@@ -330,18 +384,42 @@ func (g *Game) IsCellIndexPartOfFirstHint(index int, hints map[string]Hint) bool
 	if hints == nil {
 		return false
 	}
+	// TODO: sort the map first
 	for _, h := range hints {
-
 		return g.IsCellIndexPartOfHint(index, h)
-
 	}
 	return false
+}
+func (g *Game) IsCellIndexPartOfFirstInstruction(index int, instructions Instruction) bool {
+	if len(instructions) == 0 {
+		return false
+	}
+	return g.IsCellIndexPartOfInstruction(index, instructions[0])
 }
 func (g *Game) IsCellIndexPartOfHint(index int, hint Hint) bool {
 	if len(hint.Path) == 0 {
 		return false
 	}
 	for _, i := range hint.Path {
+		if index == i {
+			return true
+		}
+	}
+	return false
+}
+func (g *Game) IsCellIndexPartOfInstruction(index int, instruction any) bool {
+	if instruction == nil {
+		return false
+	}
+	path, ok := instruction.([]int)
+	if !ok {
+		return false
+	}
+
+	if len(path) == 0 {
+		return false
+	}
+	for _, i := range path {
 		if index == i {
 			return true
 		}

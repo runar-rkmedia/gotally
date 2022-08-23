@@ -18,6 +18,7 @@
   {{- $T := .data.Assigns.Template -}}
   {{- $SV := .data.Assigns.SelfVotes -}}
   <small id="userName" style="float: right; color: var(--color-grey-500)">{{.data.Assigns.UserName}}</small>
+  <div class="error" live-hook="err" id="err"></div>
 
   <h1>TallyBoard </h1>
   <p>Early dev-build <small style="float: right" id="status"></small> </p>
@@ -45,20 +46,19 @@
       <small style="color: var(--color-grey-500);">
         <div>
           {{- if $T -}}
-          {{- if eq (index $SV $T.ID) 0 -}}
           <div class="voteButtons">
-            <button live-click="vote" live-value-vote="1">⭐</button>
-            <button live-click="vote" live-value-vote="2">⭐</button>
-            <button live-click="vote" live-value-vote="3">⭐</button>
-            <button live-click="vote" live-value-vote="4">⭐</button>
-            <button live-click="vote" live-value-vote="5">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 1 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="1">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 2 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="2">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 3 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="3">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 4 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="4">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 5 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="5">⭐</button>
+            {{- end -}}
           </div>
-          {{- else -}}
-          <div>
-            Thanks for voting
-          </div>
-          {{- end -}}
-          {{- end -}}
           <span style="float: right">
             {{$g.Name}}
           </span>
@@ -104,7 +104,7 @@
       <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
     </div>
     <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
-    <button live-click="set-username" live-value-username=""></button>
+    <button live-click="set-username"></button>
   </div>
   <game-buttons>
     <button live-click="restart" live-key="h">Restart</button>
@@ -168,9 +168,10 @@
     const hintButton = document.querySelector('button[live-click="get-hint"]')
     const restartButton = document.querySelector('button[live-click="restart"]')
     const newRandomButton = document.querySelector('button[live-value-mode="2"]')
-    const getVoteButtion = (n) => document.querySelector(`button[live-value-vote="${n}"]`)
+    const getVoteButton = (n) => document.querySelector(`button[live-value-vote="${n}"]`)
     const saveFormButton = document.querySelector('#save-form')
     const voteButtons = [...document.querySelectorAll('.voteButtons button')]
+    const initEl = document.querySelector('.overlay.init')
     let boardEl = () => document.getElementById('board')
     const swipeAnimationTime = 300
     const state = {
@@ -197,35 +198,51 @@
       }
     }
 
+    const saveUsername = () => {
+      const usernameEl = document.querySelector('input[name="username"]')
+      if (!usernameEl) {
+        return
+      }
+      const userName = usernameEl.value?.trim()
+      if (!userName) {
+        return
+      }
+      const ok = setUsername(userName)
+      if (!ok) {
+      }
+      initEl.style.display = 'none'
+    }
+    const sendEvent = (event, params) => {
+      if (!window.Live?.send) {
+        console.warn("Live is not ready yet, event not sent", {event, params})
+        return
+      }
+      if (!state.status) {
+        console.warn("Live-state is not ready yet, event not sent", {event, params})
+        return
+      }
+      if (state.status == 'disconnected') {
+        console.warn("Live is disconnected, event not sent", {event, params})
+        return
+      }
+      window.Live.send(event, params)
+    }
+
     const init = () => {
       getStoredState()
-      console.log('state', state.stored)
       if (state.stored.userName) {
         setUsername(state.stored.userName)
       } else {
-        const initEl = document.querySelector('.overlay.init')
         initEl.style.display = 'block'
-        console.log('saveFormButton', saveFormButton)
-        saveFormButton.onclick = () => {
-          const usernameEl = document.querySelector('input[name="username"]')
-          if (!usernameEl) {
-            return
-          }
-          const userName = usernameEl.value?.trim()
-          if (!userName) {
-            return
-          }
-          const ok = setUsername(userName)
-          if (!ok) {
-          }
-          initEl.style.display = 'none'
-        }
+        document.querySelector('input[name="username"]')?.focus()
+
+        saveFormButton.onclick = saveUsername
       }
 
     }
     const setUsername = (userName) => {
-      console.log('setting username', userName)
       userName = userName?.trim() || state.stored.userName
+      console.log('attempting to set username', userName)
       if (!userName) {
         console.log('no username')
         return
@@ -237,15 +254,16 @@
       }
       state.stored.userName = userName
       localStorage.setItem('appState', JSON.stringify(state.stored))
-      const els = [...document.querySelectorAll('*[live-value-username], .voteButtons button')]
+      const setUserNameButton = document.querySelector('button[live-click="set-username"]')
+      const els = [...document.querySelectorAll('*[live-value-username], .voteButtons button'), setUserNameButton]
       console.log('els', els)
       for (const b of els) {
         b.setAttribute('live-value-username', state.stored.userName || '')
       }
       console.log('clicking button')
       // retry in case liveness is not quite ready yet.
-      setTimeout(() => setUsername(), 250)
-      document.querySelector('button[live-click="set-username"]').click()
+      setTimeout(() => setUsername(), 500)
+      sendEvent('set-username', {username: userName})
       return true
     }
     init();
@@ -372,17 +390,35 @@
     }
     window.Hooks = window.Hooks || {}
     const formatTime = (d) => Intl.DateTimeFormat(undefined, {hour: 'numeric', minute: 'numeric', second: 'numeric', }).format(d || new Date())
-    window.Hooks["cell-update"] = {
 
+    window.Hooks['err'] = {
+      mounted: function () {
+        this.handleEvent("err", (data) => {
+          console.error(data);
+          const elErr = document.getElementById("err")
+          elErr.style.opacity = 1;
+          elErr.innerText = `${data?.source?.t}: ${data?.err}`
+          setTimeout(
+            () => {
+              elErr.style.opacity = 0;
+            }, 5000
+          )
+        });
+      },
+    }
+    window.Hooks["cell-update"] = {
       disconnected: () => {
+        state.status = 'disconnected'
         statusEl.innerText = `disconnected ${formatTime()}`
         statusEl.style.color = 'var(--color-red)'
       },
       reconnected: () => {
+        state.status = 'reconnected'
         statusEl.innerText = `online ${formatTime()}`
         statusEl.style.color = 'var(--color-green)'
       },
       updated: () => {
+        state.status = 'updated'
         statusEl.innerText = `updated ${formatTime()}`
         statusEl.style.color = 'var(--color-blue)'
         nColumns = Number(document.getElementById('columns').innerText || nColumns)
@@ -401,6 +437,13 @@
     const getHint = () => hintButton.click()
 
     document.onkeydown = (e) => {
+      if (!state.stored.userName) {
+        switch (e.key) {
+          case 'Enter':
+            saveUsername()
+        }
+        return
+      }
       switch (e.key) {
         case "ArrowLeft":
         case "a":
@@ -503,6 +546,16 @@
       box-shadow: var(--elevation-4);
     }
 
+    #err {
+      position: fixed;
+      top: 0;
+      text-align: center;
+      left: 0;
+      right: 0;
+      background-color: var(--color-black);
+      transition: opacity 400ms var(--easing-standard);
+    }
+
     .cell::after {
       content: "";
       position: absolute;
@@ -528,7 +581,20 @@
     }
 
     .voteButtons button {
+      all: unset;
+      cursor: pointer;
       min-width: 52px;
+      min-height: 48px;
+      text-align: center;
+      transition-property: transform, filter;
+      transition-duration: 150ms;
+      transition-timing-function: var(--easing-standard);
+      opacity: 0.8;
+    }
+
+    .voteButtons button.active {
+      opacity: 1;
+      transform: translateY(-10px) scale(2);
     }
 
     .cell.blank {
