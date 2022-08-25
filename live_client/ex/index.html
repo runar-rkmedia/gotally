@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title></title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#14141b">
+  <link rel="stylesheet" href="https://unpkg.com/pollen-css@4.3.1" />
+</head>
+
+<body>
+
+
+  {{- $g := .data.Assigns.Game -}}
+  {{- $h := .data.Assigns.Hints -}}
+  {{- $t := .templateGames -}}
+  {{- $T := .data.Assigns.Template -}}
+  {{- $SV := .data.Assigns.SelfVotes -}}
+  <small id="userName" style="float: right; color: var(--color-grey-500)">{{.data.Assigns.UserName}}</small>
+  <div class="error" live-hook="err" id="err"></div>
+
+  <h1>TallyBoard </h1>
+  <p>Early dev-build <small style="float: right" id="status"></small> </p>
+  <div class="headControls">
+    <div>
+      <div class="score">
+        Score: {{$g.Score}}
+      </div>
+      <div class="moves">
+        Moves: {{$g.Moves}}
+      </div>
+      {{- if .data.Assigns.Error}}
+      <div class="error">
+        {{.data.Assigns.Error}}
+      </div>
+      {{- end -}}
+      <div style="display: none;">
+        GameSize: <span id="columns" live-hook="cell-update">{{$g.Rules.SizeX}}</span>x<span id="rows"
+          live-hook="cell-update">{{$g.Rules.SizeY}}</span>
+        ({{$g.ForTemplate.cells | len}})
+      </div>
+    </div>
+    <div>
+
+      <small style="color: var(--color-grey-500);">
+        <div>
+          {{- if $T -}}
+          <div class="voteButtons">
+            <button {{ if eq (index $SV $T.ID) 1 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="1">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 2 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="2">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 3 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="3">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 4 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="4">⭐</button>
+            <button {{ if eq (index $SV $T.ID) 5 -}} class="active" {{- end }} live-click="vote"
+              live-value-vote="5">⭐</button>
+            {{- end -}}
+          </div>
+          <span style="float: right">
+            {{$g.Name}}
+          </span>
+        </div>
+      </small>
+    </div>
+  </div>
+  <div class="board" id="board" style="
+    grid-template-columns: repeat({{- $g.Rules.SizeX -}}, 1fr);
+    grid-template-rows: repeat({{- $g.Rules.SizeY -}}, 1fr);
+    ">
+    {{- range $i, $cell := $g.ForTemplate.cells -}}
+    <div live-hook="cell-update" live-click="select-cell" live-value-i="{{$i}}" data-selected="" class="cell
+        {{- if eq $cell.Value 0 }} blank{{ end -}}
+        {{- if $g.IsSelected $cell }} selected
+          {{- if $g.IsLastSelection $cell }} selectedLast{{ end -}}
+        {{- end -}}
+
+  {{- if $h -}}
+    {{if $g.IsCellIndexPartOfFirstHint $i $h }} hinted{{- end -}}
+  {{- end -}}
+  ">
+      {{- if gt $cell.Value 0 -}}
+      {{$cell.Value}}
+      {{- end -}}
+    </div>
+    {{- end }}
+  </div>
+
+  <p>{{$g.Description}}</p>
+
+  <div class="controls">
+    <div>
+      {{- range $i, $hint := $h -}}
+      <div>{{$i}} - {{$hint.Value}} {{$hint.Path}}</div>
+      {{- end -}}
+    </div>
+    <div>
+      <button live-click="swipe" live-value-dir="Up">Swipe up</button>
+    </div>
+    <div>
+      <button live-click="swipe" live-value-dir="Left">Swipe left</button>
+      <button live-click="swipe" live-value-dir="Right">Swipe Right</button>
+    </div>
+    <button live-click="swipe" live-value-dir="Down">Swipe Down</button>
+    <button live-click="set-username"></button>
+  </div>
+  <game-buttons>
+    <button live-click="restart" live-key="h">Restart</button>
+    <button live-click="get-hint" live-key="h">Hint</button>
+    <button onclick="document.querySelector('.games').style.display = 'block'">New Game</button>
+    <button onclick="document.querySelector('.instructions').style.display = 'block'">Instructions</button>
+  </game-buttons>
+  <button live-click="new-game" live-value-mode="2">New Random Challenge</button>
+  <div class="overlay init">
+    <h2>Welcome</h2>
+
+    <label>
+      Username
+      <input type="text" name="username" / placeholder="Username">
+    </label>
+    <button id="save-form">Save</button>
+  </div>
+  <div class="overlay games" onclick="document.querySelector('.games').style.display = 'none'">
+    <button>Cancel</button>
+    <button live-click="new-game">New Infinite Game </button>
+    <button live-click="new-game" live-value-mode="2">New Random Challenge</button>
+    {{- range $i, $tg := $t -}}
+    <button live-click="new-game" live-value-mode="1" live-value-template="{{$i}}">
+      <div class="gameTitle">
+        {{$i}} {{$tg.Name}}
+      </div>
+      <div class="gameDescription">
+        {{$tg.Description}}
+      </div>
+    </button>
+    {{- end -}}
+  </div>
+
+  <hr>
+  <div class="overlay instructions" onclick="document.querySelector('.instructions').style.display = 'none'">
+    <h2>Instructions</h2>
+
+    <ol>
+      <li>Select a brick by clicking on it</li>
+      <li>Select the next one from one of the last connected brick's direct neighbour to make a chain</li>
+      <li>Make a chain of bricks that either are the <strong>sum</strong> or <strong>product</strong> of the target
+        brick.</li>
+      <li>You can target a brick after making a chain where that brick is the last selected item, and then clicking it
+        again</li>
+      <li>Swipe in any direction to move the board. Note that is regular game-modes, this also gives you a new random
+        brick</li>
+
+    </ol>
+
+  </div>
+
+  <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
+  <script type="module">
+    let nRows = {{$g.Rules.SizeY}}
+    let nColumns = {{$g.Rules.SizeX}}
+    const statusEl = document.querySelector('#status')
+    const leftButton = document.querySelector('button[live-value-dir="Left"]')
+    const rightButton = document.querySelector('button[live-value-dir="Right"]')
+    const upButton = document.querySelector('button[live-value-dir="Up"]')
+    const downButton = document.querySelector('button[live-value-dir="Down"]')
+    const hintButton = document.querySelector('button[live-click="get-hint"]')
+    const restartButton = document.querySelector('button[live-click="restart"]')
+    const newRandomButton = document.querySelector('button[live-value-mode="2"]')
+    const getVoteButton = (n) => document.querySelector(`button[live-value-vote="${n}"]`)
+    const saveFormButton = document.querySelector('#save-form')
+    const voteButtons = [...document.querySelectorAll('.voteButtons button')]
+    const initEl = document.querySelector('.overlay.init')
+    let boardEl = () => document.getElementById('board')
+    const swipeAnimationTime = 300
+    const state = {
+      didAnimate: false,
+      isAnimating: false,
+      stored: {}
+    };
+    [...boardEl().children].forEach((cEl) => {
+      cEl.onclick = (c) => {
+        cEl.classList.add('selected')
+      }
+    })
+
+    const getStoredState = () => {
+      try {
+        const raw = localStorage.getItem('appState')
+        if (!raw) {
+          return
+        }
+        state.stored = JSON.parse(raw)
+        return state.stored
+      } catch (err) {
+        console.warn("failed to load storedState", err)
+      }
+    }
+
+    const saveUsername = () => {
+      const usernameEl = document.querySelector('input[name="username"]')
+      if (!usernameEl) {
+        return
+      }
+      const userName = usernameEl.value?.trim()
+      if (!userName) {
+        return
+      }
+      const ok = setUsername(userName)
+      if (!ok) {
+      }
+      initEl.style.display = 'none'
+    }
+    const sendEvent = (event, params) => {
+      if (!window.Live?.send) {
+        console.warn("Live is not ready yet, event not sent", {event, params})
+        return
+      }
+      if (!state.status) {
+        console.warn("Live-state is not ready yet, event not sent", {event, params})
+        return
+      }
+      if (state.status == 'disconnected') {
+        console.warn("Live is disconnected, event not sent", {event, params})
+        return
+      }
+      window.Live.send(event, params)
+    }
+
+    const init = () => {
+      getStoredState()
+      if (state.stored.userName) {
+        setUsername(state.stored.userName)
+      } else {
+        initEl.style.display = 'block'
+        document.querySelector('input[name="username"]')?.focus()
+
+        saveFormButton.onclick = saveUsername
+      }
+
+    }
+    const setUsername = (userName) => {
+      userName = userName?.trim() || state.stored.userName
+      console.log('attempting to set username', userName)
+      if (!userName) {
+        console.log('no username')
+        return
+      }
+      const currentUserName = document.getElementById('userName').innerText.trim()
+      if (userName === currentUserName) {
+        console.log('username already set')
+        return true
+      }
+      state.stored.userName = userName
+      localStorage.setItem('appState', JSON.stringify(state.stored))
+      const setUserNameButton = document.querySelector('button[live-click="set-username"]')
+      const els = [...document.querySelectorAll('*[live-value-username], .voteButtons button'), setUserNameButton]
+      console.log('els', els)
+      for (const b of els) {
+        b.setAttribute('live-value-username', state.stored.userName || '')
+      }
+      console.log('clicking button')
+      // retry in case liveness is not quite ready yet.
+      setTimeout(() => setUsername(), 500)
+      sendEvent('set-username', {username: userName})
+      return true
+    }
+    init();
+
+
+
+
+    const getRows = () => {
+      const cells = [...boardEl().children]
+      const rows = new Array(nRows).fill(null).map((_, i) => cells.slice(i * nRows, i * nRows + nRows))
+      return rows
+    }
+    const getColumns = () => {
+      const cells = [...boardEl().children]
+
+      const columns = new Array(nColumns).fill(null).map(() => ([]))
+      for (let i = 0; i < columns.length; i++) {
+        for (let j = 0; j < columns.length; j++) {
+          columns[i][j] = cells[j * nColumns + i]
+        }
+      }
+      return columns
+    }
+
+    const cellIsEmpty = (cell) => !cell || cell.classList.contains('blank')
+
+    var cumulativeOffset = function (el) {
+      let element = el
+      var top = 0, left = 0;
+      do {
+        top += element.offsetTop || 0;
+        left += element.offsetLeft || 0;
+        element = element.offsetParent;
+      } while (element);
+
+      return {
+        top: top,
+        left: left
+      };
+    };
+
+
+    const swipe = (positive, vertical) => {
+
+      const rows = vertical ? getColumns() : getRows()
+      let didAnimate = false
+      for (const [r, row] of rows.entries()) {
+        let empties = 0
+        for (let i = positive ? row.length - 1 : 0; positive ? i > -1 : i < row.length; i += positive ? -1 : 1) {
+          const nextIndex = positive ? i + 1 : i - 1
+          const current = row[i]
+          if (!current) {
+            console.warn('cell was undefined', {r, row, i, rows, boardLength: boardEl().children.length, boardChildren: boardEl().children})
+            return false
+          }
+
+          if (cellIsEmpty(current)) {
+            empties++
+            continue
+          }
+          if (!empties) {
+            continue
+          }
+          const next = row[nextIndex]
+          if (!next) {
+            continue
+          }
+          didAnimate = true
+          state.didAnimate = true
+          state.isAnimating = true
+          const targetIndex = positive ? (i + empties) : (i - empties)
+          const target = row[targetIndex]
+
+          const pos = cumulativeOffset(current)
+          const posNext = cumulativeOffset(target)
+          if (vertical) {
+            const diffY = (posNext.top - pos.top)
+            current.style.transform = `translateY(${diffY}px)`;
+          } else {
+            const diffX = (posNext.left - pos.left)
+            current.style.transform = `translateX(${diffX}px)`;
+          }
+          current.style.transition = `transform ${swipeAnimationTime}ms var(--easing-standard)`
+        }
+      }
+      return didAnimate
+    }
+
+    const swipeUp = () => {
+      const didAnimate = swipe(false, true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        upButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeDown = () => {
+      const didAnimate = swipe(true, true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        downButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeLeft = () => {
+      const didAnimate = swipe(false)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        leftButton.click();
+      }, swipeAnimationTime)
+    }
+    const swipeRight = () => {
+      const didAnimate = swipe(true)
+      if (!didAnimate) {
+        return
+      }
+      setTimeout(s => {
+        rightButton.click();
+      }, swipeAnimationTime)
+    }
+    window.Hooks = window.Hooks || {}
+    const formatTime = (d) => Intl.DateTimeFormat(undefined, {hour: 'numeric', minute: 'numeric', second: 'numeric', }).format(d || new Date())
+
+    window.Hooks['err'] = {
+      mounted: function () {
+        this.handleEvent("err", (data) => {
+          console.error(data);
+          const elErr = document.getElementById("err")
+          elErr.style.opacity = 1;
+          elErr.innerText = `${data?.source?.t}: ${data?.err}`
+          setTimeout(
+            () => {
+              elErr.style.opacity = 0;
+            }, 5000
+          )
+        });
+      },
+    }
+    window.Hooks["cell-update"] = {
+      disconnected: () => {
+        state.status = 'disconnected'
+        statusEl.innerText = `disconnected ${formatTime()}`
+        statusEl.style.color = 'var(--color-red)'
+      },
+      reconnected: () => {
+        state.status = 'reconnected'
+        statusEl.innerText = `online ${formatTime()}`
+        statusEl.style.color = 'var(--color-green)'
+      },
+      updated: () => {
+        state.status = 'updated'
+        statusEl.innerText = `updated ${formatTime()}`
+        statusEl.style.color = 'var(--color-blue)'
+        nColumns = Number(document.getElementById('columns').innerText || nColumns)
+        nRows = Number(document.getElementById('rows').innerText || nRows)
+        setUsername(state.stored.userName)
+      },
+      beforeUpdate: () => {
+        if (state.didAnimate) {
+          [...boardEl().children].forEach(c => {c.style.transform = ''; c.style.transition = 'none'})
+          state.didAnimate = false
+        }
+      }
+    }
+
+
+    const getHint = () => hintButton.click()
+
+    document.onkeydown = (e) => {
+      if (!state.stored.userName) {
+        switch (e.key) {
+          case 'Enter':
+            saveUsername()
+        }
+        return
+      }
+      switch (e.key) {
+        case "ArrowLeft":
+        case "a":
+          swipeLeft()
+          break
+        case "ArrowRight":
+        case "d":
+          swipeRight()
+          break
+        case "ArrowDown":
+        case "s":
+          swipeDown()
+          break
+        case "ArrowUp":
+        case "w":
+          swipeUp()
+          break
+        case "h":
+          getHint()
+          break
+        case "c":
+          restartButton.click()
+          break
+        case "n":
+          newRandomButton.click()
+          break
+
+        default:
+          console.log("key", e.key)
+          break
+      }
+    }
+
+    const hammerTime = new Hammer(boardEl(), {
+      recognizers: [
+        [Hammer.Swipe, {direction: Hammer.DIRECTION_ALL}],
+      ]
+    })
+    hammerTime.on('swipe', (e) => {
+      switch (e.direction) {
+        case Hammer.DIRECTION_UP:
+          swipeUp()
+          break
+        case Hammer.DIRECTION_DOWN:
+          swipeDown()
+          break
+        case Hammer.DIRECTION_LEFT:
+          swipeLeft()
+          break
+        case Hammer.DIRECTION_RIGHT:
+          swipeRight()
+          break
+      }
+    })
+
+
+  </script>
+
+  <style>
+    /* Disables most touch-interactions */
+    * {
+      touch-action: none;
+    }
+
+    label,
+    input {
+      font-size: 1.8rem;
+    }
+
+    /* disable scrolling. I don't really like this at all, but scrolling in a game is not too good. */
+    body {
+      overflow: hidden;
+    }
+
+    .board {
+      margin-inline: -4px;
+      display: grid;
+
+      width: calc(100% + 8px);
+
+      height: 100%;
+      min-height: 60vw;
+      max-height: 100vw;
+      border: 2px solid var(--color-blue-700);
+      border-radius: var(--radius-lg);
+    }
+
+    .cell {
+      transition: transform 300ms var(--easing-standard);
+      user-select: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 2px solid var(--border-blue-700);
+      margin: 2px;
+      border-radius: 8px;
+      background-color: var(--color-blue-700);
+      font-size: 2rem;
+      position: relative;
+      box-shadow: var(--elevation-4);
+    }
+
+    #err {
+      position: fixed;
+      top: 0;
+      text-align: center;
+      left: 0;
+      right: 0;
+      background-color: var(--color-black);
+      transition: opacity 400ms var(--easing-standard);
+    }
+
+    .cell::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url(https://images.freecreatives.com/wp-content/uploads/2016/02/Sky-Blue-Textured-Background-For-Free.jpg);
+      background-size: cover;
+      opacity: 0.4;
+      z-index: 1;
+    }
+
+    .headControls {
+      display: flex;
+      justify-content: space-between;
+      min-height: 54px;
+    }
+
+    .voteButtons {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .voteButtons button {
+      all: unset;
+      cursor: pointer;
+      min-width: 52px;
+      min-height: 48px;
+      text-align: center;
+      transition-property: transform, filter;
+      transition-duration: 150ms;
+      transition-timing-function: var(--easing-standard);
+      opacity: 0.8;
+    }
+
+    .voteButtons button.active {
+      opacity: 1;
+      transform: translateY(-10px) scale(2);
+    }
+
+    .cell.blank {
+      opacity: 0;
+    }
+
+    .cell.hinted:not(.selected) {
+      background-color: var(--color-blue-500);
+      outline-color: var(--color-purple-700);
+      outline-width: 5px;
+      outline-style: dotted;
+    }
+
+    .cell.selected {
+      background-color: var(--color-green);
+      color: var(--color-black)
+    }
+
+    .cell.selectedLast {
+      background-color: var(--color-green-300);
+      color: var(--color-black)
+    }
+
+    body {
+      background-color: var(--color-black);
+      color: var(--color-grey-50);
+    }
+
+    .controls {
+      display: none;
+    }
+
+    game-buttons {
+      display: flex;
+    }
+
+    button {
+      background-color: var(--color-blue-700);
+      padding: var(--size-2);
+      color: var(--color-grey-50);
+    }
+
+    .games button,
+    game-buttons button {
+      flex-grow: 1;
+      background-color: var(--color-green-700);
+      color: var(--color-gey-50);
+
+      font-size: 1.2rem;
+      padding: var(--size-3);
+    }
+
+    .error {
+      color: var(--color-red);
+    }
+
+    .success {
+      color: var(--color-green);
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      min-height: 100%;
+      ;
+      min-width: 100%;
+      ;
+      padding-block: 10%;
+      background-color: #000000;
+      z-index: 9999;
+    }
+
+    .games button {
+      background-color: var(--color-purple-700);
+      width: 100%;
+    }
+
+    .games button :last-child {
+      font-size: 1rem;
+
+    }
+
+
+    html {
+      font-size: 16;
+      font-family: var(--font-sans);
+    }
+  </style>
+  <script src="/live.js"></script>
+</body>
+
+</html>

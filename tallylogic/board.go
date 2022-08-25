@@ -29,6 +29,18 @@ func NewTableBoard(columns, rows int) TableBoard {
 	return tb
 }
 
+func (tb *TableBoard) Copy() BoardController {
+	board := TableBoard{
+		cells:   make([]Cell, len(tb.cells)),
+		rows:    tb.rows,
+		columns: tb.columns,
+	}
+	for i, v := range tb.cells {
+		board.cells[i] = NewCell(v.baseValue, v.power)
+	}
+	return &board
+
+}
 func (tb TableBoard) GetCellAtIndex(n int) *Cell {
 	if tb.ValidCellIndex(n) {
 		return &tb.cells[n]
@@ -37,7 +49,7 @@ func (tb TableBoard) GetCellAtIndex(n int) *Cell {
 }
 func (tb TableBoard) FindCell(c Cell) (int, bool) {
 	for i := 0; i < len(tb.cells); i++ {
-		if tb.cells[i].id == c.id {
+		if tb.cells[i].ID == c.ID {
 			return i, true
 		}
 	}
@@ -46,7 +58,7 @@ func (tb TableBoard) FindCell(c Cell) (int, bool) {
 func (tb TableBoard) String() string {
 	return tb.PrintBoard(nil)
 }
-func (tb TableBoard) highestValue() int64 {
+func (tb TableBoard) HighestValue() int64 {
 	var v int64
 	for i := 0; i < len(tb.cells); i++ {
 		val := tb.cells[i].Value()
@@ -62,8 +74,13 @@ type Sprinter interface {
 }
 
 func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded string) string) string {
-	h := int64(tb.highestValue())
+	withColors := false
+	h := int64(tb.HighestValue())
 	longest := len(strconv.FormatInt(h, 10))
+	headerPrinter := fmt.Sprintf
+	if withColors {
+		headerPrinter = color.Gray.Sprintf
+	}
 
 	s := "\n------ Table -------"
 	s += "\n    "
@@ -72,11 +89,11 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 		padLength := longest - len(formatted)
 		padding := strings.Repeat(" ", padLength)
 		valueStr := padding + formatted
-		s += color.Gray.Sprintf("  %s: ", valueStr)
+		s += headerPrinter("  %s: ", valueStr)
 
 	}
 	for i := 0; i < tb.rows; i++ {
-		s += "\n" + color.Gray.Sprintf(" %d: ", i)
+		s += "\n" + headerPrinter(" %d: ", i)
 		for j := 0; j < tb.columns; j++ {
 			index := ((i + 1) * tb.columns) - tb.columns + ((j + 1) + tb.rows) - tb.rows - 1
 			value := tb.cells[index].Value()
@@ -99,6 +116,16 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 	}
 	s += "\n---- End Table -----"
 	return s
+}
+
+// Uniqely identifies the board by its value. ID's etc are ignored.
+func (tb TableBoard) Hash() string {
+	builder := strings.Builder{}
+	builder.WriteString(fmt.Sprintf("%dx%d;", tb.columns, tb.rows))
+	for _, v := range tb.cells {
+		builder.WriteString(v.Hash() + ";")
+	}
+	return builder.String()
 }
 
 func (tb TableBoard) cellRow(i int) int {
@@ -157,6 +184,9 @@ var (
 	ErrPathIndexOutsideBounds = errors.New("The path includes an item outside the current bounds")
 	ErrPathIndexInvalidCell   = errors.New("The path-index pointed to an invalid cell")
 	ErrPathIndexEmptyCell     = errors.New("The path-index pointed to an empty cell")
+
+	ErrIndexInvalid               = errors.New("The index for the path is invalid")
+	ErrCellAtIndexAlreadyHasValue = errors.New("The cell at the index already has a value")
 )
 
 func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
@@ -169,6 +199,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 		return fmt.Errorf("%w with length %d of maximum %d", ErrPathTooLong, nIndexes, nCells), -1
 	}
 	seen := map[int]int{}
+	prevIndex := -1
 	for i, index := range indexes {
 		if duplicate, ok := seen[index]; ok {
 			return fmt.Errorf("%w for index %d at position %d / %d", ErrPathIndexDuplicate, index, duplicate, i), i
@@ -180,25 +211,33 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexOutsideBounds, index, i), i
 		}
 		c := tb.cells[index]
-		if c.id == "" {
+		if c.ID == "" {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexInvalidCell, index, i), i
 		}
 		if c.Value() == 0 {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexEmptyCell, index, i), i
 		}
+		if prevIndex >= 0 && !tb.AreNeighboursByIndex(index, prevIndex) {
+			return fmt.Errorf("Not a neighbour %d %d", index, prevIndex), i
+
+		}
 		seen[index] = i
+		prevIndex = index
 	}
 	return nil, 0
 }
 
-func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool) (int64, EvalMethod, error) {
-	err, _ := tb.ValidatePath(indexes)
-	if err != nil {
-		return 0, EvalMethodNil, err
+func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error) {
+	// debug := len(indexes) == 4 && indexes[0] == 0 && indexes[1] == 1 && indexes[2] == 2 && indexes[3] == 5
+	if !noValidate {
+		err, _ := tb.ValidatePath(indexes)
+		if err != nil {
+			return 0, EvalMethodNil, err
+		}
 	}
 	last := indexes[len(indexes)-1]
 	rest := indexes[0 : len(indexes)-1]
-	v, method, err := tb.evaluatesTo(rest, tb.cells[last].Value())
+	v, method, err := tb.SoftEvaluatesTo(rest, tb.cells[last].Value())
 	if err != nil {
 		return v, method, err
 	}
@@ -217,7 +256,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool) (int64
 
 // Evaluates whether a path of indexes results in the targetValue.
 // This method should ideally be as performant as possible, as it will be run in loops.
-func (tb TableBoard) evaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
+func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
 	cellCount := len(tb.cells)
 	if len(indexes) == 0 {
 		return 0, EvalMethodNil, ErrResultInvalidCount
@@ -234,7 +273,7 @@ func (tb TableBoard) evaluatesTo(indexes []int, targetValue int64) (int64, EvalM
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		cell := tb.cells[index]
-		if cell.id == "" {
+		if cell.ID == "" {
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		v := cell.Value()
@@ -296,10 +335,17 @@ func (tb *TableBoard) SwipeDirection(direction SwipeDirection) bool {
 	newCells := tb.SwipeDirectionPreview(direction)
 	changed := false
 
+	// Find if anything actually changed, ignoring empty cells
 outer:
 	for i := 0; i < len(tb.cells); i++ {
+		if tb.cells[i].Value() == 0 {
+			continue
+		}
 		for j := 0; j < len(newCells); j++ {
-			if tb.cells[i].id != newCells[i].id {
+			if tb.cells[j].Value() == 0 {
+				continue
+			}
+			if tb.cells[i].ID != newCells[i].ID {
 				changed = true
 				break outer
 			}
@@ -332,15 +378,17 @@ func (tb *TableBoard) Cells() []Cell {
 }
 func (tb *TableBoard) swipeHorizontal(positive bool) []Cell {
 	rows := tb.getRows()
-	var tiles []Cell
-	for _, row := range rows {
+	tiles := make([]Cell, len(tb.cells))
+	for r, row := range rows {
 		sort.Slice(row, func(i, j int) bool {
 			if positive {
 				return row[i].Value() == 0
 			}
 			return row[j].Value() == 0
 		})
-		tiles = append(tiles, row...)
+		for i, cell := range row {
+			tiles[i+tb.rows*r] = cell
+		}
 	}
 	return tiles
 }
@@ -372,11 +420,15 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	ac, ar := tb.indexToCord(a)
 	bc, br := tb.indexToCord(b)
 
-	if (ac-bc)+(ar-br) != 1 {
+	diff := (ac - bc) + (ar - br)
+
+	if diff != 1 && diff != -1 {
 		return false
 	}
 	return true
 }
+
+// Returns the neighbours for a gives cell. Note that the cells might be empty
 func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	var neighbours []int
 
@@ -407,4 +459,16 @@ func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	}
 	// This should now be sorted, becouse of the ordering above
 	return neighbours, true
+}
+
+func (tb *TableBoard) AddCellToBoard(c Cell, index int, overwrite bool) error {
+	if !tb.ValidCellIndex(index) {
+		return ErrIndexInvalid
+	}
+	if !overwrite && tb.cells[index].Value() > 0 {
+		return ErrCellAtIndexAlreadyHasValue
+	}
+	tb.cells[index] = c
+	return nil
+
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Cell struct {
-	id        string
+	ID        string
 	baseValue int64
 	power     int
 }
@@ -18,7 +18,7 @@ func NewEmptyCell() Cell {
 }
 func NewCell(baseValue int64, power int) Cell {
 	return Cell{
-		id:        gonanoid.Must(),
+		ID:        gonanoid.Must(),
 		baseValue: baseValue,
 		power:     power,
 	}
@@ -39,4 +39,7 @@ func (c Cell) Value() int64 {
 }
 func (c Cell) String() string {
 	return fmt.Sprintf("%d (%d**(2^%d))", c.Value(), c.baseValue, c.power)
+}
+func (c Cell) Hash() string {
+	return fmt.Sprintf("%d*%d", c.baseValue, c.power)
 }

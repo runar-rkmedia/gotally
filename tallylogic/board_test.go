@@ -336,7 +336,7 @@ func TestTableBoard_EvaluatesTo(t *testing.T) {
 				rows:    tt.fields.rows,
 				columns: tt.fields.columns,
 			}
-			gotNum, gotMethod, err := tb.evaluatesTo(tt.args.indexes, tt.args.targetValue)
+			gotNum, gotMethod, err := tb.SoftEvaluatesTo(tt.args.indexes, tt.args.targetValue)
 			if err != tt.wantErr {
 				t.Errorf("TableBoard.EvaluatesTo() error = %v, wantErr %v", err, tt.wantErr)
 				return

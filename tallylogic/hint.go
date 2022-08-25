@@ -2,54 +2,53 @@ package tallylogic
 
 import (
 	"errors"
-	"fmt"
-	"sort"
+	"strconv"
+	"strings"
 )
-
-func copyAndSortSliceToString(slice []int) string {
-	var hi []int
-	hi = append(hi, slice...)
-	sort.Ints(hi)
-	return fmt.Sprintf("%v", hi)
-}
 
 func remove(slice []int, s int) []int {
 	return append(slice[:s], slice[s+1:]...)
 }
 
-func (g *hintCalculator) GetHints() (hints []hint) {
-	valueForIndexMap := map[int]int64{}
-	for i, v := range g.Cells() {
-		valueForIndexMap[i] = v.Value()
+func (g *hintCalculator) GetHints() map[string]Hint {
+	cells := g.Cells()
+	length := len(cells)
+	valueForIndex := make([]int64, length)
+	neighboursForIndex := make([][]int, length)
+	hints := map[string]Hint{}
+	for i := 0; i < length; i++ {
+		valueForIndex[i] = cells[i].Value()
+		n, _ := g.NeighboursForCellIndex(i)
+		neighboursForIndex[i] = n
 	}
-	for i := 0; i < len(valueForIndexMap); i++ {
-		hints = append(hints, g.getHints(valueForIndexMap, []int{i})...)
+	ch := make(chan Hint)
+	doneCh := make(chan struct{}, length)
+	done := 0
+	for i := 0; i < length; i++ {
+		go func(i int) {
+			g.getHints(ch, &valueForIndex, &neighboursForIndex, []int{i})
+			doneCh <- struct{}{}
+		}(i)
 	}
-
-outer:
-	for i := len(hints) - 1; i >= 0; i-- {
-
-		hintI := copyAndSortSliceToString(hints[i].Path)
-		for j := 0; j < len(hints); j++ {
-			if i == j {
-				continue
+	for {
+		select {
+		case <-doneCh:
+			done++
+			if done == length {
+				return hints
 			}
-			if hintI == copyAndSortSliceToString(hints[j].Path) {
-				hints = append(hints[:i], hints[i+1:]...)
-				continue outer
-			}
-
+		case h := <-ch:
+			hints[h.pathHash] = h
 		}
-
 	}
-	// TODO: remove duplicates (where path is just reversed)
-	return hints
 }
 
-type hint struct {
-	Value  int64
-	Method EvalMethod
-	Path   []int
+type Hint struct {
+	Value    int64
+	Method   EvalMethod
+	Swipe    SwipeDirection
+	Path     []int
+	pathHash string
 }
 
 type CellRetriever interface {
@@ -59,7 +58,8 @@ type NeighbourRetriever interface {
 	NeighboursForCellIndex(index int) ([]int, bool)
 }
 type Evaluator interface {
-	EvaluatesTo(indexes []int, commit bool) (int64, EvalMethod, error)
+	EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error)
+	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 }
 
 type hintCalculator struct {
@@ -72,23 +72,23 @@ func NewHintCalculator(c CellRetriever, n NeighbourRetriever, e Evaluator) hintC
 	return hintCalculator{c, n, e}
 }
 
-func (g *hintCalculator) getHints(valueForIndexMap map[int]int64, path []int) []hint {
-	var hints []hint
-	neightbours, ok := g.NeighboursForCellIndex(path[len(path)-1])
-	if !ok {
-		return hints
-	}
+func (g *hintCalculator) getHints(ch chan Hint, valueForIndex *[]int64, neighboursForIndex *[][]int, path []int) {
+	neightbours := (*neighboursForIndex)[path[0]]
 outer:
 	for _, neightbourIndex := range neightbours {
+		// Remove empty
+		if (*valueForIndex)[neightbourIndex] == 0 {
+			continue
+		}
 		// Remove already visited
 		for _, p := range path {
 			if p == neightbourIndex {
 				continue outer
 			}
 		}
-		var newPath = path
-		newPath = append(newPath, neightbourIndex)
-		value, method, err := g.EvaluatesTo(newPath, false)
+		var newPath = []int{neightbourIndex}
+		newPath = append(newPath, path...)
+		value, method, err := g.EvaluatesTo(newPath, false, true)
 		if errors.Is(err, ErrResultNoCell) {
 			continue
 		}
@@ -99,17 +99,40 @@ outer:
 			continue
 		}
 		if value > 0 {
-			hints = append(hints, hint{
-				Value:  value * 2,
-				Method: method,
-				Path:   newPath,
-			})
+			ch <- NewHint(
+				value*2,
+				method,
+				newPath,
+			)
 		}
-		moreHints := g.getHints(valueForIndexMap, newPath)
-		if len(moreHints) > 0 {
-			hints = append(hints, moreHints...)
-		}
+		g.getHints(ch, valueForIndex, neighboursForIndex, newPath)
 	}
+}
 
-	return hints
+func NewHint(value int64, method EvalMethod, path []int) Hint {
+	h := Hint{
+		Value:  value,
+		Method: method,
+		Path:   path,
+	}
+	h.pathHash = h.Hash()
+	return h
+}
+
+// Returns a hash used to compare for the path of the hint
+// This is mostly used for hashmaps, comparing etc.
+func (h Hint) Hash() string {
+	if h.pathHash != "" {
+		return h.pathHash
+	}
+	b := strings.Builder{}
+	for i := 0; i < len(h.Path); i++ {
+		b.WriteString(strconv.FormatInt(int64(h.Path[i]), 36))
+		b.WriteString(";")
+	}
+	return b.String()
+
+}
+func (h Hint) AreEqaul(hint Hint) bool {
+	return h.pathHash == hint.pathHash
 }

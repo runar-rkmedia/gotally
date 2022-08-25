@@ -1,7 +1,11 @@
 package tallylogic
 
 import (
+	"encoding/base64"
 	"fmt"
+	"math/rand"
+	"strconv"
+	"strings"
 )
 
 type CellGenerator interface {
@@ -12,9 +16,15 @@ type Game struct {
 	board         BoardController
 	selectedCells []int
 	cellGenerator CellGenerator
-	rules         GameRules
+	Rules         GameRules
 	score         int64
 	moves         int
+	Description   string
+	Name          string
+	Hinter        hintCalculator
+	GoalChecker   GoalChecker
+	DefeatChecker GoalChecker
+	History       Instruction
 }
 
 type GameRules struct {
@@ -26,6 +36,7 @@ type GameRules struct {
 	RecreateOnSwipe bool
 	// TODO: not implemented
 	WithSuperPowers bool
+	StartingBricks  int
 }
 
 type GameMode int
@@ -33,34 +44,217 @@ type BoardType int
 
 const (
 	GameModeDefault GameMode = iota
+	GameModeTemplate
+	GameModeRandomChallenge
 )
 
-func NewGame(mode GameMode) (Game, error) {
-	game := Game{}
+// Copies the game and all values to a new game
+func (g Game) Copy() Game {
+	game := Game{
+		board:         g.board.Copy(),
+		selectedCells: g.selectedCells,
+		cellGenerator: g.cellGenerator,
+		Rules:         g.Rules,
+		score:         g.score,
+		moves:         g.moves,
+		Name:          g.Name,
+		Description:   g.Description,
+		GoalChecker:   g.GoalChecker,
+		DefeatChecker: g.DefeatChecker,
+	}
+	game.Hinter = NewHintCalculator(
+		game.board, game.board, game.board,
+	)
+	game.History = append(game.History, g.History...)
+	return game
+
+}
+func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
+	game := Game{
+		// Default rules
+		Rules: GameRules{
+			SizeX:           5,
+			SizeY:           5,
+			RecreateOnSwipe: true,
+			WithSuperPowers: true,
+			StartingBricks:  5,
+		},
+		cellGenerator: NewCellGenerator(),
+		History:       []any{},
+	}
 	switch mode {
 	case GameModeDefault:
-		game.rules.SizeX = 5
-		game.rules.SizeY = 5
-		game.rules.RecreateOnSwipe = true
-		game.rules.WithSuperPowers = true
+		board := NewTableBoard(5, 5)
+		game.board = &board
+		game.Description = "Default game, 5x5"
+		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+		game.GoalChecker = GoalCheck{"Game runs forever"}
+		break
+	case GameModeTemplate, GameModeRandomChallenge:
+		if template != nil {
+			t := template.Create()
+			game.board = &t.Board
+			game.Rules = t.Rules
+			game.Description = t.Description
+			game.Name = t.Name
+			game.DefeatChecker = t.DefeatChecker
+			game.GoalChecker = t.GoalChecker
+
+			if game.Description == "" {
+				game.Description = game.GoalChecker.Description()
+			}
+
+		} else {
+
+			board := TableBoard{
+				rows:    5,
+				columns: 5,
+				cells: cellCreator(
+					0, 2, 1, 0, 1,
+					64, 4, 4, 1, 2,
+					64, 8, 4, 1, 0,
+					12, 3, 1, 0, 0,
+					16, 0, 0, 0, 0,
+				),
+			}
+			game.board = &board
+			game.Rules = GameRules{
+				BoardType:       0,
+				GameMode:        GameModeDefault,
+				SizeX:           board.columns,
+				SizeY:           board.rows,
+				RecreateOnSwipe: false,
+				WithSuperPowers: false,
+			}
+			game.Description = "Get to 512 points withing 10 moves"
+		}
+		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
+	allEmpty := true
+	for _, c := range game.Cells() {
+		if c.Value() > 0 {
+			allEmpty = false
+			break
+		}
+
+	}
+	if allEmpty || len(game.Cells()) == 0 {
+		for i := 0; i < game.Rules.StartingBricks; i++ {
+			game.generateCellToEmptyCell()
+		}
+	}
+	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
+	if len(game.board.Cells()) != (game.Rules.SizeX * game.Rules.SizeY) {
+		return game, fmt.Errorf("Game has invalid size: %d cells, %dx%d, mode %v template %v", len(game.board.Cells()), game.Rules.SizeX, game.Rules.SizeY, mode, template)
+	}
 	return game, nil
+}
+
+func (g *Game) GetHint() map[string]Hint {
+	return g.Hinter.GetHints()
+}
+func (g *Game) generateCellToEmptyCell() bool {
+	i := g.getRandomEmptyCell()
+	if i == nil {
+		return false
+	}
+	cell := g.cellGenerator.Generate()
+	err := g.board.AddCellToBoard(cell, *i, false)
+	return err == nil
+
+}
+func (g *Game) getRandomEmptyCell() *int {
+	empty := g.getEmptyCellIndexes()
+	if len(empty) == 0 {
+		return nil
+	}
+	i := rand.Intn(len(empty))
+	return &empty[i]
+
+}
+func (g *Game) getEmptyCellIndexes() []int {
+	cells := g.board.Cells()
+	var empty []int
+	for i, v := range cells {
+		if v.Value() == 0 {
+			empty = append(empty, i)
+		}
+	}
+	return empty
+}
+
+func (g *Game) inceaseMoveCount() {
+	g.moves++
+}
+func (g *Game) increaseScore(points int64) {
+	g.score += points
 }
 
 func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 	changed = g.board.SwipeDirection(direction)
 	g.ClearSelection()
-	if g.rules.RecreateOnSwipe {
-		// TODO: pic a random empty cell and generate new here
+	if g.Rules.RecreateOnSwipe {
+		g.generateCellToEmptyCell()
 	}
 	if changed {
-		g.moves++
+		g.inceaseMoveCount()
+		g.History.AddSwipe(direction)
+	}
+	return changed
+}
+
+type Instruction []any
+
+func (i *Instruction) AddSwipe(dir SwipeDirection) {
+	(*i) = append(*i, dir)
+}
+func (i *Instruction) AddSelectIndex(index int) {
+	(*i) = append(*i, index)
+}
+func (i *Instruction) AddSelectCoord(column, row int) {
+	(*i) = append(*i, [2]int{column, row})
+}
+func (i *Instruction) AddPath(indexes []int) {
+	(*i) = append(*i, indexes)
+}
+func (i *Instruction) AddEvaluateSelection(indexes []int) {
+	(*i) = append(*i, indexes)
+}
+func (i Instruction) Hash() string {
+	b := strings.Builder{}
+	for _, ins := range i {
+		switch ins {
+		case true:
+			b.WriteString("t")
+		case SwipeDirectionUp:
+			b.WriteString("U")
+		case SwipeDirectionRight:
+			b.WriteString("R")
+		case SwipeDirectionDown:
+			b.WriteString("D")
+		case SwipeDirectionLeft:
+			b.WriteString("L")
+		default:
+			switch t := ins.(type) {
+			case int:
+				b.WriteString(strconv.FormatInt(int64(t), 46))
+			case [2]int:
+				b.WriteString(strconv.FormatInt(int64(t[0]), 46))
+				b.WriteString("x")
+				b.WriteString(strconv.FormatInt(int64(t[1]), 46))
+			case []int:
+				for i := 0; i < len(t); i++ {
+					b.WriteString(strconv.FormatInt(int64(t[i]), 46))
+
+				}
+			}
+		}
+		b.WriteString(";")
 	}
 
-	return changed
-
+	return b.String()
 }
 
 // This is used to instruct the game using small data-values Not really sure
@@ -132,21 +326,139 @@ func (g *Game) ClearSelection() {
 	g.selectedCells = []int{}
 }
 func (g *Game) EvaluateSelection() bool {
-	err, _ := g.board.ValidatePath(g.selectedCells)
-	if err != nil {
-		g.ClearSelection()
-		return false
-	}
-	points, _, err := g.board.EvaluatesTo(g.selectedCells, true)
-	if err != nil {
-		return false
-	}
-	g.score += points
-	g.moves++
+	ok := g.EvaluateForPath(g.selectedCells)
 	g.ClearSelection()
+	return ok
+}
+func (g *Game) EvaluateForPath(path []int) bool {
+	err, _ := g.board.ValidatePath(path)
+	if err != nil {
+		return false
+	}
+	points, _, err := g.board.EvaluatesTo(path, true, false)
+	if err != nil {
+		return false
+	}
+	g.increaseScore(points * int64(len(path)))
+	g.inceaseMoveCount()
+	g.History.AddPath(path)
 	return true
+}
+
+func (g *Game) Print() string {
+	return g.board.String()
+}
+func (g *Game) ForTemplate() map[string]any {
+	m := map[string]any{}
+	m["cells"] = g.board.Cells()
+	return m
+}
+func (g *Game) IsLastSelection(requested Cell) bool {
+	if len(g.selectedCells) == 0 {
+		return false
+	}
+	cells := g.board.Cells()
+	last := g.selectedCells[len(g.selectedCells)-1]
+	if cells[last].ID == requested.ID {
+		return true
+	}
+
+	return false
+
+}
+func (g *Game) IsSelected(requested Cell) bool {
+	if len(g.selectedCells) == 0 {
+		return false
+	}
+	cells := g.board.Cells()
+	for _, index := range g.selectedCells {
+		if cells[index].ID == requested.ID {
+			return true
+		}
+
+	}
+	return false
+}
+
+func (g *Game) IsCellIndexPartOfFirstHint(index int, hints map[string]Hint) bool {
+	if hints == nil {
+		return false
+	}
+	// TODO: sort the map first
+	for _, h := range hints {
+		return g.IsCellIndexPartOfHint(index, h)
+	}
+	return false
+}
+func (g *Game) IsCellIndexPartOfFirstInstruction(index int, instructions Instruction) bool {
+	if len(instructions) == 0 {
+		return false
+	}
+	return g.IsCellIndexPartOfInstruction(index, instructions[0])
+}
+func (g *Game) IsCellIndexPartOfHint(index int, hint Hint) bool {
+	if len(hint.Path) == 0 {
+		return false
+	}
+	for _, i := range hint.Path {
+		if index == i {
+			return true
+		}
+	}
+	return false
+}
+func (g *Game) IsCellIndexPartOfInstruction(index int, instruction any) bool {
+	if instruction == nil {
+		return false
+	}
+	path, ok := instruction.([]int)
+	if !ok {
+		return false
+	}
+
+	if len(path) == 0 {
+		return false
+	}
+	for _, i := range path {
+		if index == i {
+			return true
+		}
+	}
+	return false
 }
 
 func (g Game) Score() int64 {
 	return g.score
+}
+func (g Game) HighestCellValue() int64 {
+	return g.board.HighestValue()
+}
+func (g Game) Moves() int {
+	return g.moves
+}
+func (g Game) SelectedCells() []int {
+	return g.selectedCells
+}
+func (g Game) Cells() []Cell {
+	return g.board.Cells()
+}
+func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {
+	return g.board.NeighboursForCellIndex(index)
+}
+func (g Game) EvaluatesTo(indexes []int, commit bool, noValidate bool) (int64, EvalMethod, error) {
+	return g.board.EvaluatesTo(indexes, commit, noValidate)
+}
+func (g Game) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error) {
+	return g.board.SoftEvaluatesTo(indexes, targetValue)
+}
+
+func (g Game) IsGameWon() bool {
+	return g.GoalChecker.Check(g)
+}
+func (g Game) IsGameOver() bool {
+	return g.DefeatChecker.Check(g)
+}
+func (g Game) Hash() string {
+	b := []byte(g.board.Hash())
+	return base64.URLEncoding.EncodeToString(b)
 }

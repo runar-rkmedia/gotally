@@ -29,6 +29,14 @@ func BoardHightlighter(g *Game) func(Cell, int, string) string {
 	}
 }
 
+func mustCreateNewGame(mode GameMode, template *GameTemplate) Game {
+	game, err := NewGame(mode, template)
+	if err != nil {
+		panic(err)
+	}
+	return game
+}
+
 func TestGame_Play(t *testing.T) {
 	type fields struct {
 		board         BoardController
@@ -40,24 +48,13 @@ func TestGame_Play(t *testing.T) {
 	type playgame = func(game *Game, t *testing.T)
 	tests := []struct {
 		name          string
-		fields        fields
+		fields        Game
 		play          playgame
 		expectedScore int64
-		expectedBoard TableBoard
 	}{
 		{
 			"Play the first daily board",
-			fields{
-				board: &FirstDailyBoard,
-				rules: GameRules{
-					BoardType:       0,
-					GameMode:        GameModeDefault,
-					SizeX:           FirstDailyBoard.columns,
-					SizeY:           FirstDailyBoard.rows,
-					RecreateOnSwipe: false,
-					WithSuperPowers: false,
-				},
-			},
+			mustCreateNewGame(GameModeTemplate, GetGameTemplateById("Ch:NotTheObviousPath")),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					// Combine 4 into 4 (+) resulting in 8
@@ -117,7 +114,6 @@ func TestGame_Play(t *testing.T) {
 				}
 			},
 			480,
-			FirstDailyBoard,
 		},
 	}
 	for _, tt := range tests {
@@ -126,7 +122,7 @@ func TestGame_Play(t *testing.T) {
 				board:         tt.fields.board,
 				selectedCells: tt.fields.selectedCells,
 				cellGenerator: tt.fields.cellGenerator,
-				rules:         tt.fields.rules,
+				Rules:         tt.fields.Rules,
 				score:         tt.fields.score,
 			}
 			tt.play(g, t)
