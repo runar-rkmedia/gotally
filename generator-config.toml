@@ -1,0 +1,10 @@
+Rows = 3
+Columns = 3
+TargetCellValue = 64
+MaxBricks = 9
+MinBricks = 4
+MinMoves = 0
+MinGames = 100
+MaxMoves = 7
+Concurrency = 1000
+MaxIterations = 100000000000

@@ -4,13 +4,43 @@ gitHash := $(shell git rev-parse --short HEAD)
 buildDate := $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
 ldflags=-X 'main.version=$(version)' -X 'main.date=$(buildDate)' -X 'main.commit=$(gitHash)' -X 'main.IsDevStr=0'
 
+dev:
+	$(MAKE) -s -j4 web server-watch test-watch buf-watch
+
+# Dependencies
+deps:
+	@cd frontend && npm install
+generate:
+	buf generate
+buf-watch:
+	fd '' ./proto | entr -r sh -c "make buf-lint && make generate"
+
+
+# linters
+buf-lint:
+	@cd proto && make lint
+go-lint:
+	golangci-lint run
+
+# tests
+go-test:
+	gotest ./tallylogic/
+test-watch:
+	fd '' tallylogic | entr -r sh -c "gotest ./tallylogic"
+
+# web and servers
+web:
+	cd frontend && npm run dev -- --clearScreen false 
+server:
+	go run ./api/cmd/main.go
+server-watch:
+	fd '.go' | entr -r sh -c "golangci-lint run & go run ./api/cmd/main.go"
+# experimental live-server used for early development
 live-client:
 	fd | entr -r go run live_client/main.go
-test-watch:
-	fd | entr -r gotest ./...
-nterfaces:
-	ifacemaker -f tallylogic/board.go -s TableBoard -i BoardController -p tallylogic -o tallylogic/board_controller.go
-ontainer: 
+
+# build a container with the application
+build-container: 
 	docker build . \
 	-t runardocker/gotally:latest \
 	-t runardocker/gotally:$(version) \
@@ -20,10 +50,17 @@ ontainer:
 	--label "org.opencontainers.image.created=$(buildDate)" \
 	--label "org.opencontainers.image.version=$(version)" \
 	--build-arg "ldflags=$(ldflags)"
+
+# run the latest container
 run-container:
 	docker run --rm -it -p 8080:8080 runardocker/gotally:latest
+
+# publish the container.
 container-publish: 
+	@echo "will now publish the contianer. Did you remember to log into docker-hub?"
 	docker push runardocker/gotally:latest 
 	docker push runardocker/gotally:$(version) 
+
+# Deploy to fly.io
 fly:
 	fly deploy 

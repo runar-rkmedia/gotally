@@ -53,10 +53,10 @@ func (c *stupidcache) SetGame(s string, game *GameModel) {
 }
 
 var (
-	cache stupidcache = stupidcache{
+	Cache stupidcache = stupidcache{
 		games: map[string]*GameModel{},
 	}
-	cookieStore = live.NewCookieStore("cookie", []byte("eeeee"))
+	CookieStore = live.NewCookieStore("cookie", []byte("eeeee"))
 )
 
 func getSesssionId(s live.Socket) string {
@@ -86,7 +86,7 @@ func NewThermoModel(s live.Socket) *GameModel {
 	m, ok := s.Assigns().(*GameModel)
 	if !ok {
 		sessionID := getSesssionId(s)
-		ex := cache.GetGame(sessionID)
+		ex := Cache.GetGame(sessionID)
 		if ex != nil {
 			return ex
 		}
@@ -114,7 +114,7 @@ func NewThermoModel(s live.Socket) *GameModel {
 		} else {
 			fmt.Println("no username")
 		}
-		cache.SetGame(sessionID, m)
+		Cache.SetGame(sessionID, m)
 	}
 	return m
 }
@@ -163,15 +163,6 @@ func restart(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 }
 
 var db database.DB
-
-func init() {
-	d, err := database.NewDatabase("")
-	if err != nil {
-		panic(err)
-	}
-	db = d
-
-}
 
 func setUserName(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 
@@ -249,31 +240,12 @@ func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 	model.Template = v.Template
 
 	sess := getSesssionId(s)
-	cache.SetGame(sess, model)
+	Cache.SetGame(sess, model)
 	return model, nil
 }
 func getHint(ctx context.Context, s live.Socket, p live.Params) (interface{}, error) {
 	model := NewThermoModel(s)
 	model.Hints = model.Game.GetHint()
-	if model.Template != nil && false {
-		solver := tally.NewBruteSolver(tally.SolveOptions{
-			MaxDepth:     0,
-			MaxVisits:    0,
-			MinMoves:     0,
-			MaxMoves:     20,
-			MaxSolutions: 1,
-		})
-		solutions, err := solver.SolveGame(model.Game)
-		if err != nil {
-			log.Println("failed to solve game", err)
-		} else if len(solutions) > 0 {
-			// model.Hints = map[string]tally.Hint{}
-			// for _, s := range solutions[0].History {
-			// 	model.Hints["s"] = tally.Hint{
-			// 	}
-			// }
-		}
-	}
 	model.HintButtonCounter++
 	return model, nil
 }
@@ -326,7 +298,12 @@ func ReadGeneratedBoardsFromDisk() error {
 // "live-click" event.
 func Example() {
 	startedAt = time.Now()
-	err := ReadGeneratedBoardsFromDisk()
+	d, err := database.NewDatabase("")
+	if err != nil {
+		panic(err)
+	}
+	db = d
+	err = ReadGeneratedBoardsFromDisk()
 	if err != nil {
 		log.Printf("failed to read generated files: %s", err.Error())
 	}
@@ -340,7 +317,10 @@ func Example() {
 	// socket connection.
 	h.HandleMount(thermoMount)
 	tmpl := template.New("index")
-	tmpl.Parse(tmpltIndexHtml)
+	_, err = tmpl.Parse(tmpltIndexHtml)
+	if err != nil {
+		panic(err)
+	}
 
 	h.HandleRender(func(ctx context.Context, data *live.RenderContext) (io.Reader, error) {
 		var buf bytes.Buffer
@@ -368,7 +348,7 @@ func Example() {
 	h.HandleEvent("vote", vote)
 	h.HandleEvent("set-username", setUserName)
 
-	http.Handle("/", live.NewHttpHandler(cookieStore, h))
+	http.Handle("/", live.NewHttpHandler(CookieStore, h))
 
 	// This serves the JS needed to make live work.
 	http.Handle("/live.js", live.Javascript{})
@@ -377,5 +357,8 @@ func Example() {
 		port = "8080"
 	}
 	log.Printf("starting... on port %s\n", port)
-	http.ListenAndServe(":"+port, nil)
+	err = http.ListenAndServe(":"+port, nil)
+	if err != nil {
+		panic(err)
+	}
 }

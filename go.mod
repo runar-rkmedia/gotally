@@ -3,28 +3,35 @@ module github.com/runar-rkmedia/gotally
 go 1.18
 
 require (
+	github.com/bufbuild/connect-go v0.4.0
 	github.com/gookit/color v1.5.1
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/pelletier/go-toml/v2 v2.0.3
+	google.golang.org/grpc v1.49.0
+	google.golang.org/protobuf v1.28.1
 )
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/rs/zerolog v1.26.2-0.20220312163309-e9344a8c507b // indirect
 	github.com/runar-rkmedia/go-common v0.0.5 // indirect
 	github.com/schollz/mnemonicode v1.0.1 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/google/go-cmp v0.5.7 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect

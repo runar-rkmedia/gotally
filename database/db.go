@@ -31,7 +31,9 @@ func NewDatabase(dsn string) (DB, error) {
 	}
 	d := DB{db}
 	go func() {
-		d.Deploy()
+		if err := d.Deploy(); err != nil {
+			log.Fatal("failure to deploye database", err)
+		}
 		err := db.Ping()
 		if err != nil {
 			log.Fatal("could not ping database")
@@ -122,8 +124,12 @@ func (db DB) GetAllVotes() (map[string]Vote, error) {
 			log.Println("failed to scan result", err)
 			continue
 		}
-		parseTime(&vote.CreatedAt, createdAt)
-		parseTime(vote.UpdatedAt, updatedAt.String)
+		if err := parseTime(&vote.CreatedAt, createdAt); err != nil {
+			log.Println("failed to parse time-format", err)
+		}
+		if err := parseTime(vote.UpdatedAt, updatedAt.String); err != nil {
+			log.Println("failed to parse time-format", err)
+		}
 		votes[vote.ID] = vote
 	}
 
@@ -148,7 +154,9 @@ func (db DB) GetVotesForBoardByUserName(userName string) (map[string]Vote, error
 			continue
 		}
 		var upd time.Time
-		parseTime(&vote.CreatedAt, createdAt)
+		if err := parseTime(&vote.CreatedAt, createdAt); err != nil {
+			log.Println("failed to parse time-format", err)
+		}
 		if err := parseTime(&upd, updatedAt.String); err == nil {
 			vote.UpdatedAt = &upd
 		}
@@ -174,30 +182,4 @@ type Vote struct {
 	CreatedAt          time.Time
 	UpdatedAt          *time.Time
 	FunVote            int
-}
-
-func main() {
-	db, err := NewDatabase("")
-	if err != nil {
-		panic(err)
-	}
-	if err := db.db.Ping(); err != nil {
-		panic(err)
-	}
-	fmt.Println("Successfully connected to PlanetScale!")
-	db.Deploy()
-	vote, err := db.VoteForBoard("test", "min_test_burker", "bob", 1)
-	if err != nil {
-		fmt.Println("Failed to vote: %w", err)
-		return
-	}
-	fmt.Println("voted sucessfully", vote)
-
-	votes, err := db.GetVotesForBoardByUserName("min_test_burker")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, v := range votes {
-		fmt.Printf("\nvote %#v", v)
-	}
 }

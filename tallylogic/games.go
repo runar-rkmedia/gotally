@@ -118,11 +118,7 @@ func (g DefeatCheckerNoMoreMoves) Check(game Game) bool {
 	// If we have swiped in all directions, not found any hints, and then the board is the same,
 	// the user should be game over.
 	// TODO: Verify that there are no edge-cases here, where a some other combination of swipes would make the game game-over
-	if hash == copy.board.Hash() {
-		return true
-	}
-
-	return false
+	return hash == copy.board.Hash()
 
 }
 func (g GoalCheckLargestCell) Description() string {

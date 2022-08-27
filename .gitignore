@@ -92,3 +92,6 @@ go.work
 generated/games/**/*
 *.pprof
 *.env*
+*.log
+
+frontend/src/connect-web/proto

@@ -146,7 +146,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 	}
 	printStatus := func() {
 		total := done + errorCount
-		sinceStart := time.Now().Sub(start)
+		sinceStart := time.Since(start)
 		ratePerSecond := float64(total) / float64(sinceStart/time.Second)
 		perc := float64(total) / float64(gb.MaxIterations)
 		expectedToBeDone := time.Duration(float64(gb.MaxIterations)/ratePerSecond) * time.Second
@@ -197,11 +197,6 @@ type SolvableGame struct {
 	Solutions []Game
 }
 
-func (gb GameGenerator) generateAndSolveGame(solver bruteSolver) (*SolvableGame, error) {
-	game := gb.generateGame()
-	return gb.solveGame(solver, game)
-
-}
 func (gb GameGenerator) solveGame(solver bruteSolver, game Game) (*SolvableGame, error) {
 	solutions, err := solver.SolveGame(game)
 	if err != nil {
