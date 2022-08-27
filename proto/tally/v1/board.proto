@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package tally.v1;
+
+option go_package = "github.com/runar-rkmedia/gotally/gen/proto/tally/v1;tallyv1";
+
+/* # import "google/type/datetime.proto"; */
+
+
+// Direction for swipe, e.g. the direction one wants to move all the cells into
+enum SwipeDirection {
+  // null
+  SWIPE_DIRECTION_UNSPECIFIED = 0;
+  // Swipe up
+  SWIPE_DIRECTION_UP = 1;
+  // Swipe right
+  SWIPE_DIRECTION_RIGHT = 2;
+  // Swipe down
+  SWIPE_DIRECTION_DOWN = 3;
+  // Swipe left
+  SWIPE_DIRECTION_LEFT = 4;
+}
+// Cell is single value on the board. The value can then be calculated with base * 2^twopow
+message Cell {
+  // Base-value
+  int64 base = 1;
+  // Pow-value 
+  int64 twopow = 2;
+}
+
+message Board {
+  repeated Cell cell = 1;
+  int32 columns = 2;
+  int32 rows = 3;
+  string name = 4;
+}
+
+
+message Instruction {
+    oneof instruction_oneof {
+         SwipeDirection swipe = 1;
+         Indexes combine = 2;
+      }
+  }
+
+message GetBoardRequest {
+}
+message NewGameRequest {
+}
+
+message GetBoardResponse {
+  Board board = 1;
+  int64 score = 2;
+  int64 moves = 3;
+}
+message NewGameResponse {
+  Board board = 1;
+  int64 score = 2;
+  int64 moves = 3;
+}
+
+message SwipeBoardRequest {
+  SwipeDirection direction = 2;
+}
+message SwipeBoardResponse {
+  // Indicates whether or not any change was made. 
+  // This can happen in these scenarios:
+  // 1. The board is full.
+  // 2. Cell-generating is not active and
+  //    - All the bricks in the direction of which is beeing swiped is already stacked at that edge
+  //
+  // This may be expanded upon with future gamemodes.
+  bool did_change = 1;
+  Board board = 2;
+}
+
+message Coordinate {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message Indexes {
+  repeated int32 index = 1;
+}
+message SelectionCoordinates {
+  repeated Coordinate coordinate = 1;
+}
+
+message CombineCellsRequest {
+  oneof selection {
+    Indexes indexes = 1;
+    Coordinate coordinate = 2;
+  } 
+}
+message CombineCellsResponse {
+  Board board = 1;
+  int64 score = 2;
+  bool did_win = 3;
+  int64 moves = 4;
+}
+
+message Game {
+    Board board = 1;
+    int64 score = 2;
+    int64 moves = 4;
+    string name = 5;
+    string description = 6;
+}
+
+service BoardService {
+  rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
+  rpc GetBoard(GetBoardRequest) returns (GetBoardResponse) {}
+  rpc SwipeBoard(SwipeBoardRequest) returns (SwipeBoardResponse) {}
+  rpc CombineCells(CombineCellsRequest) returns (CombineCellsResponse) {}
+}

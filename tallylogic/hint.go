@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-func remove(slice []int, s int) []int {
-	return append(slice[:s], slice[s+1:]...)
-}
-
 func (g *hintCalculator) GetHints() map[string]Hint {
 	cells := g.Cells()
 	length := len(cells)

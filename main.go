@@ -2,13 +2,11 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path"
-	"strconv"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/runar-rkmedia/gotally/tallylogic"
@@ -25,22 +23,6 @@ func main() {
 	generateGame()
 }
 
-func getCell() {
-	args := flag.Args()
-	flag.Parse()
-	fmt.Println(args)
-	a, err := strconv.ParseInt(flag.Arg(0), 10, 64)
-	if err != nil {
-		panic(err)
-	}
-	b, err := strconv.ParseInt(flag.Arg(1), 10, 64)
-	if err != nil {
-		panic(err)
-	}
-	cell := tallylogic.NewCell(a, int(b))
-	fmt.Println(cell)
-
-}
 func generateGame() {
 	type options struct {
 		Rows, Columns, TargetCellValue, MaxBricks, MinBricks, MinMoves, MaxMoves, Concurrency, MaxIterations, MinGames int
@@ -110,7 +92,10 @@ func generateGame() {
 					panic(err)
 				}
 				fp := path.Join(dir, hashName+"_"+sg.Game.Hash()+".toml")
-				os.WriteFile(fp, buf.Bytes(), 0755)
+				err = os.WriteFile(fp, buf.Bytes(), 0755)
+				if err != nil {
+					panic(err)
+				}
 
 			}
 

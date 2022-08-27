@@ -1,0 +1,8 @@
+proseWrap = "preserve"
+semi = false
+singleQuote = true
+svelteBracketNewLine = false
+tabWidth = 2
+trailingComma = "all"
+useTabs = false
+bracketSameLine = false

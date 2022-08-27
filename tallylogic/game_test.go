@@ -38,13 +38,6 @@ func mustCreateNewGame(mode GameMode, template *GameTemplate) Game {
 }
 
 func TestGame_Play(t *testing.T) {
-	type fields struct {
-		board         BoardController
-		selectedCells []int
-		cellGenerator CellGenerator
-		rules         GameRules
-		score         int64
-	}
 	type playgame = func(game *Game, t *testing.T)
 	tests := []struct {
 		name          string
@@ -113,7 +106,7 @@ func TestGame_Play(t *testing.T) {
 					}
 				}
 			},
-			480,
+			1568,
 		},
 	}
 	for _, tt := range tests {

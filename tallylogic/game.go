@@ -89,7 +89,6 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 		game.Description = "Default game, 5x5"
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
 		game.GoalChecker = GoalCheck{"Game runs forever"}
-		break
 	case GameModeTemplate, GameModeRandomChallenge:
 		if template != nil {
 			t := template.Create()
@@ -128,7 +127,6 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			}
 			game.Description = "Get to 512 points withing 10 moves"
 		}
-		break
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d", mode)
 	}
@@ -239,14 +237,14 @@ func (i Instruction) Hash() string {
 		default:
 			switch t := ins.(type) {
 			case int:
-				b.WriteString(strconv.FormatInt(int64(t), 46))
+				b.WriteString(strconv.FormatInt(int64(t), 36))
 			case [2]int:
-				b.WriteString(strconv.FormatInt(int64(t[0]), 46))
+				b.WriteString(strconv.FormatInt(int64(t[0]), 36))
 				b.WriteString("x")
-				b.WriteString(strconv.FormatInt(int64(t[1]), 46))
+				b.WriteString(strconv.FormatInt(int64(t[1]), 36))
 			case []int:
 				for i := 0; i < len(t); i++ {
-					b.WriteString(strconv.FormatInt(int64(t[i]), 46))
+					b.WriteString(strconv.FormatInt(int64(t[i]), 36))
 
 				}
 			}
@@ -359,11 +357,8 @@ func (g *Game) IsLastSelection(requested Cell) bool {
 	}
 	cells := g.board.Cells()
 	last := g.selectedCells[len(g.selectedCells)-1]
-	if cells[last].ID == requested.ID {
-		return true
-	}
 
-	return false
+	return cells[last].ID == requested.ID
 
 }
 func (g *Game) IsSelected(requested Cell) bool {
@@ -429,6 +424,9 @@ func (g *Game) IsCellIndexPartOfInstruction(index int, instruction any) bool {
 
 func (g Game) Score() int64 {
 	return g.score
+}
+func (g Game) ValidatePath(indexes []int) (error, int) {
+	return g.board.ValidatePath(indexes)
 }
 func (g Game) HighestCellValue() int64 {
 	return g.board.HighestValue()
