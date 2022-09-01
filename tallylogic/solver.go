@@ -33,9 +33,13 @@ type SolveOptions struct {
 
 func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 	seen := map[string]struct{}{}
-	return b.solveGame(g, []Game{}, -1, &seen)
+	game := g.Copy()
+	game.History = Instruction{}
+	brr, err := b.solveGame(game, g.moves, []Game{}, -1, &seen)
+
+	return brr, err
 }
-func (b *bruteSolver) solveGame(g Game, solutions []Game, depth int, seen *map[string]struct{}) ([]Game, error) {
+func (b *bruteSolver) solveGame(g Game, startingMoves int, solutions []Game, depth int, seen *map[string]struct{}) ([]Game, error) {
 	depth++
 	if depth > b.MaxDepth {
 		return solutions, fmt.Errorf("Game-depth overflow %d (seen: %d)", depth, len(*seen))
@@ -44,12 +48,12 @@ func (b *bruteSolver) solveGame(g Game, solutions []Game, depth int, seen *map[s
 		return solutions, fmt.Errorf("Game-seen overflow")
 	}
 
-	if b.MaxMoves > 0 && b.MaxMoves < g.Moves() {
+	if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-startingMoves) {
 		return solutions, fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d", g.Moves(), b.MaxMoves)
 	}
 	hash := g.board.Hash()
 	if _, ok := (*seen)[hash]; ok {
-		return solutions, nil
+		return solutions, fmt.Errorf("Already seen")
 	}
 	(*seen)[hash] = struct{}{}
 	hints := g.GetHint()
@@ -68,9 +72,10 @@ func (b *bruteSolver) solveGame(g Game, solutions []Game, depth int, seen *map[s
 				return solutions, nil
 			}
 		} else {
-			more, err := b.solveGame(gameCopy, solutions, depth, seen)
+			more, err := b.solveGame(gameCopy, startingMoves, solutions, depth, seen)
 			if err != nil {
-				return solutions, err
+				continue
+				// return solutions, err
 			}
 			solutions = more
 			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
@@ -82,9 +87,11 @@ func (b *bruteSolver) solveGame(g Game, solutions []Game, depth int, seen *map[s
 		gameCopy := g.Copy()
 		changed := gameCopy.Swipe(dir)
 		if changed {
-			more, err := b.solveGame(gameCopy, solutions, depth, seen)
+			more, err := b.solveGame(gameCopy, startingMoves, solutions, depth, seen)
 			if err != nil {
-				return solutions, err
+				fmt.Println("dir bailed", dir, err)
+				continue
+				// return solutions, err
 			}
 			solutions = more
 			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {

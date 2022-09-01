@@ -28,7 +28,9 @@ const (
 // BoardServiceClient is a client for the tally.v1.BoardService service.
 type BoardServiceClient interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
-	GetBoard(context.Context, *connect_go.Request[v1.GetBoardRequest]) (*connect_go.Response[v1.GetBoardResponse], error)
+	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
+	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
+	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
 }
@@ -48,9 +50,19 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+"/tally.v1.BoardService/NewGame",
 			opts...,
 		),
-		getBoard: connect_go.NewClient[v1.GetBoardRequest, v1.GetBoardResponse](
+		getHint: connect_go.NewClient[v1.GetHintRequest, v1.GetHintResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/GetBoard",
+			baseURL+"/tally.v1.BoardService/GetHint",
+			opts...,
+		),
+		restartGame: connect_go.NewClient[v1.RestartGameRequest, v1.RestartGameResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/RestartGame",
+			opts...,
+		),
+		getSession: connect_go.NewClient[v1.GetSessionRequest, v1.GetSessionResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/GetSession",
 			opts...,
 		),
 		swipeBoard: connect_go.NewClient[v1.SwipeBoardRequest, v1.SwipeBoardResponse](
@@ -69,7 +81,9 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 // boardServiceClient implements BoardServiceClient.
 type boardServiceClient struct {
 	newGame      *connect_go.Client[v1.NewGameRequest, v1.NewGameResponse]
-	getBoard     *connect_go.Client[v1.GetBoardRequest, v1.GetBoardResponse]
+	getHint      *connect_go.Client[v1.GetHintRequest, v1.GetHintResponse]
+	restartGame  *connect_go.Client[v1.RestartGameRequest, v1.RestartGameResponse]
+	getSession   *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
 	swipeBoard   *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
 	combineCells *connect_go.Client[v1.CombineCellsRequest, v1.CombineCellsResponse]
 }
@@ -79,9 +93,19 @@ func (c *boardServiceClient) NewGame(ctx context.Context, req *connect_go.Reques
 	return c.newGame.CallUnary(ctx, req)
 }
 
-// GetBoard calls tally.v1.BoardService.GetBoard.
-func (c *boardServiceClient) GetBoard(ctx context.Context, req *connect_go.Request[v1.GetBoardRequest]) (*connect_go.Response[v1.GetBoardResponse], error) {
-	return c.getBoard.CallUnary(ctx, req)
+// GetHint calls tally.v1.BoardService.GetHint.
+func (c *boardServiceClient) GetHint(ctx context.Context, req *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error) {
+	return c.getHint.CallUnary(ctx, req)
+}
+
+// RestartGame calls tally.v1.BoardService.RestartGame.
+func (c *boardServiceClient) RestartGame(ctx context.Context, req *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error) {
+	return c.restartGame.CallUnary(ctx, req)
+}
+
+// GetSession calls tally.v1.BoardService.GetSession.
+func (c *boardServiceClient) GetSession(ctx context.Context, req *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error) {
+	return c.getSession.CallUnary(ctx, req)
 }
 
 // SwipeBoard calls tally.v1.BoardService.SwipeBoard.
@@ -97,7 +121,9 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, req *connect_go.R
 // BoardServiceHandler is an implementation of the tally.v1.BoardService service.
 type BoardServiceHandler interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
-	GetBoard(context.Context, *connect_go.Request[v1.GetBoardRequest]) (*connect_go.Response[v1.GetBoardResponse], error)
+	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
+	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
+	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
 }
@@ -114,9 +140,19 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 		svc.NewGame,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/GetBoard", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/GetBoard",
-		svc.GetBoard,
+	mux.Handle("/tally.v1.BoardService/GetHint", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/GetHint",
+		svc.GetHint,
+		opts...,
+	))
+	mux.Handle("/tally.v1.BoardService/RestartGame", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/RestartGame",
+		svc.RestartGame,
+		opts...,
+	))
+	mux.Handle("/tally.v1.BoardService/GetSession", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/GetSession",
+		svc.GetSession,
 		opts...,
 	))
 	mux.Handle("/tally.v1.BoardService/SwipeBoard", connect_go.NewUnaryHandler(
@@ -139,8 +175,16 @@ func (UnimplementedBoardServiceHandler) NewGame(context.Context, *connect_go.Req
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.NewGame is not implemented"))
 }
 
-func (UnimplementedBoardServiceHandler) GetBoard(context.Context, *connect_go.Request[v1.GetBoardRequest]) (*connect_go.Response[v1.GetBoardResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GetBoard is not implemented"))
+func (UnimplementedBoardServiceHandler) GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GetHint is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.RestartGame is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GetSession is not implemented"))
 }
 
 func (UnimplementedBoardServiceHandler) SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error) {

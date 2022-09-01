@@ -92,10 +92,10 @@ func NewThermoModel(s live.Socket) *GameModel {
 		}
 		log.Println("no session-id, new game")
 		mode := tally.GameModeTemplate
-		if len(generatedTemplates) > 0 {
+		if len(GeneratedTemplates) > 0 {
 			mode := tally.GameModeRandomChallenge
-			i := tally.NewRandomizer().Intn(len(generatedTemplates))
-			m = NewGameModel(mode, &generatedTemplates[i])
+			i := tally.NewRandomizer().Intn(len(GeneratedTemplates))
+			m = NewGameModel(mode, &GeneratedTemplates[i])
 		} else {
 			m = NewGameModel(mode, &tally.ChallengeGames[0])
 		}
@@ -222,12 +222,12 @@ func newGame(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 	mode := tally.GameMode(p.Int("mode"))
 	var template *tally.GameTemplate
 	if mode == tally.GameModeRandomChallenge {
-		if len(generatedTemplates) == 0 {
+		if len(GeneratedTemplates) == 0 {
 			// panic("no games")
 			return nil, fmt.Errorf("could not find any generated games")
 		}
-		i := tally.NewRandomizer().Intn(len(generatedTemplates) - 1)
-		template = &generatedTemplates[i]
+		i := tally.NewRandomizer().Intn(len(GeneratedTemplates) - 1)
+		template = &GeneratedTemplates[i]
 	}
 	if mode == tally.GameModeTemplate {
 		i := p.Int("template")
@@ -250,7 +250,7 @@ func getHint(ctx context.Context, s live.Socket, p live.Params) (interface{}, er
 	return model, nil
 }
 
-var generatedTemplates []tally.GameTemplate
+var GeneratedTemplates []tally.GameTemplate
 
 func ReadGeneratedBoardsFromDisk() error {
 	// generatorDir := path.Join("./generated")
@@ -284,7 +284,7 @@ func ReadGeneratedBoardsFromDisk() error {
 			SetMaxMoves(gen.GeneratorOptions.MaxMoves).
 			SetStartingLayout(gen.Cells...)
 
-		generatedTemplates = append(generatedTemplates, *template)
+		GeneratedTemplates = append(GeneratedTemplates, *template)
 		return nil
 	})
 	if err != nil {

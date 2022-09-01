@@ -1,75 +1,45 @@
 <script lang="ts">
 	import 'pollen-css'
-	import { createPromiseClient, createConnectTransport, ConnectError } from '@bufbuild/connect-web'
+	import InstructionList from '../components/InstructionList.svelte'
 	import {
-		Board,
-		BoardService,
+		GameMode,
+		GetHintRequest,
+		NewGameRequest,
 		SwipeDirection,
-		type Cell,
-		type GetBoardResponse
+		type Cell
 	} from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
 	import { animateSwipe } from '../logic'
+	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
+	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
+	import SwipeHint from '../components/board/SwipeHint.svelte'
 
-	const transport = createConnectTransport({
-		baseUrl: 'http://localhost:8080/'
-		// useBinaryFormat: false
-	})
-
-	const getHint = () => {}
-
-	const handleError = (err: ConnectError | Error) => {
-		// TODO: handle error
-		if (err instanceof ConnectError) {
-			const { metadata, ...all } = err
-			const meta: any = {}
-			for (const [k, v] of metadata) {
-				meta[k] = v
-			}
-			console.warn(`[${err.code}]: ${err.name} - ${err.message}`, all, meta)
-		}
-		console.warn('An error occured', err)
-	}
-
-	const go = async <P = any>(
-		promise: Promise<P>
-	): Promise<[P, null] | [null, ConnectError | Error]> => {
-		try {
-			const result = await promise
-			return [result, null]
-		} catch (err) {
-			return [null, err as any]
-		}
-	}
-
-	const client = createPromiseClient(BoardService, transport)
-
-	let response: GetBoardResponse
-	let sessionID = ''
 	let boardDiv: HTMLDivElement
+	let showCellIndex = true
+
+	const restartGame = () => {
+		return storeHandler.commit(storeHandler.restartGame())
+	}
+	const getHint = async (options?: PartialMessage<GetHintRequest>) => {
+		return storeHandler.commit(storeHandler.getHint(options))
+	}
+	const newGame = async (options: PartialMessage<NewGameRequest>) => {
+		return storeHandler.commit(storeHandler.newGame(options))
+	}
 
 	onMount(async () => {
-		sessionID = localStorage.getItem('sessionID') || ''
-		if (!sessionID) {
-			sessionID = String(Math.random())
-			localStorage.setItem('sessionID', sessionID)
-		}
-		const [res, err] = await go(client.getBoard({}))
-		if (err) {
-			handleError(err)
-			return
-		}
-		console.log(res)
-		response = res
+		await storeHandler.commit(storeHandler.getSession())
 
 		// Set up swipes
 		if (browser) {
 			document.onkeydown = async (e) => {
 				if (swipeLock) {
+					e.preventDefault()
 					return
 				}
 				if (selection.length) {
+					e.preventDefault()
 					return
 				}
 				switch (e.key) {
@@ -92,27 +62,22 @@
 					case 'h':
 						getHint()
 						break
-					// case "c":
-					//   restartButton.click()
-					//   break
+					case 'c':
+						restartGame()
+						break
 					case 'n':
-						const [result, err] = await go(client.newGame({}))
-						if (err) {
-							handleError(err)
-							return
-						}
-						response = result
-
+						newGame({ mode: GameMode.RANDOM_CHALLENGE })
 						break
 
 					default:
 						console.log('key', e.key)
-						break
+						return
 				}
+				e.preventDefault()
 			}
 		}
 	})
-	const cellValue = (c: Cell) => {
+	const cellValue = (c: Cell | { base: number; twopow: number }) => {
 		if (Number(c.base) === 0) {
 			return ''
 		}
@@ -122,8 +87,27 @@
 		console.error('Not implemented', 'animateInvalidSwipe', direction)
 	}
 	let swipeLock = false
+	let _swipeQueueHandling = false
+	const swipeQueue: SwipeDirection[] = []
 	const swipe = async (direction: SwipeDirection) => {
-		if (!response?.board) {
+		swipeQueue.push(direction)
+		if (_swipeQueueHandling) {
+			return
+		}
+		_swipeQueueHandling = true
+		while (swipeQueue.length) {
+			const dir = swipeQueue.pop()
+			if (!dir) {
+				_swipeQueueHandling = false
+				return
+			}
+			await _swipe(dir)
+		}
+		_swipeQueueHandling = false
+	}
+
+	const _swipe = async (direction: SwipeDirection) => {
+		if (!$store?.session?.game?.board) {
 			return
 		}
 		if (selection.length) {
@@ -137,38 +121,35 @@
 			positive: direction === SwipeDirection.DOWN || direction === SwipeDirection.RIGHT,
 			vertical: direction === SwipeDirection.UP || direction === SwipeDirection.DOWN,
 			boardEl: boardDiv,
-			nColumns: response.board.columns,
-			nRows: response.board.rows
+			nColumns: $store.session.game.board.columns,
+			nRows: $store.session.game.board.rows
 		}
 		const shouldAnimate = await animateSwipe({ ...swipeOptions, dry: true })
 		console.log({ shouldAnimate })
 		if (!shouldAnimate) {
 			return
 		}
-		swipeLock = true
-		const r = go(client.swipeBoard({ direction }))
+		// swipeLock = true
+		const r = storeHandler.swipe(direction)
 		await animateSwipe(swipeOptions)
 		// In case the server responds slower than the animation,
 		// we set a visual indicator here.
 		// On the other hand, if the server is faster, the should should see nothing of this
 		boardDiv.style.opacity = '0.8'
-		const [result, err] = await r
+		const [_, commit, err] = await r
 		swipeLock = false
-		for (const cell of [...boardDiv.children]) {
-			;(cell as HTMLElement).style.transform = ''
-			;(cell as HTMLElement).style.transition = 'none'
+		for (const cell of [...boardDiv.children] as HTMLElement[]) {
+			cell.style.transform = ''
+			cell.style.transition = 'none'
 		}
 		boardDiv.style.opacity = '1'
 		if (err) {
-			handleError(err)
+			if (err === ErrNoChange) {
+				animateInvalidSwipe(direction)
+			}
 			return
 		}
-		if (!result.didChange) {
-			animateInvalidSwipe(direction)
-			return
-		}
-		// animateSwipe(direction)
-		response.board = result.board
+		commit()
 	}
 	function createSwiper(node: HTMLElement) {
 		if (!browser) {
@@ -203,7 +184,7 @@
 	let invalidSelectionMap: Record<number, boolean | undefined> = {}
 	const select = async (i: number) => {
 		invalidSelectionMap = {}
-		if (!response.board?.cell[i]?.base) {
+		if (!$store.session?.game?.board?.cells[i]?.base) {
 			invalidSelectionMap = {}
 			selection = []
 			selectionMap = {}
@@ -212,27 +193,24 @@
 		const isSelected = !!selectionMap[i]
 		if (isSelected) {
 			console.log('should send', selection)
-			const [result, err] = await go(
-				client.combineCells({
-					selection: {
-						case: 'indexes',
-						value: { index: selection }
-					}
-				})
-			)
+			// const [result, err] = await go(
+			// 	client.combineCells({
+			// 		selection: {
+			// 			case: 'indexes',
+			// 			value: { index: selection }
+			// 		}
+			// 	})
+			// )
+			const [result, commit, err] = await storeHandler.combineCells(selection)
 			if (err) {
 				invalidSelectionMap = { [i]: true }
 				selection = []
 				selectionMap = {}
-				handleError(err)
 				return
 			}
+			commit()
 			selection = []
 			selectionMap = {}
-			console.log(result)
-			response.board = result.board
-			response.score = result.score
-			response.moves = result.moves
 			if (result.didWin) {
 				setTimeout(() => {
 					alert('You won!')
@@ -240,22 +218,24 @@
 			}
 			return
 		}
-		selection.push(i)
+		selection = [...selection, i]
 		selectionMap[i] = true
 	}
 	$: {
-		console.log({ selectionMap, selection })
+		console.log('store', $store)
 	}
+	$: nextHint = $store.hintDoneIndex >= 0 ? $store.hints[$store.hintDoneIndex + 1] : $store.hints[0]
 </script>
 
-{#if response?.board}
+<InstructionList hints={$store.hints} doneIndex={$store.hintDoneIndex} />
+{#if $store?.session?.game?.board}
 	<div class="headControls">
 		<div>
 			<div class="score">
-				Score: {response.score}
+				Score: {$store.session.game.score}
 			</div>
 			<div class="moves">
-				Moves: {response.moves}
+				Moves: {$store.session.game.moves}
 			</div>
 		</div>
 		<div>
@@ -269,33 +249,50 @@
 						<button class="active" live-click="vote" live-value-vote="5">⭐</button>
 					</div>
 					<span style="float: right">
-						{response.name}
+						{$store.session.game.board.name}
 					</span>
 				</div>
 			</small>
 		</div>
 	</div>
-	<div
-		bind:this={boardDiv}
-		use:createSwiper
-		class="board"
-		style={`grid-template-columns: repeat(${response.board.columns}, 1fr); grid-template-rows: repeat(${response.board.rows}, 1fr)`}
-	>
-		{#each response.board.cell as c, i}
-			<div
-				class="cell"
-				class:no-eval={invalidSelectionMap[i]}
-				class:selected={selectionMap[i]}
-				class:selectedLast={!!selection.length && selection[selection.length - 1]}
-				class:blank={Number(c.base) === 0}
-				on:click={() => select(i)}
-			>
-				<div>
-					{cellValue(c)}
+
+	<div class="boardContainer">
+		<SwipeHint
+			instruction={nextHint?.instructionOneof.value}
+			active={nextHint?.instructionOneof.case === 'swipe'}
+		/>
+		<div
+			bind:this={boardDiv}
+			use:createSwiper
+			class="board"
+			style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
+		>
+			{#each $store.session.game.board.cells as c, i}
+				<div
+					class="cell"
+					class:no-eval={invalidSelectionMap[i]}
+					class:selected={selectionMap[i]}
+					class:hinted={nextHint?.instructionOneof.case === 'combine' &&
+						nextHint.instructionOneof.value.index.includes(i)}
+					class:selectedLast={!!selection.length && selection[selection.length - 1] === i}
+					class:blank={Number(c.base) === 0}
+					on:click={() => select(i)}
+				>
+					<div class="cellValue">
+						{cellValue(c)}
+					</div>
+					{#if showCellIndex}
+						<div class="cellIndex">{i}</div>
+					{/if}
 				</div>
-			</div>
-		{/each}
+			{/each}
+		</div>
 	</div>
+	<button on:click={() => restartGame()}>Restart </button>
+	<button on:click={() => getHint()}>Hint </button>
+	<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
+	<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
+	<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
 	<div class="swipe-buttons">
 		<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.UP)}>Swipe up</button>
 		<div>
@@ -305,6 +302,7 @@
 		<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.DOWN)}>Swipe Down</button>
 	</div>
 {/if}
+<pre>{JSON.stringify($store, null, 2)}</pre>
 
 <style>
 	button:disabled {
@@ -324,7 +322,11 @@
 		margin-inline: auto;
 		width: max-content;
 	}
+	.boardContainer {
+		position: relative;
+	}
 	.board {
+		position: relative;
 		transition: opacity 300ms var(--easing-standard);
 		/* margin-inline: -4px; */
 		display: grid;
@@ -350,6 +352,8 @@
 		font-size: 2rem;
 		position: relative;
 		box-shadow: var(--elevation-4);
+
+		opacity: 0.8;
 	}
 	.cell:empty,
 	.cell.blank {
@@ -362,31 +366,35 @@
 		outline-style: dotted;
 	}
 
+	.cellValue {
+		font-weight: bold;
+		font-size: 4rem;
+		transition-property: color, transform;
+		transition-duration: 300ms;
+		transition-timing-function: var(--easing-standard);
+		/* transition: transform 300ms var(--easing-standard); */
+	}
+
+	.cellIndex {
+		position: absolute;
+		right: var(--size-1);
+		bottom: var(--size-1);
+		font-size: 0.8rem;
+		opacity: 0.7;
+	}
+
 	.cell.selected {
 		background-color: var(--color-green);
 		color: var(--color-black);
 		transform: scale(0.9);
 	}
-	.cell.selected div {
-		transform: scale(0.9);
-		transition: transform 300ms var(--easing-standard);
+	.cell.selected .cellValue {
+		transform: scale(1.2);
 	}
 
 	.cell.selectedLast {
 		background-color: var(--color-green-300);
 		color: var(--color-black);
-	}
-	.cell:not(:empty)::after {
-		content: '';
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-image: url(https://images.freecreatives.com/wp-content/uploads/2016/02/Sky-Blue-Textured-Background-For-Free.jpg);
-		background-size: cover;
-		opacity: 0.4;
-		z-index: 1;
 	}
 	.cell.no-eval {
 		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear;
@@ -394,7 +402,7 @@
 		backface-visibility: hidden;
 		perspective: 1000px;
 	}
-	.cell.no-eval::after {
+	.cell.no-eval {
 		animation: sepia 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 	}
 	@keyframes grow-to-normal {

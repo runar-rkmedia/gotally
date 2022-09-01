@@ -20,6 +20,20 @@ enum SwipeDirection {
   // Swipe left
   SWIPE_DIRECTION_LEFT = 4;
 }
+enum GameMode {
+	GAME_MODE_UNSPECIFIED = 0;
+  // Cells are generated randomly at start, and each swipe adds another cell to the board.
+	GAME_MODE_RANDOM = 1;
+  // Tutorial-like. Can be indexed to start at a specific board.
+	GAME_MODE_TUTORIAL = 2;
+	GAME_MODE_RANDOM_CHALLENGE = 3;
+}
+enum Difficulty {
+  DIFFICULTY_UNSPECIFIED = 0;
+  DIFFICULTY_EASY = 1;
+  DIFFICULTY_MEDIUM = 2;
+  DIFFICULTY_HARD = 3;
+}
 // Cell is single value on the board. The value can then be calculated with base * 2^twopow
 message Cell {
   // Base-value
@@ -29,7 +43,7 @@ message Cell {
 }
 
 message Board {
-  repeated Cell cell = 1;
+  repeated Cell cells = 1;
   int32 columns = 2;
   int32 rows = 3;
   string name = 4;
@@ -43,15 +57,31 @@ message Instruction {
       }
   }
 
-message GetBoardRequest {
+message GetHintRequest {
+}
+message GetHintResponse {
+  repeated Instruction instructions = 1;
+}
+message GetSessionRequest {
+}
+message RestartGameRequest {
 }
 message NewGameRequest {
+  GameMode mode = 1;
+  oneof variant {
+    Difficulty difficulty = 2;
+    int32 level_index = 3;
+    string id = 4;
+    } 
 }
-
-message GetBoardResponse {
+message RestartGameResponse {
   Board board = 1;
   int64 score = 2;
   int64 moves = 3;
+}
+
+message GetSessionResponse {
+  Session session = 1;
 }
 message NewGameResponse {
   Board board = 1;
@@ -72,6 +102,7 @@ message SwipeBoardResponse {
   // This may be expanded upon with future gamemodes.
   bool did_change = 1;
   Board board = 2;
+  int64 moves = 3;
 }
 
 message Coordinate {
@@ -103,13 +134,21 @@ message Game {
     Board board = 1;
     int64 score = 2;
     int64 moves = 4;
-    string name = 5;
     string description = 6;
+}
+
+message Session {
+  Game game = 1;
+  string session_id = 2;
+  string username = 3;
+  int64 games_played = 4;
 }
 
 service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
-  rpc GetBoard(GetBoardRequest) returns (GetBoardResponse) {}
+  rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
+  rpc RestartGame(RestartGameRequest) returns (RestartGameResponse) {}
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {}
   rpc SwipeBoard(SwipeBoardRequest) returns (SwipeBoardResponse) {}
   rpc CombineCells(CombineCellsRequest) returns (CombineCellsResponse) {}
 }

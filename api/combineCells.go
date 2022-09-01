@@ -6,7 +6,6 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
-	"github.com/runar-rkmedia/gotally/live_client/ex"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 
@@ -33,9 +32,8 @@ func (s *TallyServer) CombineCells(
 	if length < 2 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Selection must be have atleast two items"))
 	}
-	sessionID := req.Header().Get("Authorization")
-	game := ex.Cache.GetGame(sessionID)
-	if err, invalidIndex := game.Game.ValidatePath(path); err != nil {
+	session := UserStateFromContext(ctx)
+	if err, invalidIndex := session.Game.ValidatePath(path); err != nil {
 		fmt.Println("\npath", path)
 
 		cerr := createError(connect.CodeInvalidArgument, fmt.Errorf("Invalid path at (%d): %w", invalidIndex, err))
@@ -45,7 +43,7 @@ func (s *TallyServer) CombineCells(
 			},
 		}
 		if invalidIndex >= 1 {
-			if neighbours, ok := game.NeighboursForCellIndex(path[invalidIndex-1]); ok {
+			if neighbours, ok := session.NeighboursForCellIndex(path[invalidIndex-1]); ok {
 				details[0].Description = fmt.Sprintf("The item before the invalid path (%d), has valid neighbours %v", path[invalidIndex-1], neighbours)
 			}
 		}
@@ -53,7 +51,7 @@ func (s *TallyServer) CombineCells(
 
 		return nil, cerr.ToConnectError()
 	}
-	ok := game.EvaluateForPath(path)
+	ok := session.EvaluateForPath(path)
 	if !ok {
 		cerr := connect.NewError(connect.CodeNotFound, fmt.Errorf("path does evaluate to the final item the selection"))
 		details := &errdetails.BadRequest_FieldViolation{
@@ -65,10 +63,10 @@ func (s *TallyServer) CombineCells(
 		return nil, cerr
 	}
 	response := model.CombineCellsResponse{
-		Board:  toModalBoard(game.Game),
-		Score:  game.Game.Score(),
-		Moves:  int64(game.Game.Moves()),
-		DidWin: game.Game.IsGameOver(),
+		Board:  toModalBoard(&session.Game),
+		Score:  session.Game.Score(),
+		Moves:  int64(session.Game.Moves()),
+		DidWin: session.Game.IsGameWon(),
 	}
 	fmt.Println("didwin", response.DidWin)
 	res := connect.NewResponse(&response)
