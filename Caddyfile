@@ -1,0 +1,7 @@
+test.runar.dev {
+  route /api/* {
+    uri strip_prefix api
+    reverse_proxy localhost:8080
+    }
+	reverse_proxy /* localhost:5173
+}

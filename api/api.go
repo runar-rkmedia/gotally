@@ -3,188 +3,185 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
-	"net"
 	"net/http"
+	"strings"
 
-	"github.com/bufbuild/connect-go"
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
 	"github.com/runar-rkmedia/gotally/live_client/ex"
-	logic "github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/tallylogic"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/grpc"
 )
 
 var (
-	port = "8080"
+	port       = "8080"
+	baseLogger logger.AppLogger
 )
 
-func StartServer() {
-
-	// TODO: use session / localstorage / params
-	game := ex.NewGameModel(logic.GameModeTemplate, &logic.ChallengeGames[1])
-	ex.Cache.SetGame("", game)
-	if false {
-
-		if err := run(); err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		tally := &TallyServer{}
-		mux := http.NewServeMux()
-		path, handler := tallyv1connect.NewBoardServiceHandler(tally)
-		mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			reqID := r.Header.Get("X-Request-ID")
-			if reqID == "" {
-				reqID = gonanoid.Must()
-			}
-			w.Header().Set("X-Request-ID", reqID)
-
-			// CORS
-			w.Header().Set("Access-Control-Expose-Headers", "Date, X-Request-ID")
-			w.Header().Set("Access-Control-Allow-Headers", "content-type")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
-			w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-			w.Header().Set("Access-Control-Max-Age", "60")
-			if r.Method != http.MethodOptions {
-				handler.ServeHTTP(w, r)
-				return
-			}
-			w.WriteHeader(http.StatusNoContent)
-		}))
-		address := "localhost:" + port
-		fmt.Println("starting server on http://" + address + path)
-		if err := http.ListenAndServe(
-			"localhost:8080",
-			h2c.NewHandler(
-				mux,
-				// handlers.CORS(
-				// 	handlers.AllowedOrigins([]string{"http://localhost:5173"}),
-				// )(mux),
-				&http2.Server{}),
-		); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func run() error {
-	listenOn := "127.0.0.1:" + port
-	fmt.Println("starting grpc-listener on ", listenOn)
-	listener, err := net.Listen("tcp", listenOn)
+func getCookieWithValidation(req *http.Request, s string) (string, error) {
+	cookie, err := req.Cookie(tokenHeader)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", listenOn, err)
+		return "", err
+	}
+	if cookie == nil {
+		return "", fmt.Errorf("empty cookie???")
 	}
 
-	server := grpc.NewServer()
-	model.RegisterBoardServiceServer(server, &tallyStoreServiceServer{})
-	log.Println("Listening on", listenOn)
-	if err := server.Serve(listener); err != nil {
-		return fmt.Errorf("failed to serve gRPC server: %w", err)
+	return cookie.Value, err
+}
+
+const (
+	/// The tokens should all be of this length
+	tokenLength int = 21
+	// the context-key for UserState
+	ContextKeyUserState ContextKey = "USER_STATE"
+	cookieMaxTime       int        = 60000
+	setHttpAuthHeader   bool       = true
+	setHttpsAuthHeader  bool       = false
+)
+
+type ContextKey string
+
+func getSessionIDFromRequest(req *http.Request) string {
+	if cookieValue, err := getCookieWithValidation(req, tokenHeader); err == nil {
+		return cookieValue
+	}
+	return req.Header.Get(tokenHeader)
+}
+
+func c(condition bool, iftrue, iffalse string) string {
+	if condition {
+		return iftrue
+	}
+	return iffalse
+}
+
+func isSecureRequest(r *http.Request) (bool, string) {
+	proto := r.Header.Get("X-Forwarded-Proto")
+	if proto == "" {
+		origin := r.Header.Get("Origin")
+		proto = strings.Split(origin, "://")[0]
 	}
 
-	return nil
+	return proto == "https", proto
+
 }
 
-type tallyStoreServiceServer struct {
-	model.UnimplementedBoardServiceServer
-}
+func StartServer() {
+	logger.InitLogger(logger.LogConfig{
+		Level:      "debug",
+		Format:     "human",
+		WithCaller: true,
+	})
+	baseLogger = logger.GetLogger("base")
 
-type TallyServer struct{}
-
-func (s *TallyServer) SwipeBoard(
-	ctx context.Context,
-	req *connect.Request[model.SwipeBoardRequest],
-) (*connect.Response[model.SwipeBoardResponse], error) {
-
-	if req.Msg.Direction == model.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Direction must be set"))
+	debug := baseLogger.HasDebug()
+	err := ex.ReadGeneratedBoardsFromDisk()
+	if err != nil {
+		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
-	sessionID := req.Header().Get("Authorization")
-	game := ex.Cache.GetGame(sessionID)
-	dir := toGameSwipeDirection(req.Msg.Direction)
-	response := &model.SwipeBoardResponse{
-		DidChange: game.Swipe(dir),
-		Board:     toModalBoard(game.Game),
-	}
-	res := connect.NewResponse(response)
-	res.Header().Set("PetV", "v1")
-	return res, nil
-}
 
-type CError struct {
-	connect.Error
-}
-
-func (c *CError) ToConnectError() *connect.Error {
-	return &c.Error
-}
-func (c *CError) AddBadRequestDetail(violations []*errdetails.BadRequest_FieldViolation) *CError {
-
-	details := &errdetails.BadRequest{
-		FieldViolations: violations,
-	}
-	if details, detailErr := connect.NewErrorDetail(details); detailErr == nil {
-		c.AddDetail(details)
-	}
-	return c
-}
-
-func createError(c connect.Code, err error) CError {
-	cerr := CError{*connect.NewError(c, err)}
-	return cerr
-}
-
-func toGameSwipeDirection(dir model.SwipeDirection) logic.SwipeDirection {
-	switch dir {
-	case model.SwipeDirection_SWIPE_DIRECTION_UP:
-		return logic.SwipeDirectionUp
-	case model.SwipeDirection_SWIPE_DIRECTION_RIGHT:
-		return logic.SwipeDirectionRight
-	case model.SwipeDirection_SWIPE_DIRECTION_DOWN:
-		return logic.SwipeDirectionDown
-	case model.SwipeDirection_SWIPE_DIRECTION_LEFT:
-		return logic.SwipeDirectionLeft
-	}
-	return ""
-}
-
-func (s *TallyServer) GetBoard(
-	ctx context.Context,
-	req *connect.Request[model.GetBoardRequest],
-) (*connect.Response[model.GetBoardResponse], error) {
-	// TODO:  Get from context
-	sessionID := req.Header().Get("Authorization")
-	game := ex.Cache.GetGame(sessionID)
-	response := &model.GetBoardResponse{
-		Board: toModalBoard(game.Game),
-	}
-	res := connect.NewResponse(response)
-	res.Header().Set("PetV", "v1")
-	return res, nil
-}
-
-func toModalBoard(game logic.Game) *model.Board {
-	return &model.Board{
-		Columns: int32(game.Rules.SizeX),
-		Rows:    int32(game.Rules.SizeX),
-		Cell:    toModalCells(game.Cells()),
-	}
-}
-
-func toModalCells(cells []logic.Cell) []*model.Cell {
-	c := make([]*model.Cell, len(cells))
-	for i := 0; i < len(cells); i++ {
-		base, twopow := cells[i].Raw()
-		c[i] = &model.Cell{
-			Base:   base,
-			Twopow: twopow,
+	tally := NewTallyServer()
+	mux := http.NewServeMux()
+	path, handler := tallyv1connect.NewBoardServiceHandler(&tally)
+	// path = "/api" + path
+	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		isSecure, _ := isSecureRequest(r)
+		// CORS
+		w.Header().Set("Access-Control-Expose-Headers", "Date, X-Request-ID"+c(!isSecure, ", "+tokenHeader, ""))
+		w.Header().Set("Access-Control-Allow-Headers", "content-type, "+tokenHeader)
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+		w.Header().Set("Access-Control-Max-Age", "60")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
 		}
+		// Set request-id
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			reqID = tally.UidGenerator()
+			w.Header().Set("X-Request-ID", reqID)
+		}
+		l := logger.With(baseLogger.With().
+			Str("reqId", reqID).
+			Logger())
 
+		// Get a sessionID
+		sessionID := getSessionIDFromRequest(r)
+		fmt.Println("sesss", sessionID)
+
+		// Get the session-state for the user
+		var userState *UserState
+		if len(sessionID) == tokenLength {
+			userState = Store.GetUserState(sessionID)
+		}
+		if userState == nil {
+			// The session is either not set or invalid / not found.
+			// Create a new session and a new game
+			sessionID = tally.UidGenerator()
+			if debug {
+				l.Debug().Msg("New user encountered")
+			}
+			if us, err := NewUserState(tallylogic.GameModeTemplate, &tallylogic.ChallengeGames[0], sessionID); err != nil {
+				l.Fatal().Err(err).Msg("Failed in NewUserState")
+			} else {
+				userState = &us
+				Store.SetUserState(userState)
+			}
+			// Set the cookie /user-session
+
+			cookie := &http.Cookie{
+				Name: tokenHeader,
+				// TODO: when the server is behind a subpath (e.g.
+				// exmaple.com/skiver/), the reverse-proxy in front may not return our
+				// path, and we probably need to get it from the config
+				Path:   "/",
+				Value:  sessionID,
+				MaxAge: cookieMaxTime,
+				Secure: r.TLS != nil,
+				// SameSite: http.SameSiteNoneMode,
+				HttpOnly: true,
+			}
+			fmt.Println("sec", isSecure)
+			if isSecure {
+				cookie.Secure = true
+				cookie.SameSite = http.SameSiteNoneMode
+			} else {
+				cookie.Secure = false
+				fmt.Println("Not secure", setHttpAuthHeader)
+				if setHttpAuthHeader {
+					w.Header().Set(tokenHeader, sessionID)
+					l.Warn().Msg("using authorization-header")
+				}
+			}
+			http.SetCookie(w, cookie)
+		}
+		r = r.WithContext(context.WithValue(r.Context(), ContextKeyUserState, userState))
+
+		handler.ServeHTTP(w, r)
+	})
+	mux.Handle("/", mainHandler)
+	address := "localhost:" + port
+	baseLogger.Info().Str("address", "http://"+address+path).Msg("Starting server")
+	if err := http.ListenAndServe(
+		"0.0.0.0:"+port,
+		h2c.NewHandler(
+			mux,
+			&http2.Server{}),
+	); err != nil {
+		panic(err)
 	}
-	return c
+}
+
+type TallyServer struct {
+	UidGenerator func() string
+}
+
+func NewTallyServer() TallyServer {
+	return TallyServer{
+		UidGenerator: mustCreateUUidgenerator(),
+	}
+
 }

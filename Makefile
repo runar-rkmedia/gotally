@@ -4,6 +4,10 @@ gitHash := $(shell git rev-parse --short HEAD)
 buildDate := $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
 ldflags=-X 'main.version=$(version)' -X 'main.date=$(buildDate)' -X 'main.commit=$(gitHash)' -X 'main.IsDevStr=0'
 
+ifndef VERBOSE
+MAKEFLAGS += --no-print-directory
+endif
+
 dev:
 	$(MAKE) -s -j4 web server-watch test-watch buf-watch
 
@@ -17,10 +21,13 @@ buf-watch:
 
 
 # linters
+lint: buf-lint go-lint
 buf-lint:
 	@cd proto && make lint
+	# @echo "Buflinter returned ok"
 go-lint:
 	golangci-lint run
+	# @echo "Golinter returned ok"
 
 # tests
 go-test:
@@ -30,7 +37,7 @@ test-watch:
 
 # web and servers
 web:
-	cd frontend && npm run dev -- --clearScreen false 
+	cd frontend && npm run dev --host -- --clearScreen false 
 server:
 	go run ./api/cmd/main.go
 server-watch:

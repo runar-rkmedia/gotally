@@ -23,7 +23,9 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BoardServiceClient interface {
 	NewGame(ctx context.Context, in *NewGameRequest, opts ...grpc.CallOption) (*NewGameResponse, error)
-	GetBoard(ctx context.Context, in *GetBoardRequest, opts ...grpc.CallOption) (*GetBoardResponse, error)
+	GetHint(ctx context.Context, in *GetHintRequest, opts ...grpc.CallOption) (*GetHintResponse, error)
+	RestartGame(ctx context.Context, in *RestartGameRequest, opts ...grpc.CallOption) (*RestartGameResponse, error)
+	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	SwipeBoard(ctx context.Context, in *SwipeBoardRequest, opts ...grpc.CallOption) (*SwipeBoardResponse, error)
 	CombineCells(ctx context.Context, in *CombineCellsRequest, opts ...grpc.CallOption) (*CombineCellsResponse, error)
 }
@@ -45,9 +47,27 @@ func (c *boardServiceClient) NewGame(ctx context.Context, in *NewGameRequest, op
 	return out, nil
 }
 
-func (c *boardServiceClient) GetBoard(ctx context.Context, in *GetBoardRequest, opts ...grpc.CallOption) (*GetBoardResponse, error) {
-	out := new(GetBoardResponse)
-	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GetBoard", in, out, opts...)
+func (c *boardServiceClient) GetHint(ctx context.Context, in *GetHintRequest, opts ...grpc.CallOption) (*GetHintResponse, error) {
+	out := new(GetHintResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GetHint", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *boardServiceClient) RestartGame(ctx context.Context, in *RestartGameRequest, opts ...grpc.CallOption) (*RestartGameResponse, error) {
+	out := new(RestartGameResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/RestartGame", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *boardServiceClient) GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error) {
+	out := new(GetSessionResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GetSession", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +97,9 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, in *CombineCellsR
 // for forward compatibility
 type BoardServiceServer interface {
 	NewGame(context.Context, *NewGameRequest) (*NewGameResponse, error)
-	GetBoard(context.Context, *GetBoardRequest) (*GetBoardResponse, error)
+	GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error)
+	RestartGame(context.Context, *RestartGameRequest) (*RestartGameResponse, error)
+	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	SwipeBoard(context.Context, *SwipeBoardRequest) (*SwipeBoardResponse, error)
 	CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error)
 }
@@ -89,8 +111,14 @@ type UnimplementedBoardServiceServer struct {
 func (UnimplementedBoardServiceServer) NewGame(context.Context, *NewGameRequest) (*NewGameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewGame not implemented")
 }
-func (UnimplementedBoardServiceServer) GetBoard(context.Context, *GetBoardRequest) (*GetBoardResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBoard not implemented")
+func (UnimplementedBoardServiceServer) GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHint not implemented")
+}
+func (UnimplementedBoardServiceServer) RestartGame(context.Context, *RestartGameRequest) (*RestartGameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RestartGame not implemented")
+}
+func (UnimplementedBoardServiceServer) GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSession not implemented")
 }
 func (UnimplementedBoardServiceServer) SwipeBoard(context.Context, *SwipeBoardRequest) (*SwipeBoardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SwipeBoard not implemented")
@@ -128,20 +156,56 @@ func _BoardService_NewGame_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BoardService_GetBoard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBoardRequest)
+func _BoardService_GetHint_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHintRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BoardServiceServer).GetBoard(ctx, in)
+		return srv.(BoardServiceServer).GetHint(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/tally.v1.BoardService/GetBoard",
+		FullMethod: "/tally.v1.BoardService/GetHint",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BoardServiceServer).GetBoard(ctx, req.(*GetBoardRequest))
+		return srv.(BoardServiceServer).GetHint(ctx, req.(*GetHintRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BoardService_RestartGame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestartGameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).RestartGame(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/RestartGame",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).RestartGame(ctx, req.(*RestartGameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BoardService_GetSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).GetSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/GetSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).GetSession(ctx, req.(*GetSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -194,8 +258,16 @@ var BoardService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BoardService_NewGame_Handler,
 		},
 		{
-			MethodName: "GetBoard",
-			Handler:    _BoardService_GetBoard_Handler,
+			MethodName: "GetHint",
+			Handler:    _BoardService_GetHint_Handler,
+		},
+		{
+			MethodName: "RestartGame",
+			Handler:    _BoardService_RestartGame_Handler,
+		},
+		{
+			MethodName: "GetSession",
+			Handler:    _BoardService_GetSession_Handler,
 		},
 		{
 			MethodName: "SwipeBoard",
