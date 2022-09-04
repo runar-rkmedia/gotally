@@ -1,15 +1,14 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
-	"github.com/runar-rkmedia/gotally/live_client/ex"
-	"github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/generated"
+	web "github.com/runar-rkmedia/gotally/static"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -36,6 +35,7 @@ const (
 	tokenLength int = 21
 	// the context-key for UserState
 	ContextKeyUserState ContextKey = "USER_STATE"
+	ContextKeyLogger    ContextKey = "LOGGER"
 	cookieMaxTime       int        = 60000
 	setHttpAuthHeader   bool       = true
 	setHttpsAuthHeader  bool       = false
@@ -77,92 +77,29 @@ func StartServer() {
 	baseLogger = logger.GetLogger("base")
 
 	debug := baseLogger.HasDebug()
-	err := ex.ReadGeneratedBoardsFromDisk()
+	err := generated.ReadGeneratedBoardsFromDisk()
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
 
 	tally := NewTallyServer()
 	mux := http.NewServeMux()
-	path, handler := tallyv1connect.NewBoardServiceHandler(&tally)
-	// path = "/api" + path
-	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		isSecure, _ := isSecureRequest(r)
-		// CORS
-		w.Header().Set("Access-Control-Expose-Headers", "Date, X-Request-ID"+c(!isSecure, ", "+tokenHeader, ""))
-		w.Header().Set("Access-Control-Allow-Headers", "content-type, "+tokenHeader)
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
-		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-		w.Header().Set("Access-Control-Max-Age", "60")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		// Set request-id
-		reqID := r.Header.Get("X-Request-ID")
-		if reqID == "" {
-			reqID = tally.UidGenerator()
-			w.Header().Set("X-Request-ID", reqID)
-		}
-		l := logger.With(baseLogger.With().
-			Str("reqId", reqID).
-			Logger())
-
-		// Get a sessionID
-		sessionID := getSessionIDFromRequest(r)
-		fmt.Println("sesss", sessionID)
-
-		// Get the session-state for the user
-		var userState *UserState
-		if len(sessionID) == tokenLength {
-			userState = Store.GetUserState(sessionID)
-		}
-		if userState == nil {
-			// The session is either not set or invalid / not found.
-			// Create a new session and a new game
-			sessionID = tally.UidGenerator()
-			if debug {
-				l.Debug().Msg("New user encountered")
-			}
-			if us, err := NewUserState(tallylogic.GameModeTemplate, &tallylogic.ChallengeGames[0], sessionID); err != nil {
-				l.Fatal().Err(err).Msg("Failed in NewUserState")
-			} else {
-				userState = &us
-				Store.SetUserState(userState)
-			}
-			// Set the cookie /user-session
-
-			cookie := &http.Cookie{
-				Name: tokenHeader,
-				// TODO: when the server is behind a subpath (e.g.
-				// exmaple.com/skiver/), the reverse-proxy in front may not return our
-				// path, and we probably need to get it from the config
-				Path:   "/",
-				Value:  sessionID,
-				MaxAge: cookieMaxTime,
-				Secure: r.TLS != nil,
-				// SameSite: http.SameSiteNoneMode,
-				HttpOnly: true,
-			}
-			fmt.Println("sec", isSecure)
-			if isSecure {
-				cookie.Secure = true
-				cookie.SameSite = http.SameSiteNoneMode
-			} else {
-				cookie.Secure = false
-				fmt.Println("Not secure", setHttpAuthHeader)
-				if setHttpAuthHeader {
-					w.Header().Set(tokenHeader, sessionID)
-					l.Warn().Msg("using authorization-header")
-				}
-			}
-			http.SetCookie(w, cookie)
-		}
-		r = r.WithContext(context.WithValue(r.Context(), ContextKeyUserState, userState))
-
-		handler.ServeHTTP(w, r)
-	})
-	mux.Handle("/", mainHandler)
+	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
+	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
+	// han := CORSHandler()(
+	// 	RequestIDHandler(mustCreateUUidgenerator())(mainHandler),
+	// )
+	pipe := []MiddleWare{
+		Recovery(debug, logger.GetLogger("recovery")),
+		CORSHandler(),
+		RequestIDHandler(mustCreateUUidgenerator()),
+		Logger(logger.GetLogger("request")),
+		Authorization(debug),
+	}
+	han := pipeline(connectHandler, pipe...)
+	mux.Handle(path, han)
+	mux.Handle("/", http.StripPrefix("/", web.StaticWebHandler()))
+	// mux.Handle("/", web.StaticWebHandler())
 	address := "localhost:" + port
 	baseLogger.Info().Str("address", "http://"+address+path).Msg("Starting server")
 	if err := http.ListenAndServe(

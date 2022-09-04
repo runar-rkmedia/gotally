@@ -1,4 +1,5 @@
 <script lang="ts">
+	export const ssr = false
 	import 'pollen-css'
 	import InstructionList from '../components/InstructionList.svelte'
 	import {
@@ -16,7 +17,7 @@
 	import SwipeHint from '../components/board/SwipeHint.svelte'
 
 	let boardDiv: HTMLDivElement
-	let showCellIndex = true
+	let showCellIndex = false
 
 	const restartGame = () => {
 		return storeHandler.commit(storeHandler.restartGame())
@@ -227,7 +228,6 @@
 	$: nextHint = $store.hintDoneIndex >= 0 ? $store.hints[$store.hintDoneIndex + 1] : $store.hints[0]
 </script>
 
-<InstructionList hints={$store.hints} doneIndex={$store.hintDoneIndex} />
 {#if $store?.session?.game?.board}
 	<div class="headControls">
 		<div>
@@ -237,22 +237,6 @@
 			<div class="moves">
 				Moves: {$store.session.game.moves}
 			</div>
-		</div>
-		<div>
-			<small style="color: var(--color-grey-500);">
-				<div>
-					<div class="voteButtons">
-						<button class="active" live-click="vote" live-value-vote="1">⭐</button>
-						<button class="active" live-click="vote" live-value-vote="2">⭐</button>
-						<button class="active" live-click="vote" live-value-vote="3">⭐</button>
-						<button class="active" live-click="vote" live-value-vote="4">⭐</button>
-						<button class="active" live-click="vote" live-value-vote="5">⭐</button>
-					</div>
-					<span style="float: right">
-						{$store.session.game.board.name}
-					</span>
-				</div>
-			</small>
 		</div>
 	</div>
 
@@ -288,42 +272,40 @@
 			{/each}
 		</div>
 	</div>
-	<button on:click={() => restartGame()}>Restart </button>
-	<button on:click={() => getHint()}>Hint </button>
-	<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
-	<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
-	<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
-	<div class="swipe-buttons">
-		<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.UP)}>Swipe up</button>
+	<div class="bottom-controls">
+		<button on:click={() => getHint()}>Hint </button>
+
 		<div>
-			<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.LEFT)}>Swipe Left</button>
-			<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.RIGHT)}>Swipe Right</button>
+			<button on:click={() => restartGame()}>Restart </button>
+			<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
+			<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
+			<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
 		</div>
-		<button disabled={swipeLock} on:click={() => swipe(SwipeDirection.DOWN)}>Swipe Down</button>
 	</div>
 {/if}
-<pre>{JSON.stringify($store, null, 2)}</pre>
 
 <style>
 	button:disabled {
 		opacity: 0.4;
+	}
+	.bottom-controls {
+		display: flex;
+		justify-content: center;
+		flex-direction: column;
 	}
 	button {
 		background-color: var(--color-blue);
 		transition: opacity 70ms var(--easing-standard);
 		min-width: 52px;
 		min-height: 52px;
+		color: var(--color-black);
 	}
-	.swipe-buttons button {
-		margin-block: var(--size-2);
-	}
-	.swipe-buttons > * {
-		display: block;
-		margin-inline: auto;
-		width: max-content;
-	}
+
 	.boardContainer {
 		position: relative;
+		border: 2px solid var(--color-blue-700);
+		border-radius: var(--radius-lg);
+		margin-block-end: var(--size-4);
 	}
 	.board {
 		position: relative;
@@ -331,13 +313,9 @@
 		/* margin-inline: -4px; */
 		display: grid;
 
-		width: calc(100% + 8px);
-
 		height: 100%;
 		min-height: 60vw;
 		max-height: 100vw;
-		border: 2px solid var(--color-blue-700);
-		border-radius: var(--radius-lg);
 	}
 	.cell {
 		transition: transform 300ms var(--easing-standard);
@@ -349,7 +327,6 @@
 		margin: 2px;
 		border-radius: 8px;
 		background-color: var(--color-blue-700);
-		font-size: 2rem;
 		position: relative;
 		box-shadow: var(--elevation-4);
 
@@ -368,7 +345,7 @@
 
 	.cellValue {
 		font-weight: bold;
-		font-size: 4rem;
+		font-size: 2rem;
 		transition-property: color, transform;
 		transition-duration: 300ms;
 		transition-timing-function: var(--easing-standard);

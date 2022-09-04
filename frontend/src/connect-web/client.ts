@@ -56,10 +56,11 @@ const retrier: Interceptor =
 
 const isHttps = browser && document.location.protocol.includes('https')
 const transportOptions: ConnectTransportOptions = {
-	baseUrl: import.meta.env.VITE_API || (isHttps ? '/api' : 'http://192.168.10.101:8080/'),
-	interceptors: [retrier]
-	// useBinaryFormat: false
+	baseUrl: import.meta.env.VITE_API || (isHttps ? '/' : 'http://localhost:8080/'),
+	interceptors: [retrier],
+	useBinaryFormat: false
 }
+console.debug(import.meta.env, { transportOptions })
 
 const transport = createConnectTransport(transportOptions)
 

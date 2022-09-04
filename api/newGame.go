@@ -8,7 +8,7 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
-	"github.com/runar-rkmedia/gotally/live_client/ex"
+	"github.com/runar-rkmedia/gotally/generated"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
 )
 
@@ -16,16 +16,6 @@ var (
 	ErrSliceUnderflow = errors.New("Slice index underflow")
 	ErrSliceOverFlow  = errors.New("Slice index overflow")
 )
-
-func withinSlice(length, index int) (int, error) {
-	if index < 0 {
-		return -(index % length), ErrSliceUnderflow
-	}
-	if index >= length {
-		return (index % length), ErrSliceOverFlow
-	}
-	return index, nil
-}
 
 func (s *TallyServer) NewGame(
 	ctx context.Context,
@@ -38,9 +28,8 @@ func (s *TallyServer) NewGame(
 	switch req.Msg.Mode {
 	case model.GameMode_GAME_MODE_RANDOM_CHALLENGE:
 		mode = logic.GameModeRandomChallenge
-		fmt.Println(len(ex.GeneratedTemplates))
-		index := rand.Intn(len(ex.GeneratedTemplates))
-		template = &ex.GeneratedTemplates[index]
+		index := rand.Intn(len(generated.GeneratedTemplates))
+		template = &generated.GeneratedTemplates[index]
 	case model.GameMode_GAME_MODE_TUTORIAL:
 		mode = logic.GameModeTemplate
 		if _i, ok := req.Msg.Variant.(*model.NewGameRequest_LevelIndex); ok {

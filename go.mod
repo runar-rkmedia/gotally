@@ -8,6 +8,7 @@ require (
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/pelletier/go-toml/v2 v2.0.3
+	github.com/runar-rkmedia/go-common v0.0.5
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
@@ -21,7 +22,6 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/rs/zerolog v1.26.2-0.20220312163309-e9344a8c507b // indirect
-	github.com/runar-rkmedia/go-common v0.0.5 // indirect
 	github.com/schollz/mnemonicode v1.0.1 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

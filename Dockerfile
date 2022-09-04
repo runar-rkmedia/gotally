@@ -6,7 +6,7 @@ RUN apk update && apk upgrade && apk add --no-cache ca-certificates
 RUN update-ca-certificates
 COPY . .
 # go1.18beta2 build -ldflags="${ldflags}" -o dist/skiver${SUFFIX} main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="${ldflags}" -o gotally ./live_client
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="${ldflags}" -o gotally ./api/cmd/main.go
 
 FROM scratch as scratch
 
