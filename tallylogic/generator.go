@@ -3,6 +3,7 @@ package tallylogic
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -144,6 +145,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 	for i := 0; i < gb.Concurrency; i++ {
 		generateJob()
 	}
+	writer := os.Stdout
 	printStatus := func() {
 		total := done + errorCount
 		sinceStart := time.Since(start)
@@ -152,14 +154,19 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		expectedToBeDone := time.Duration(float64(gb.MaxIterations)/ratePerSecond) * time.Second
 		expectedToBeDoneAt := start.Add(expectedToBeDone)
 		uniques := len(jobHash)
-		fmt.Printf("\n[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d, Failure: %5.1f%%, ErrorMap: %v",
-			perc*100,
-			(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
-			expectedToBeDoneAt.Format("15:04:05"),
-			ratePerSecond,
-			uniques,
-			float64(errorCount)/float64(total)*100,
-			errors)
+		_, err := writer.WriteString(
+			fmt.Sprintf("\n[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d, Failure: %5.1f%%, ErrorMap: %v",
+				perc*100,
+				(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
+				expectedToBeDoneAt.Format("15:04:05"),
+				ratePerSecond,
+				uniques,
+				float64(errorCount)/float64(total)*100,
+				errors),
+		)
+		if err != nil {
+			panic(err)
+		}
 	}
 	ticker := time.NewTicker(time.Millisecond * 500)
 	for {

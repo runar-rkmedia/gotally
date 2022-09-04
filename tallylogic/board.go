@@ -190,8 +190,6 @@ var (
 )
 
 func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
-	fmt.Println("validating", indexes)
-	fmt.Println("boardcells", tb.cells)
 	nIndexes := len(indexes)
 	if nIndexes <= 1 {
 		return fmt.Errorf("%w at length %d", ErrPathTooShort, nIndexes), -1

@@ -42,9 +42,15 @@ server:
 	go run ./api/cmd/main.go
 server-watch:
 	fd '.go' | entr -r sh -c "golangci-lint run & go run ./api/cmd/main.go"
-# experimental live-server used for early development
-live-client:
-	fd | entr -r go run live_client/main.go
+
+build-web:
+	@echo "VITE_API: '$$VITE_API' $VITE_API"
+	cd frontend && VITE_API="/" npm run build
+	rm -rf static/static
+	mkdir -p static/static
+	cp -r frontend/.svelte-kit/output/client/* static/static
+	# Not really sure why, but currently I have to copy the index file... I am sure I am doing something wrong....
+	cp frontend/.svelte-kit/output/prerendered/pages/index.html static/static
 
 # build a container with the application
 build-container: 
@@ -69,5 +75,5 @@ container-publish:
 	docker push runardocker/gotally:$(version) 
 
 # Deploy to fly.io
-fly:
+fly: build-web
 	fly deploy 

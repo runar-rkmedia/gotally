@@ -95,3 +95,6 @@ generated/games/**/*
 *.log
 
 frontend/src/connect-web/proto
+
+static/*
+!static/web.go

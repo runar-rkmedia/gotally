@@ -9,15 +9,28 @@ import (
 	"path"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/skiver/utils"
 )
 
+var log logger.AppLogger
+
 func main() {
+	logger.InitLogger(logger.LogConfig{
+		Level:      "debug",
+		Format:     "human",
+		WithCaller: true,
+	})
+	log = logger.GetLogger("main")
+
 	go func() {
 		address := "localhost:6060"
-		fmt.Println("pprof available at", address)
-		fmt.Println(http.ListenAndServe(address, nil))
+		log.Info().Str("address", address).Msg("pprof available")
+		log.Fatal().
+			Str("address", address).
+			Err(http.ListenAndServe(address, nil)).
+			Msg(("failed setting up listener"))
 	}()
 	// getCell()
 	generateGame()
@@ -37,22 +50,17 @@ func generateGame() {
 		panic(err)
 	}
 
-	// op := options{}
-	// optionsToml, err := toml.Marshal(op)
-
-	// os.WriteFile("./generator-config.toml", optionsToml, 0677)
 	gameCh := make(chan tallylogic.SolvableGame, 8)
 	quit := make(chan struct{})
 
 	go func() {
-		fmt.Println("listening for games")
+		log.Info().Msg("listening for games")
 		for {
 			select {
 			case <-quit:
-				fmt.Println("quitting")
+				log.Info().Msg("quitting")
 				return
 			case sg := <-gameCh:
-				fmt.Println("got a gammmmmmmme", sg.Game.Print())
 				cells := sg.Cells()
 				hashName, _ := utils.GetRandomName()
 				out := tallylogic.GeneratedGame{
@@ -101,7 +109,6 @@ func generateGame() {
 
 		}
 	}()
-	fmt.Printf("\n%#v", op)
 
 	gb, err := tallylogic.NewGameGenerator(tallylogic.GameGeneratorOptions{
 		GameSolutionChannel: gameCh,
@@ -131,11 +138,6 @@ func generateGame() {
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("\nGenerated a board with %d solutions %s\n", len(solutions), game.Print())
-	fmt.Println("Games solved in moves:")
-	for _, s := range solutions {
-		fmt.Printf(" %d", s.Moves())
-	}
-	fmt.Println("")
+	log.Info().Str("game", game.Print()).Int("solutions", len(solutions)).Msg("Generated a board with solutions")
 
 }

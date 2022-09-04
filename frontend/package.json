@@ -24,6 +24,7 @@
     "@bufbuild/protoc-gen-es": "^0.0.10",
     "@playwright/test": "^1.25.0",
     "@sveltejs/adapter-auto": "next",
+    "@sveltejs/adapter-static": "^1.0.0-next.41",
     "@sveltejs/kit": "next",
     "@types/hammerjs": "^2.0.41",
     "@typescript-eslint/eslint-plugin": "^5.27.0",

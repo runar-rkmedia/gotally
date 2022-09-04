@@ -89,7 +89,6 @@ func (b *bruteSolver) solveGame(g Game, startingMoves int, solutions []Game, dep
 		if changed {
 			more, err := b.solveGame(gameCopy, startingMoves, solutions, depth, seen)
 			if err != nil {
-				fmt.Println("dir bailed", dir, err)
 				continue
 				// return solutions, err
 			}

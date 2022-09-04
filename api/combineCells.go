@@ -17,24 +17,20 @@ func (s *TallyServer) CombineCells(
 	var path []int
 	switch t := req.Msg.Selection.(type) {
 	case *model.CombineCellsRequest_Indexes:
-		fmt.Println("i am index", t.Indexes)
 		length = len(t.Indexes.Index)
 		path = make([]int, length)
 		for i := 0; i < length; i++ {
 			path[i] = int(t.Indexes.Index[i])
 		}
 	case *model.CombineCellsRequest_Coordinate:
-		fmt.Println("i am coordinate", t.Coordinate)
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("Not implemented: coordinate"))
 	}
 
-	fmt.Println("lenth", length)
 	if length < 2 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Selection must be have atleast two items"))
 	}
 	session := UserStateFromContext(ctx)
 	if err, invalidIndex := session.Game.ValidatePath(path); err != nil {
-		fmt.Println("\npath", path)
 
 		cerr := createError(connect.CodeInvalidArgument, fmt.Errorf("Invalid path at (%d): %w", invalidIndex, err))
 		details := []*errdetails.BadRequest_FieldViolation{
@@ -68,7 +64,6 @@ func (s *TallyServer) CombineCells(
 		Moves:  int64(session.Game.Moves()),
 		DidWin: session.Game.IsGameWon(),
 	}
-	fmt.Println("didwin", response.DidWin)
 	res := connect.NewResponse(&response)
 	res.Header().Set("PetV", "v1")
 	return res, nil
