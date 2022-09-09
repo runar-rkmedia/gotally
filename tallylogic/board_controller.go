@@ -4,6 +4,7 @@ package tallylogic
 
 // BoardController ...
 type BoardController interface {
+	ID() string
 	Copy() BoardController
 	GetCellAtIndex(n int) *Cell
 	FindCell(c Cell) (int, bool)

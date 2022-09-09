@@ -11,7 +11,7 @@ func (s *TallyServer) RestartGame(
 	ctx context.Context,
 	req *connect.Request[model.RestartGameRequest],
 ) (*connect.Response[model.RestartGameResponse], error) {
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 
 	session.Game = session.GameSnapshotAtStart.Copy()
 	response := &model.RestartGameResponse{

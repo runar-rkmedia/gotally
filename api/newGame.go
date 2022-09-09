@@ -21,7 +21,7 @@ func (s *TallyServer) NewGame(
 	ctx context.Context,
 	req *connect.Request[model.NewGameRequest],
 ) (*connect.Response[model.NewGameResponse], error) {
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 	var mode logic.GameMode
 	var template *logic.GameTemplate
 

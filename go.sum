@@ -103,6 +103,8 @@ github.com/rs/zerolog v1.26.2-0.20220312163309-e9344a8c507b h1:72Plc168SB6g5i9cO
 github.com/rs/zerolog v1.26.2-0.20220312163309-e9344a8c507b/go.mod h1:7frBqO0oezxmnO7GF86FY++uy8I0Tk/If5ni1G9Qc0U=
 github.com/runar-rkmedia/go-common v0.0.5 h1:zRbDkC2JXre1Em18OvYYu0hI5tkzvDtv0ONfLI2sbnE=
 github.com/runar-rkmedia/go-common v0.0.5/go.mod h1:OzZUDgCOlMKOUxGu7KbfpKkqzy+RhVFAWllXUYQP21k=
+github.com/runar-rkmedia/go-common v0.0.6 h1:SEIGH9ZwtcmparyfKEOlr2JTmVJ8CDXD9Cl+KlKLYPA=
+github.com/runar-rkmedia/go-common v0.0.6/go.mod h1:OzZUDgCOlMKOUxGu7KbfpKkqzy+RhVFAWllXUYQP21k=
 github.com/runar-rkmedia/skiver v0.8.0 h1:xIVOOhg+115wWEzCBricuPB+05q0g9G5naU6nuze4CM=
 github.com/runar-rkmedia/skiver v0.8.0/go.mod h1:XyZRjaKMUjnk7VpZG7zy4VGLexfIBcZNiC40ypENCYQ=
 github.com/schollz/mnemonicode v1.0.1 h1:LiH5hwADZwjwnfXsaD4xgnMyTAtaKHN+e5AyjRU6WSU=

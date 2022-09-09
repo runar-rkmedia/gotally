@@ -24,7 +24,7 @@ func (s *TallyServer) GetHint(
 	ctx context.Context,
 	req *connect.Request[model.GetHintRequest],
 ) (*connect.Response[model.GetHintResponse], error) {
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 
 	response := &model.GetHintResponse{
 		// Instruction: []*model.Instruction{},

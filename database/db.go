@@ -9,42 +9,52 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/runar-rkmedia/go-common/logger"
 )
 
-func NewDatabase(dsn string) (DB, error) {
+func NewDatabase(l logger.AppLogger, dsn string) (DB, error) {
 	if dsn == "" {
 		dsn = os.Getenv("DSN")
 	}
 	if dsn == "" {
 		dsn = "root:secret@tcp(localhost)/tallyboard"
 	}
+	debug := l.HasDebug()
 
 	hostAndSuch := strings.Split(dsn, "@")
 	if len(hostAndSuch) >= 2 {
-		log.Println("connecting to database: ", hostAndSuch[len(hostAndSuch)-1])
+		if debug {
+			l.Debug().Str("partialConnectionString", hostAndSuch[len(hostAndSuch)-1]).Msg("connecting to database")
+		}
+
 	} else {
-		log.Println("attempting to connect to database (hiding details)")
+		if debug {
+			l.Debug().Str("partialConnectionString", "hidden").Msg("connecting to database")
+		}
 	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return DB{}, err
 	}
-	d := DB{db}
+	d := DB{db, l}
 	go func() {
 		if err := d.Deploy(); err != nil {
-			log.Fatal("failure to deploye database", err)
+			l.Fatal().Err(err).Msg("failed to deploy database")
 		}
 		err := db.Ping()
 		if err != nil {
-			log.Fatal("could not ping database")
+			l.Fatal().Err(err).Msg("failed to ping database")
 		}
-		log.Println("successfully connected to database")
+		if debug {
+			l.Debug().Msg("Successfully connected to database")
+		}
 	}()
 	return d, err
 }
 
 type DB struct {
 	db *sql.DB
+	l  logger.AppLogger
 }
 
 func (db DB) Deploy() error {
@@ -60,11 +70,18 @@ func (db DB) Deploy() error {
 	);
 	`
 
-	fmt.Println("ensuring table is created")
+	if db.l.HasDebug() {
+		db.l.Debug().
+			Str("definition", definition).
+			Msg("ensuring table is created")
+
+	}
 	_, err := db.db.Exec(strings.TrimSpace(definition))
 	if err != nil {
-
-		fmt.Println("table-creation err", err)
+		db.l.Error().
+			Err(err).
+			Str("definition", definition).
+			Msg("failed to write definition to file ")
 	}
 	return err
 }
@@ -103,19 +120,22 @@ func (t DateType) String() string {
 	return time.Time(t).String()
 }
 func (db DB) GetAllVotes() (map[string]Vote, error) {
-	fmt.Println("getting all votes")
+	if db.l.HasDebug() {
+		db.l.Debug().Msg("getting all votes")
+	}
 	result, err := db.db.Query(
 		"SELECT id, user, createdAt, updatedAt, funVote FROM board_vote;")
 
-	fmt.Println("result", result, err)
 	if err != nil {
+		db.l.Error().
+			Err(err).
+			Msg("failed to retrieve votes from database")
 		return nil, err
 	}
 
 	votes := map[string]Vote{}
 
 	for result.Next() {
-		fmt.Println("scan")
 		vote := Vote{}
 		var createdAt string
 		var updatedAt sql.NullString
@@ -132,6 +152,9 @@ func (db DB) GetAllVotes() (map[string]Vote, error) {
 		}
 		votes[vote.ID] = vote
 	}
+	if db.l.HasDebug() {
+		db.l.Debug().Int("voteCount", len(votes)).Msg("Got votes")
+	}
 
 	return votes, nil
 
@@ -144,7 +167,6 @@ func (db DB) GetVotesForBoardByUserName(userName string) (map[string]Vote, error
 	}
 	votes := map[string]Vote{}
 	for result.Next() {
-		fmt.Println("scan")
 		vote := Vote{}
 		var createdAt string
 		var updatedAt sql.NullString
@@ -172,7 +194,6 @@ func parseTime(datePointer *time.Time, value string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("parse", c, err, value, datePointer)
 	(*datePointer) = c
 	return nil
 }

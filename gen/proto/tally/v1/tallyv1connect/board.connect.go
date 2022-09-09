@@ -33,6 +33,7 @@ type BoardServiceClient interface {
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
+	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
 }
 
 // NewBoardServiceClient constructs a client for the tally.v1.BoardService service. By default, it
@@ -75,6 +76,11 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+"/tally.v1.BoardService/CombineCells",
 			opts...,
 		),
+		voteBoard: connect_go.NewClient[v1.VoteBoardRequest, v1.VoteBoardResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/VoteBoard",
+			opts...,
+		),
 	}
 }
 
@@ -86,6 +92,7 @@ type boardServiceClient struct {
 	getSession   *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
 	swipeBoard   *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
 	combineCells *connect_go.Client[v1.CombineCellsRequest, v1.CombineCellsResponse]
+	voteBoard    *connect_go.Client[v1.VoteBoardRequest, v1.VoteBoardResponse]
 }
 
 // NewGame calls tally.v1.BoardService.NewGame.
@@ -118,6 +125,11 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, req *connect_go.R
 	return c.combineCells.CallUnary(ctx, req)
 }
 
+// VoteBoard calls tally.v1.BoardService.VoteBoard.
+func (c *boardServiceClient) VoteBoard(ctx context.Context, req *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error) {
+	return c.voteBoard.CallUnary(ctx, req)
+}
+
 // BoardServiceHandler is an implementation of the tally.v1.BoardService service.
 type BoardServiceHandler interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
@@ -126,6 +138,7 @@ type BoardServiceHandler interface {
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
+	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
 }
 
 // NewBoardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -165,6 +178,11 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 		svc.CombineCells,
 		opts...,
 	))
+	mux.Handle("/tally.v1.BoardService/VoteBoard", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/VoteBoard",
+		svc.VoteBoard,
+		opts...,
+	))
 	return "/tally.v1.BoardService/", mux
 }
 
@@ -193,4 +211,8 @@ func (UnimplementedBoardServiceHandler) SwipeBoard(context.Context, *connect_go.
 
 func (UnimplementedBoardServiceHandler) CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.CombineCells is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.VoteBoard is not implemented"))
 }

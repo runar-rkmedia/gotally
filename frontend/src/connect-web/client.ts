@@ -29,13 +29,13 @@ const retrier: Interceptor =
 			}
 
 			if (res.stream) {
-				console.log('got a streaming response')
+				console.warn('got a streaming response, not implemented')
 				return {
 					...res,
 
 					async read() {
 						const msg = await res.read()
-						console.log('streaming response', msg)
+						console.debug('streaming response', msg)
 						return msg
 					}
 				}
@@ -56,11 +56,13 @@ const retrier: Interceptor =
 
 const isHttps = browser && document.location.protocol.includes('https')
 const transportOptions: ConnectTransportOptions = {
-	baseUrl: import.meta.env.VITE_API || (isHttps ? '/' : 'http://localhost:8080/'),
+	baseUrl:
+		import.meta.env.VITE_API ||
+		(isHttps ? '/' : import.meta.env.VITE_DEV_API || 'http://localhost:8080/'),
 	interceptors: [retrier],
 	useBinaryFormat: false
 }
-console.debug(import.meta.env, { transportOptions })
+console.log({ transportOptions })
 
 const transport = createConnectTransport(transportOptions)
 

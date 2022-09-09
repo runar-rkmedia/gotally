@@ -13,8 +13,7 @@ func (s *TallyServer) GetSession(
 	ctx context.Context,
 	req *connect.Request[model.GetSessionRequest],
 ) (*connect.Response[model.GetSessionResponse], error) {
-	// TODO:  Get from context
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 	response := &model.GetSessionResponse{
 		Session: &model.Session{
 			Game: &model.Game{
@@ -30,7 +29,7 @@ func (s *TallyServer) GetSession(
 	return res, nil
 }
 
-func UserStateFromContext(ctx context.Context) *UserState {
+func ContextGetUserState(ctx context.Context) *UserState {
 	v := ctx.Value(ContextKeyUserState)
 
 	return v.(*UserState)

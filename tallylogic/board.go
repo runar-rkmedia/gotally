@@ -14,6 +14,8 @@ type TableBoard struct {
 	cells   []Cell
 	rows    int
 	columns int
+	// Only for saved boards
+	id string
 }
 
 func NewTableBoard(columns, rows int) TableBoard {
@@ -57,6 +59,9 @@ func (tb TableBoard) FindCell(c Cell) (int, bool) {
 }
 func (tb TableBoard) String() string {
 	return tb.PrintBoard(nil)
+}
+func (tb TableBoard) ID() string {
+	return tb.id
 }
 func (tb TableBoard) HighestValue() int64 {
 	var v int64

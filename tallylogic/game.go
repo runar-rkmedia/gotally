@@ -153,6 +153,9 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 func (g *Game) GetHint() map[string]Hint {
 	return g.Hinter.GetHints()
 }
+func (g *Game) BoardID() string {
+	return g.board.ID()
+}
 func (g *Game) generateCellToEmptyCell() bool {
 	i := g.getRandomEmptyCell()
 	if i == nil {

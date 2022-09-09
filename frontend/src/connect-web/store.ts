@@ -10,15 +10,17 @@ import type { PartialMessage } from '@bufbuild/protobuf'
 
 interface Store {
 	session: Session
+	usersVotes: Record<string, Vote | undefined>
 	didWin: boolean
 	hints: Instruction[]
 	hintDoneIndex: number
 }
 
+type Vote = Strip<Api.VoteBoardResponse>
 type Cell = Replaced<Strip<Api.Cell>, bigint, number>
 type Board = Replaced<Omit<Strip<Api.Board>, 'cells'> & { cells: Cell[] }, bigint, number>
 type Game = Replaced<Omit<Strip<Api.Game>, 'board'> & { board: Board }, bigint, number>
-type Session = Replaced<Omit<Strip<Api.Game>, 'game'> & { game: Game }, bigint, number>
+type Session = Replaced<Omit<Strip<Api.Session>, 'game'> & { game: Game }, bigint, number>
 
 type Strip<T extends Buf.Message> = Omit<
 	T,
@@ -87,13 +89,15 @@ export const store = writable<Store>({
 	hints: [],
 	didWin: false,
 	hintDoneIndex: -1,
-	session: null as any
+	session: null as any,
+	usersVotes: {}
 })
 
 interface ApiType {
 	swipe: (
 		direction: SwipeDirection
 	) => CommitableGoResult<{ board: Board; moves: number; didChange: boolean }>
+	vote: (options: PartialMessage<Api.VoteBoardRequest>) => CommitableGoResult<Vote>
 	getSession: () => CommitableGoResult<Session>
 	combineCells: (
 		selection: number[]
@@ -166,6 +170,7 @@ class ApiStore implements ApiType {
 		const commit = async () => {
 			store.update((s) => ({
 				...s,
+				didWin: false,
 				hints: [],
 				hintDoneIndex: -1,
 				session: {
@@ -199,6 +204,7 @@ class ApiStore implements ApiType {
 		const commit = async () => {
 			store.update((s) => ({
 				...s,
+				didWin: false,
 				hints: [],
 				hintDoneIndex: -1,
 				session: {
@@ -263,14 +269,6 @@ class ApiStore implements ApiType {
 						next.hintDoneIndex = s.hintDoneIndex + 1
 						next.hints = s.hints
 					}
-					console.log({
-						nextHint,
-						selection,
-						sel: selection.join(),
-						ind: nextHint && nextHint.instructionOneof.value.index.join(),
-						equal
-					})
-					console.log('nextHint thing', next)
 				}
 				return next
 			})
@@ -309,6 +307,22 @@ class ApiStore implements ApiType {
 		}
 		return [result, commit, err]
 	}
+	vote: ApiType['vote'] = async (options) => {
+		const [result, err] = await go(client.voteBoard(options))
+		if (err) {
+			handleError(err)
+			return [null, null, err]
+		}
+		const vote = strip<Vote>(result)
+		const commit = async () => {
+			store.update((s) => ({
+				...s,
+				usersVotes: { ...s.usersVotes, [result.id]: vote }
+			}))
+		}
+		return [vote, commit, null]
+	}
+
 	swipe: ApiType['swipe'] = async (direction) => {
 		const [result, err] = await go(client.swipeBoard({ direction }))
 		if (err) {

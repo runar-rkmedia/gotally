@@ -28,6 +28,7 @@ type BoardServiceClient interface {
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	SwipeBoard(ctx context.Context, in *SwipeBoardRequest, opts ...grpc.CallOption) (*SwipeBoardResponse, error)
 	CombineCells(ctx context.Context, in *CombineCellsRequest, opts ...grpc.CallOption) (*CombineCellsResponse, error)
+	VoteBoard(ctx context.Context, in *VoteBoardRequest, opts ...grpc.CallOption) (*VoteBoardResponse, error)
 }
 
 type boardServiceClient struct {
@@ -92,6 +93,15 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, in *CombineCellsR
 	return out, nil
 }
 
+func (c *boardServiceClient) VoteBoard(ctx context.Context, in *VoteBoardRequest, opts ...grpc.CallOption) (*VoteBoardResponse, error) {
+	out := new(VoteBoardResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/VoteBoard", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BoardServiceServer is the server API for BoardService service.
 // All implementations should embed UnimplementedBoardServiceServer
 // for forward compatibility
@@ -102,6 +112,7 @@ type BoardServiceServer interface {
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	SwipeBoard(context.Context, *SwipeBoardRequest) (*SwipeBoardResponse, error)
 	CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error)
+	VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error)
 }
 
 // UnimplementedBoardServiceServer should be embedded to have forward compatible implementations.
@@ -125,6 +136,9 @@ func (UnimplementedBoardServiceServer) SwipeBoard(context.Context, *SwipeBoardRe
 }
 func (UnimplementedBoardServiceServer) CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CombineCells not implemented")
+}
+func (UnimplementedBoardServiceServer) VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VoteBoard not implemented")
 }
 
 // UnsafeBoardServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -246,6 +260,24 @@ func _BoardService_CombineCells_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BoardService_VoteBoard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VoteBoardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).VoteBoard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/VoteBoard",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).VoteBoard(ctx, req.(*VoteBoardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BoardService_ServiceDesc is the grpc.ServiceDesc for BoardService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -276,6 +308,10 @@ var BoardService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CombineCells",
 			Handler:    _BoardService_CombineCells_Handler,
+		},
+		{
+			MethodName: "VoteBoard",
+			Handler:    _BoardService_VoteBoard_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

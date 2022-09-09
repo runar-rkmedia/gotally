@@ -214,6 +214,7 @@ func (t *GameTemplate) Create() GameTemplate {
 		Board: TableBoard{
 			rows:    t.Board.rows,
 			columns: t.Board.columns,
+			id:      t.ID,
 		},
 		GoalChecker:   t.GoalChecker,
 		DefeatChecker: t.DefeatChecker,
