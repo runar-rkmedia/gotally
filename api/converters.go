@@ -34,6 +34,7 @@ func toModalDirection(dir logic.SwipeDirection) model.SwipeDirection {
 
 func toModalBoard(game *logic.Game) *model.Board {
 	return &model.Board{
+		Id:      game.BoardID(),
 		Cells:   toModalCells(game.Cells()),
 		Columns: int32(game.Rules.SizeX),
 		Rows:    int32(game.Rules.SizeX),

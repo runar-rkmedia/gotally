@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/runar-rkmedia/go-common/logger"
+	"github.com/runar-rkmedia/gotally/database"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
 	"github.com/runar-rkmedia/gotally/generated"
 	web "github.com/runar-rkmedia/gotally/static"
@@ -114,11 +115,19 @@ func StartServer() {
 
 type TallyServer struct {
 	UidGenerator func() string
+	storage      PersistantStorage
 }
 
 func NewTallyServer() TallyServer {
-	return TallyServer{
-		UidGenerator: mustCreateUUidgenerator(),
+	db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
+	if err != nil {
+		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
 	}
+	ts := TallyServer{
+		UidGenerator: mustCreateUUidgenerator(),
+		storage:      db,
+	}
+
+	return ts
 
 }

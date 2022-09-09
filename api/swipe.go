@@ -16,7 +16,7 @@ func (s *TallyServer) SwipeBoard(
 	if req.Msg.Direction == model.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Direction must be set"))
 	}
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 	dir := toGameSwipeDirection(req.Msg.Direction)
 	response := &model.SwipeBoardResponse{
 		DidChange: session.Swipe(dir),

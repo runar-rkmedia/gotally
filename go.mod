@@ -8,7 +8,7 @@ require (
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/pelletier/go-toml/v2 v2.0.3
-	github.com/runar-rkmedia/go-common v0.0.5
+	github.com/runar-rkmedia/go-common v0.0.6
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1

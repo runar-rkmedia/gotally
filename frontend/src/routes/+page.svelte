@@ -15,6 +15,8 @@
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
+	import GameWon from '../components/GameWon.svelte'
+	import Dialog from '../components/Dialog.svelte'
 
 	let boardDiv: HTMLDivElement
 	let showCellIndex = false
@@ -35,6 +37,9 @@
 		// Set up swipes
 		if (browser) {
 			document.onkeydown = async (e) => {
+				if ($store.didWin) {
+					return
+				}
 				if (swipeLock) {
 					e.preventDefault()
 					return
@@ -71,7 +76,6 @@
 						break
 
 					default:
-						console.log('key', e.key)
 						return
 				}
 				e.preventDefault()
@@ -126,7 +130,6 @@
 			nRows: $store.session.game.board.rows
 		}
 		const shouldAnimate = await animateSwipe({ ...swipeOptions, dry: true })
-		console.log({ shouldAnimate })
 		if (!shouldAnimate) {
 			return
 		}
@@ -193,15 +196,6 @@
 		}
 		const isSelected = !!selectionMap[i]
 		if (isSelected) {
-			console.log('should send', selection)
-			// const [result, err] = await go(
-			// 	client.combineCells({
-			// 		selection: {
-			// 			case: 'indexes',
-			// 			value: { index: selection }
-			// 		}
-			// 	})
-			// )
 			const [result, commit, err] = await storeHandler.combineCells(selection)
 			if (err) {
 				invalidSelectionMap = { [i]: true }
@@ -212,28 +206,26 @@
 			commit()
 			selection = []
 			selectionMap = {}
-			if (result.didWin) {
-				setTimeout(() => {
-					alert('You won!')
-				}, 150)
-			}
 			return
 		}
 		selection = [...selection, i]
 		selectionMap[i] = true
 	}
-	$: {
-		console.log('store', $store)
-	}
 	$: nextHint = $store.hintDoneIndex >= 0 ? $store.hints[$store.hintDoneIndex + 1] : $store.hints[0]
 </script>
 
 {#if $store?.session?.game?.board}
+	<Dialog open={$store.didWin}>
+		<GameWon />
+	</Dialog>
 	<div class="headControls">
 		<div>
 			<div class="score">
 				Score: {$store.session.game.score}
 			</div>
+			<small class="boardName" title={$store.session.game.board.id}
+				>{$store.session.game.board.name}</small
+			>
 			<div class="moves">
 				Moves: {$store.session.game.moves}
 			</div>
@@ -260,6 +252,7 @@
 						nextHint.instructionOneof.value.index.includes(i)}
 					class:selectedLast={!!selection.length && selection[selection.length - 1] === i}
 					class:blank={Number(c.base) === 0}
+					data-base={c.base}
 					on:click={() => select(i)}
 				>
 					<div class="cellValue">
@@ -287,6 +280,10 @@
 <style>
 	button:disabled {
 		opacity: 0.4;
+	}
+	.boardName {
+		opacity: 0.7;
+		float: right;
 	}
 	.bottom-controls {
 		display: flex;

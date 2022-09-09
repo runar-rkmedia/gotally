@@ -216,10 +216,21 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 
 					b, err := json.Marshal(cess)
 					if err != nil {
-						w.Write([]byte("internal failure"))
-						return
+						b = ([]byte("internal failure"))
+						if err != nil {
+							l.Error().
+								Err(err).
+								Msg("Failed to marshal error to user after panicking.")
+						}
 					}
-					w.Write(b)
+					_, err = w.Write(b)
+					if err != nil {
+						l.Error().
+							Err(err).
+							Msg("Failed to write response to client after failure. Client disconnennected?")
+
+					}
+
 				}
 			}()
 			next.ServeHTTP(w, r)

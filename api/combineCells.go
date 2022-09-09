@@ -29,7 +29,7 @@ func (s *TallyServer) CombineCells(
 	if length < 2 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Selection must be have atleast two items"))
 	}
-	session := UserStateFromContext(ctx)
+	session := ContextGetUserState(ctx)
 	if err, invalidIndex := session.Game.ValidatePath(path); err != nil {
 
 		cerr := createError(connect.CodeInvalidArgument, fmt.Errorf("Invalid path at (%d): %w", invalidIndex, err))
