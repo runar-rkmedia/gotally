@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/runar-rkmedia/gotally/randomizer"
 )
 
 type GameGeneratorOptions struct {
@@ -63,7 +65,7 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 		err = fmt.Errorf("GoalChecker must be set")
 		return
 	}
-	r := NewRandomizer(options.Seed)
+	r := randomizer.NewRandomizer(options.Seed)
 	if options.CellGenerator == nil {
 		gb.CellGenerator = NewCellGenerator(r)
 	}
