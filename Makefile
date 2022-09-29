@@ -33,7 +33,7 @@ go-lint:
 go-test:
 	gotest ./tallylogic/
 test-watch:
-	fd '' tallylogic | entr -r sh -c "gotest ./tallylogic"
+	fd '.go' | entr -r sh -c "gotest ./tallylogic"
 
 # web and servers
 web:

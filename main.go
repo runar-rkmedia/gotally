@@ -10,6 +10,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/runar-rkmedia/go-common/logger"
+	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/skiver/utils"
 )
@@ -126,7 +127,7 @@ func generateGame() {
 		MinGames:        op.MinGames,
 		Concurrency:     op.Concurrency,
 		// CellGenerator: nil,
-		Randomizer: tallylogic.NewSeededRandomizer(),
+		Randomizer: randomizer.NewSeededRandomizer(),
 	})
 
 	if err != nil {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/runar-rkmedia/gotally/randomizer"
 )
 
 type CellGenerator interface {
@@ -60,7 +62,7 @@ const (
 // Copies the game and all values to a new game
 func (g Game) Copy() Game {
 	seed, state := g.cellGenerator.Seed()
-	r := NewRandomizerFromSeed(seed, state)
+	r := randomizer.NewRandomizerFromSeed(seed, state)
 	cg := NewCellGenerator(r)
 	game := Game{
 		board:         g.board.Copy(),
@@ -106,7 +108,7 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 		game.Rules.Options = o
 	}
 	game.Rules.Options.EvaluateOptions.NoAddition = true
-	r := NewRandomizer(game.Rules.Options.Seed)
+	r := randomizer.NewRandomizer(game.Rules.Options.Seed)
 	game.cellGenerator = NewCellGenerator(r)
 	switch mode {
 	case GameModeDefault:
