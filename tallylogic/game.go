@@ -3,13 +3,18 @@ package tallylogic
 import (
 	"encoding/base64"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 )
 
 type CellGenerator interface {
 	Generate() Cell
+	Intn(int) int
+	IntRandomizer
+}
+type IntRandomizer interface {
+	Seed() (uint64, uint64)
+	SetSeed(seed uint64, state uint64) error
 }
 
 type Game struct {
@@ -37,6 +42,10 @@ type GameRules struct {
 	// TODO: not implemented
 	WithSuperPowers bool
 	StartingBricks  int
+	// Whether to allow swipes in the same direction or not, for instance twice up.
+	// This can have an effect if there are new items generated for each swipe
+	NoReswipe bool
+	Options   NewGameOptions
 }
 
 type GameMode int
@@ -50,10 +59,13 @@ const (
 
 // Copies the game and all values to a new game
 func (g Game) Copy() Game {
+	seed, state := g.cellGenerator.Seed()
+	r := NewRandomizerFromSeed(seed, state)
+	cg := NewCellGenerator(r)
 	game := Game{
 		board:         g.board.Copy(),
 		selectedCells: g.selectedCells,
-		cellGenerator: g.cellGenerator,
+		cellGenerator: cg,
 		Rules:         g.Rules,
 		score:         g.score,
 		moves:         g.moves,
@@ -62,14 +74,22 @@ func (g Game) Copy() Game {
 		GoalChecker:   g.GoalChecker,
 		DefeatChecker: g.DefeatChecker,
 	}
-	game.Hinter = NewHintCalculator(
-		game.board, game.board, game.board,
-	)
+	if g.Hinter.CellRetriever != nil {
+		game.Hinter = NewHintCalculator(
+			game.board, game.board, game.board,
+		)
+	}
 	game.History = append(game.History, g.History...)
 	return game
 
 }
-func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
+
+type NewGameOptions struct {
+	TableBoardOptions
+	Seed uint64
+}
+
+func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (Game, error) {
 	game := Game{
 		// Default rules
 		Rules: GameRules{
@@ -78,13 +98,19 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			RecreateOnSwipe: true,
 			WithSuperPowers: true,
 			StartingBricks:  5,
+			GameMode:        mode,
 		},
-		cellGenerator: NewCellGenerator(),
-		History:       []any{},
+		History: []any{},
 	}
+	for _, o := range options {
+		game.Rules.Options = o
+	}
+	game.Rules.Options.EvaluateOptions.NoAddition = true
+	r := NewRandomizer(game.Rules.Options.Seed)
+	game.cellGenerator = NewCellGenerator(r)
 	switch mode {
 	case GameModeDefault:
-		board := NewTableBoard(5, 5)
+		board := NewTableBoard(5, 5, game.Rules.Options.TableBoardOptions)
 		game.board = &board
 		game.Description = "Default game, 5x5"
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
@@ -118,8 +144,8 @@ func NewGame(mode GameMode, template *GameTemplate) (Game, error) {
 			}
 			game.board = &board
 			game.Rules = GameRules{
+				GameMode:        mode,
 				BoardType:       0,
-				GameMode:        GameModeDefault,
 				SizeX:           board.columns,
 				SizeY:           board.rows,
 				RecreateOnSwipe: false,
@@ -171,7 +197,7 @@ func (g *Game) getRandomEmptyCell() *int {
 	if len(empty) == 0 {
 		return nil
 	}
-	i := rand.Intn(len(empty))
+	i := g.cellGenerator.Intn(len(empty))
 	return &empty[i]
 
 }
@@ -256,6 +282,95 @@ func (i Instruction) Hash() string {
 	}
 
 	return b.String()
+}
+
+type InstructionType int
+
+const (
+	InstructionTypeUnknown InstructionType = iota
+	InstructionTypeSwipe
+	InstructionTypeCombinePath
+	InstructionTypeSelectIndex
+	InstructionTypeSelectCoord
+)
+
+func GetInstructionAsPath(ins any) ([]int, bool) {
+	p, ok := ins.([]int)
+	return p, ok
+}
+func GetInstructionType(ins any) InstructionType {
+	switch ins.(type) {
+	case int:
+		return InstructionTypeSelectIndex
+	case SwipeDirection:
+		return InstructionTypeSwipe
+	case [2]int:
+		return InstructionTypeSelectCoord
+	case []int:
+		return InstructionTypeCombinePath
+	}
+	return -1
+
+}
+func CompareInstrictionAreEqual(ins, ins2 any) (bool, InstructionType) {
+	switch t := ins.(type) {
+	case int:
+		switch t2 := ins2.(type) {
+		case int:
+			return t == t2, InstructionTypeSelectIndex
+		default:
+			return false, InstructionTypeUnknown
+		}
+	case SwipeDirection:
+		switch t2 := ins2.(type) {
+		case SwipeDirection:
+			return t == t2, InstructionTypeSwipe
+		default:
+			return false, InstructionTypeUnknown
+		}
+
+	}
+	return fmt.Sprintf("%v", ins) == fmt.Sprintf("%#v", ins2), InstructionTypeCombinePath
+}
+
+func (g *Game) DescribeInstruction(instruction any) string {
+	switch instruction {
+	case true:
+		return "Combinging selection"
+	case SwipeDirectionUp:
+		return "Swiping up"
+	case SwipeDirectionRight:
+		return "Swiping Right"
+	case SwipeDirectionDown:
+		return "Swiping Down"
+	case SwipeDirectionLeft:
+		return "Swiping Left"
+	}
+	switch t := instruction.(type) {
+	case int:
+		cell := g.board.GetCellAtIndex(t)
+		x, y := g.board.IndexToCord(t)
+		return fmt.Sprintf("Selecting %d at %dx%d", cell.Value(), x, y)
+	case [2]int:
+		index, ok := g.board.CoordToIndex(t[0], t[1])
+		if !ok {
+			return fmt.Sprintf("Attempted to select invalid cell at %dx%d", t[0], t[1])
+		}
+		cell := g.board.GetCellAtIndex(index)
+		return fmt.Sprintf("Selecting %d at %dx%d", cell.Value(), t[0], t[1])
+	case []int:
+		values := make([]int64, len(t))
+		coords := make([][2]int, len(t))
+		for i := 0; i < len(t); i++ {
+			cell := g.board.GetCellAtIndex(i)
+			x, y := g.board.IndexToCord(i)
+			coords[0] = [2]int{x, y}
+			values[i] = cell.Value()
+		}
+
+		return fmt.Sprintf("Combining values %v (%v) {%v}", values, coords, t)
+	}
+	return "unknown instruction"
 }
 
 // This is used to instruct the game using small data-values Not really sure

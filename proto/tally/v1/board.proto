@@ -58,7 +58,23 @@ message Instruction {
       }
   }
 
+enum HintPreference {
+    HINT_PREFERENCE_UNSPECIFIED = 0;
+    // Returns the shortest hint, counting swipes and combines.
+    HINT_PREFERENCE_SHORT = 2;
+    // Returns the hint calculated as giving the highest score
+    HINT_PREFERENCE_HIGHEST_SCORE = 3;
+    // Returns the hint that has the least amount of swipes.
+    HINT_PREFERENCE_MINIMUM_SWIPES = 4;
+    // Return the hint that has the lowest swipes to combine ratio
+    HINT_PREFERENCE_MINIMUM_SWIPES_TO_COMBINE_RATIO = 5;
+    // Return the hint that has the first hint of type combine
+    HINT_PREFERENCE_FIRST_COMBINE= 6;
+  }
+
 message GetHintRequest {
+  HintPreference hint_preference = 1;
+  int32 max_length = 2;
 }
 message GetHintResponse {
   repeated Instruction instructions = 1;

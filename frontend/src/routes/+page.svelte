@@ -1,7 +1,6 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import InstructionList from '../components/InstructionList.svelte'
 	import {
 		GameMode,
 		GetHintRequest,
@@ -15,8 +14,11 @@
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
+	import HintView from '../components/board/HintView.svelte'
 	import GameWon from '../components/GameWon.svelte'
 	import Dialog from '../components/Dialog.svelte'
+	import CellComp from '../components/board/Cell.svelte'
+	import { cellValue } from '../components/board/cell'
 
 	let boardDiv: HTMLDivElement
 	let showCellIndex = false
@@ -82,12 +84,6 @@
 			}
 		}
 	})
-	const cellValue = (c: Cell | { base: number; twopow: number }) => {
-		if (Number(c.base) === 0) {
-			return ''
-		}
-		return Number(c.base) * Math.pow(2, Number(c.twopow))
-	}
 	const animateInvalidSwipe = (direction: SwipeDirection) => {
 		console.error('Not implemented', 'animateInvalidSwipe', direction)
 	}
@@ -232,6 +228,7 @@
 		</div>
 	</div>
 
+	<HintView />
 	<div class="boardContainer">
 		<SwipeHint
 			instruction={nextHint?.instructionOneof.value}
@@ -244,24 +241,15 @@
 			style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
 		>
 			{#each $store.session.game.board.cells as c, i}
-				<div
-					class="cell"
-					class:no-eval={invalidSelectionMap[i]}
-					class:selected={selectionMap[i]}
-					class:hinted={nextHint?.instructionOneof.case === 'combine' &&
+				<CellComp
+					noEval={invalidSelectionMap[i]}
+					selected={selectionMap[i]}
+					hinted={nextHint?.instructionOneof.case === 'combine' &&
 						nextHint.instructionOneof.value.index.includes(i)}
-					class:selectedLast={!!selection.length && selection[selection.length - 1] === i}
-					class:blank={Number(c.base) === 0}
-					data-base={c.base}
+					selectedLast={!!selection.length && selection[selection.length - 1] === i}
+					cell={c}
 					on:click={() => select(i)}
-				>
-					<div class="cellValue">
-						{cellValue(c)}
-					</div>
-					{#if showCellIndex}
-						<div class="cellIndex">{i}</div>
-					{/if}
-				</div>
+				/>
 			{/each}
 		</div>
 	</div>
@@ -313,139 +301,5 @@
 		height: 100%;
 		min-height: 60vw;
 		max-height: 100vw;
-	}
-	.cell {
-		transition: transform 300ms var(--easing-standard);
-		user-select: none;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		border: 2px solid var(--border-blue-700);
-		margin: 2px;
-		border-radius: 8px;
-		background-color: var(--color-blue-700);
-		position: relative;
-		box-shadow: var(--elevation-4);
-
-		opacity: 0.8;
-	}
-	.cell:empty,
-	.cell.blank {
-		opacity: 0;
-	}
-	.cell.hinted:not(.selected) {
-		background-color: var(--color-blue-500);
-		outline-color: var(--color-purple-700);
-		outline-width: 5px;
-		outline-style: dotted;
-	}
-
-	.cellValue {
-		font-weight: bold;
-		font-size: 2rem;
-		transition-property: color, transform;
-		transition-duration: 300ms;
-		transition-timing-function: var(--easing-standard);
-		/* transition: transform 300ms var(--easing-standard); */
-	}
-
-	.cellIndex {
-		position: absolute;
-		right: var(--size-1);
-		bottom: var(--size-1);
-		font-size: 0.8rem;
-		opacity: 0.7;
-	}
-
-	.cell.selected {
-		background-color: var(--color-green);
-		color: var(--color-black);
-		transform: scale(0.9);
-	}
-	.cell.selected .cellValue {
-		transform: scale(1.2);
-	}
-
-	.cell.selectedLast {
-		background-color: var(--color-green-300);
-		color: var(--color-black);
-	}
-	.cell.no-eval {
-		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear;
-		transform: translate3d(0, 0, 0);
-		backface-visibility: hidden;
-		perspective: 1000px;
-	}
-	.cell.no-eval {
-		animation: sepia 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-	}
-	@keyframes grow-to-normal {
-		0% {
-			scale: 0.9;
-		}
-		80% {
-			scale: 0.9;
-		}
-		1000% {
-			scale: 0.9;
-		}
-	}
-	@keyframes sepia {
-		0% {
-			filter: sepia(1);
-		}
-		80% {
-			filter: sepia(1);
-		}
-		1000% {
-		}
-	}
-	@keyframes shake {
-		10%,
-		90% {
-			transform: translate3d(-1px, 0, 100px);
-		}
-
-		20%,
-		80% {
-			transform: translate3d(2px, 0, 0);
-		}
-
-		30%,
-		50%,
-		70% {
-			transform: translate3d(-4px, 0, 0);
-		}
-
-		40%,
-		60% {
-			transform: translate3d(4px, 0, 0);
-		}
-	}
-	/* Keyframes */
-	@keyframes wiggle {
-		0%,
-		7% {
-			transform: rotateZ(0);
-		}
-		15% {
-			transform: rotateZ(-5deg);
-		}
-		20% {
-			transform: rotateZ(3.3deg);
-		}
-		25% {
-			transform: rotateZ(-3.3deg);
-		}
-		30% {
-			transform: rotateZ(2deg);
-		}
-		35% {
-			transform: rotateZ(1.3deg);
-		}
-		40%,
-		100% {
-			transform: rotateZ(0);
-		}
 	}
 </style>

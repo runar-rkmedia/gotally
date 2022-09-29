@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -110,9 +109,7 @@ func (lw *LogResponseWriter) GetBody(l logger.AppLogger) (decodedBytes []byte, u
 	if len(decodedBytes) == 0 {
 		return
 	}
-	fmt.Println("jsoni???")
 	if strings.Contains(contentType, "application/json") {
-		fmt.Println("json")
 		err := json.Unmarshal(decodedBytes, &unmarshalled)
 		if err != nil {
 			l.Warn().Err(err).Msg("failed to unmarshal the decoded response")
