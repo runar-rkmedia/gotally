@@ -16,12 +16,31 @@ type TableBoard struct {
 	columns int
 	// Only for saved boards
 	id string
+	TableBoardOptions
 }
 
-func NewTableBoard(columns, rows int) TableBoard {
+type TableBoardOptions struct {
+	EvaluateOptions
+}
+
+type EvaluateOptions struct {
+	// If set, will not attempt to use multiplication for evauluation
+	NoMultiply bool
+	// If set, will not attempt to use addition for evauluation
+	NoAddition bool
+}
+
+// TODO: return error here
+func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
 	tb := TableBoard{
 		rows:    rows,
 		columns: columns,
+	}
+	for _, v := range options {
+		tb.TableBoardOptions = v
+	}
+	if tb.NoMultiply && tb.NoAddition {
+		panic(fmt.Errorf("NoAddition && NoMultiply cannot both be set (need at least one evauluation-method)"))
 	}
 	cellCount := columns * rows
 	tb.cells = make([]Cell, cellCount)
@@ -33,9 +52,10 @@ func NewTableBoard(columns, rows int) TableBoard {
 
 func (tb *TableBoard) Copy() BoardController {
 	board := TableBoard{
-		cells:   make([]Cell, len(tb.cells)),
-		rows:    tb.rows,
-		columns: tb.columns,
+		cells:             make([]Cell, len(tb.cells)),
+		rows:              tb.rows,
+		columns:           tb.columns,
+		TableBoardOptions: tb.TableBoardOptions,
 	}
 	for i, v := range tb.cells {
 		board.cells[i] = NewCell(v.baseValue, v.power)
@@ -139,7 +159,7 @@ func (tb TableBoard) cellRow(i int) int {
 func (tb TableBoard) cellColumn(i int) int {
 	return i % tb.columns
 }
-func (tb TableBoard) indexToCord(i int) (column int, row int) {
+func (tb TableBoard) IndexToCord(i int) (column int, row int) {
 	return tb.cellColumn(i), tb.cellRow(i)
 }
 func (tb TableBoard) ValidCellIndex(index int) bool {
@@ -232,8 +252,7 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 	return nil, 0
 }
 
-func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noValidate bool) (int64, EvalMethod, error) {
-	// debug := len(indexes) == 4 && indexes[0] == 0 && indexes[1] == 1 && indexes[2] == 2 && indexes[3] == 5
+func (tb TableBoard) EvaluatesTo(indexes []int, commit, noValidate bool) (int64, EvalMethod, error) {
 	if !noValidate {
 		err, _ := tb.ValidatePath(indexes)
 		if err != nil {
@@ -249,7 +268,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, commitResultToBoard bool, noVali
 	if method == EvalMethodNil {
 		return v, method, err
 	}
-	if v == 0 || !commitResultToBoard {
+	if v == 0 || !commit {
 		return v, method, err
 	}
 	tb.GetCellAtIndex(last).Double()
@@ -286,14 +305,16 @@ func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, E
 		product *= v
 
 		// return early if we have overshow the targetValue
-		if sum > int64(targetValue) && product > targetValue {
+		overshotMultiply := !tb.NoMultiply && product > targetValue
+		overshotAddition := !tb.NoAddition && sum > targetValue
+		if overshotAddition && overshotMultiply {
 			return 0, EvalMethodNil, ErrResultOvershot
 		}
 	}
-	if sum == targetValue {
+	if !tb.NoAddition && sum == targetValue {
 		return sum, EvalMethodSum, nil
 	}
-	if product == targetValue {
+	if !tb.NoMultiply && product == targetValue {
 		return product, EvalMethodProduct, nil
 	}
 
@@ -422,8 +443,8 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	if a >= max || b >= max {
 		return false
 	}
-	ac, ar := tb.indexToCord(a)
-	bc, br := tb.indexToCord(b)
+	ac, ar := tb.IndexToCord(a)
+	bc, br := tb.IndexToCord(b)
 
 	diff := (ac - bc) + (ar - br)
 
@@ -444,7 +465,7 @@ func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 		return neighbours, false
 	}
 
-	column, row := tb.indexToCord(index)
+	column, row := tb.IndexToCord(index)
 
 	// Neighbour above
 	if row > 0 {

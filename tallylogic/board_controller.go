@@ -7,6 +7,7 @@ type BoardController interface {
 	ID() string
 	Copy() BoardController
 	GetCellAtIndex(n int) *Cell
+	IndexToCord(i int) (column int, row int)
 	FindCell(c Cell) (int, bool)
 	String() string
 	HighestValue() int64

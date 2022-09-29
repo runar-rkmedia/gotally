@@ -162,7 +162,7 @@ func DefaultChallengeGameRules(sizeX, sizeY int) GameRules {
 	rules := DefaultGameRules(sizeX, sizeY)
 	rules.StartingBricks = 0
 	rules.RecreateOnSwipe = false
-	rules.GameMode = GameModeDefault
+	rules.GameMode = GameModeTemplate
 	return rules
 }
 

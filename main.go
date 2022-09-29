@@ -126,8 +126,7 @@ func generateGame() {
 		MinGames:        op.MinGames,
 		Concurrency:     op.Concurrency,
 		// CellGenerator: nil,
-		// Randomizer:    rand.
-		Randomizer: tallylogic.NewRandomizer(),
+		Randomizer: tallylogic.NewSeededRandomizer(),
 	})
 
 	if err != nil {

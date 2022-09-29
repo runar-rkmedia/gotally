@@ -3,6 +3,7 @@ package tallylogic
 import (
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/gookit/color"
 )
 
@@ -29,8 +30,8 @@ func BoardHightlighter(g *Game) func(Cell, int, string) string {
 	}
 }
 
-func mustCreateNewGame(mode GameMode, template *GameTemplate) Game {
-	game, err := NewGame(mode, template)
+func mustCreateNewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) Game {
+	game, err := NewGame(mode, template, options...)
 	if err != nil {
 		panic(err)
 	}
@@ -107,6 +108,56 @@ func TestGame_Play(t *testing.T) {
 				}
 			},
 			1568,
+		},
+		{
+			"Play a seeded randomized game, copy it and play again",
+			mustCreateNewGame(GameModeDefault, nil, NewGameOptions{Seed: 123}),
+			func(g *Game, t *testing.T) {
+				instructions := []any{
+					SwipeDirectionUp,
+					SwipeDirectionRight,
+					SwipeDirectionDown,
+					SwipeDirectionLeft,
+					[]int{22, 21, 20},
+					SwipeDirectionLeft,
+				}
+				gCopy := g.Copy()
+				h := BoardHightlighter(g)
+				hCopy := BoardHightlighter(&gCopy)
+				initialOriginalStr := gCopy.Print()
+				initialCopyStr := gCopy.Print()
+				if initialOriginalStr != initialCopyStr {
+					t.Fatalf("The initial copy is not equal: got:\n %s\n want:\n %s", initialCopyStr, initialOriginalStr)
+
+				}
+				t.Log("originalGame", initialOriginalStr)
+				for i, v := range instructions {
+					desc := g.DescribeInstruction(v)
+					descCopy := g.DescribeInstruction(v)
+					var ok bool
+
+					ok = g.instruct(v)
+					if !ok {
+						t.Errorf("Original game failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
+						return
+					}
+					got := g.Print()
+					ok = gCopy.instruct(v)
+					if !ok {
+						t.Errorf("Copy failed at instruction %d %#v\n%s", i, v, gCopy.board.PrintBoard(hCopy))
+						return
+					}
+					want := gCopy.Print()
+					if got != want {
+						if diff := deep.Equal(*g, gCopy); diff != nil {
+							t.Errorf("DIFF! %#v", diff)
+						}
+
+						t.Fatalf("The copied game is not equal to the original after instruction %d (%s) (%s): got: \n %s \n want: \n %s", i, desc, descCopy, got, want)
+					}
+				}
+			},
+			27,
 		},
 	}
 	for _, tt := range tests {

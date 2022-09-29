@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { SwipeDirection } from '../../connect-web'
 
-	export let instruction: SwipeDirection
+	export let instruction: SwipeDirection | undefined
 	export let active: boolean
 </script>
 

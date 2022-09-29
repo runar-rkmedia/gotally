@@ -2,7 +2,6 @@ package tallylogic
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -19,7 +18,7 @@ type GameGeneratorOptions struct {
 	Concurrency         int
 	CellGenerator       CellGenerator `toml:"-"`
 	Randomizer          Randomizer    `toml:"-"`
-	Seed                int64
+	Seed                uint64
 	MinGames            int
 	GameSolutionChannel chan SolvableGame `toml:"-"`
 }
@@ -64,11 +63,12 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 		err = fmt.Errorf("GoalChecker must be set")
 		return
 	}
+	r := NewRandomizer(options.Seed)
 	if options.CellGenerator == nil {
-		gb.CellGenerator = NewCellGenerator()
+		gb.CellGenerator = NewCellGenerator(r)
 	}
 	if options.Randomizer == nil {
-		gb.Randomizer = NewRandomizer()
+		gb.Randomizer = r
 	}
 	return
 }
@@ -225,9 +225,9 @@ func (gb GameGenerator) GenerateBoardValues() []Cell {
 		board[i] = NewCell(0, 0)
 	}
 	for i := 0; i < bricks; i++ {
-		index := rand.Intn(length - 1)
+		index := gb.Randomizer.Intn(length - 1)
 		for board[index].baseValue != 0 {
-			index = rand.Intn(length - 1)
+			index = gb.Randomizer.Intn(length - 1)
 		}
 		board[index] = gb.CellGenerator.Generate()
 	}
