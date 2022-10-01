@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gookit/color"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
 func TestTableBoard_neighboursForCellIndex(t *testing.T) {
@@ -82,10 +83,10 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tb := NewTableBoard(tt.fields.columns, tt.fields.rows)
 			for i := 0; i < len(tb.cells); i++ {
-				tb.cells[i].baseValue = int64(i)
+				tb.cells[i] = cell.NewCell(int64(i), 0) // int64(i)
 			}
 			got, got1 := tb.NeighboursForCellIndex(tt.args.index)
-			t.Log(tb.PrintBoard(func(c Cell, index int, padded string) string {
+			t.Log(tb.PrintBoard(func(c CellValuer, index int, padded string) string {
 				p := color.Yellow
 				if index == tt.args.index {
 					p = color.BgGray
@@ -116,7 +117,7 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 
 func TestTableBoard_swipe(t *testing.T) {
 	type fields struct {
-		cells   []Cell
+		cells   []cell.Cell
 		rows    int
 		columns int
 	}
@@ -124,7 +125,7 @@ func TestTableBoard_swipe(t *testing.T) {
 		name      string
 		tb        fields
 		direction SwipeDirection
-		want      []Cell
+		want      []cell.Cell
 	}{
 		{
 			"Swipe Left",
@@ -235,7 +236,7 @@ func TestTableBoard_swipe(t *testing.T) {
 
 func TestTableBoard_EvaluatesTo(t *testing.T) {
 	type fields struct {
-		cells   []Cell
+		cells   []cell.Cell
 		rows    int
 		columns int
 	}

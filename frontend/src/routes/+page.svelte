@@ -1,27 +1,20 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import {
-		GameMode,
-		GetHintRequest,
-		NewGameRequest,
-		SwipeDirection,
-		type Cell
-	} from '../connect-web'
+	import { GameMode, GetHintRequest, NewGameRequest, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
 	import { animateSwipe } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
-	import HintView from '../components/board/HintView.svelte'
 	import GameWon from '../components/GameWon.svelte'
 	import Dialog from '../components/Dialog.svelte'
 	import CellComp from '../components/board/Cell.svelte'
 	import { cellValue } from '../components/board/cell'
+	import Counter from '../components/Counter.svelte'
 
 	let boardDiv: HTMLDivElement
-	let showCellIndex = false
 
 	const restartGame = () => {
 		return storeHandler.commit(storeHandler.restartGame())
@@ -180,34 +173,47 @@
 		})
 	}
 	let selection: number[] = []
+	let lastSelectionValue = 0
 	let selectionMap: Record<number, boolean | undefined> = {}
 	let invalidSelectionMap: Record<number, boolean | undefined> = {}
+	const showSelectionInfo = true
 	const select = async (i: number) => {
 		invalidSelectionMap = {}
-		if (!$store.session?.game?.board?.cells[i]?.base) {
+		const cell = $store.session.game.board.cells[i]
+		if (!cell?.base) {
 			invalidSelectionMap = {}
 			selection = []
+			lastSelectionValue = 0
 			selectionMap = {}
 			return
 		}
 		const isSelected = !!selectionMap[i]
 		if (isSelected) {
-			const [result, commit, err] = await storeHandler.combineCells(selection)
+			const [_, commit, err] = await storeHandler.combineCells(selection)
 			if (err) {
 				invalidSelectionMap = { [i]: true }
 				selection = []
+				lastSelectionValue = 0
 				selectionMap = {}
 				return
 			}
 			commit()
 			selection = []
 			selectionMap = {}
+			lastSelectionValue = 0
 			return
 		}
 		selection = [...selection, i]
+		lastSelectionValue = cellValue(cell)
 		selectionMap[i] = true
 	}
 	$: nextHint = $store.hintDoneIndex >= 0 ? $store.hints[$store.hintDoneIndex + 1] : $store.hints[0]
+	$: selectionSum = !showSelectionInfo
+		? 0
+		: selection.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
+	$: selectionProduct = !showSelectionInfo
+		? 0
+		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
 </script>
 
 {#if $store?.session?.game?.board}
@@ -228,7 +234,6 @@
 		</div>
 	</div>
 
-	<HintView />
 	<div class="boardContainer">
 		<SwipeHint
 			instruction={nextHint?.instructionOneof.value}
@@ -253,6 +258,30 @@
 			{/each}
 		</div>
 	</div>
+	{#if showSelectionInfo}
+		<div class="selectionCounter">
+			<Counter
+				show={!!selectionSum}
+				value={selectionSum}
+				label="Sum"
+				variant={lastSelectionValue * 2 < selectionSum
+					? 'error'
+					: lastSelectionValue * 2 === selectionSum
+					? 'success'
+					: 'normal'}
+			/>
+			<Counter
+				show={selectionProduct > 1}
+				value={selectionProduct}
+				label="Product"
+				variant={lastSelectionValue < selectionProduct / lastSelectionValue
+					? 'error'
+					: lastSelectionValue === selectionProduct / lastSelectionValue
+					? 'success'
+					: 'normal'}
+			/>
+		</div>
+	{/if}
 	<div class="bottom-controls">
 		<button on:click={() => getHint()}>Hint </button>
 
@@ -301,5 +330,10 @@
 		height: 100%;
 		min-height: 60vw;
 		max-height: 100vw;
+	}
+	.selectionCounter {
+		display: flex;
+		justify-content: center;
+		gap: 10px;
 	}
 </style>

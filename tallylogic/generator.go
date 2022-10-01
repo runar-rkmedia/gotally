@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/runar-rkmedia/gotally/randomizer"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
+	"github.com/runar-rkmedia/gotally/tallylogic/cellgenerator"
 )
 
 type GameGeneratorOptions struct {
@@ -67,7 +69,7 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 	}
 	r := randomizer.NewRandomizer(options.Seed)
 	if options.CellGenerator == nil {
-		gb.CellGenerator = NewCellGenerator(r)
+		gb.CellGenerator = cellgenerator.NewCellGenerator(r)
 	}
 	if options.Randomizer == nil {
 		gb.Randomizer = r
@@ -217,21 +219,21 @@ func (gb GameGenerator) solveGame(solver bruteSolver, game Game) (*SolvableGame,
 	return nil, nil
 }
 
-func (gb GameGenerator) GenerateBoardValues() []Cell {
+func (gb GameGenerator) GenerateBoardValues() []cell.Cell {
 
 	length := gb.Columns * gb.Rows
-	board := make([]Cell, length)
+	board := make([]cell.Cell, length)
 
 	bricks := gb.Randomizer.Intn(gb.MaxBricks-gb.MinBricks) + gb.MinBricks
 	for i := 0; i < length; i++ {
-		board[i] = NewCell(0, 0)
+		board[i] = cell.NewCell(0, 0)
 	}
 	for i := 0; i < bricks; i++ {
 		index := gb.Randomizer.Intn(length - 1)
-		for board[index].baseValue != 0 {
+		for !board[index].IsEmpty() {
 			index = gb.Randomizer.Intn(length - 1)
 		}
-		board[index] = gb.CellGenerator.Generate()
+		board[index] = gb.CellGenerator.GeneratePure()
 	}
 
 	return board

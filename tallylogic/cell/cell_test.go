@@ -1,4 +1,4 @@
-package tallylogic
+package cell
 
 import (
 	"fmt"

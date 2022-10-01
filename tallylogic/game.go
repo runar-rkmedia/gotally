@@ -7,10 +7,17 @@ import (
 	"strings"
 
 	"github.com/runar-rkmedia/gotally/randomizer"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
+	"github.com/runar-rkmedia/gotally/tallylogic/cellgenerator"
 )
 
 type CellGenerator interface {
-	Generate() Cell
+	// Generates a cell, to an empty cell. ok is false if there is not possible to place a brick
+	Generate(board cellgenerator.BoardController) (c cell.Cell, index int, ok bool)
+	// Generates a cell for a certain position.
+	GenerateAt(index int, board cellgenerator.BoardController) cell.Cell
+	// Generates a cell
+	GeneratePure() cell.Cell
 	Intn(int) int
 	IntRandomizer
 }
@@ -63,7 +70,7 @@ const (
 func (g Game) Copy() Game {
 	seed, state := g.cellGenerator.Seed()
 	r := randomizer.NewRandomizerFromSeed(seed, state)
-	cg := NewCellGenerator(r)
+	cg := cellgenerator.NewCellGenerator(r)
 	game := Game{
 		board:         g.board.Copy(),
 		selectedCells: g.selectedCells,
@@ -107,9 +114,8 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 	for _, o := range options {
 		game.Rules.Options = o
 	}
-	game.Rules.Options.EvaluateOptions.NoAddition = true
 	r := randomizer.NewRandomizer(game.Rules.Options.Seed)
-	game.cellGenerator = NewCellGenerator(r)
+	game.cellGenerator = cellgenerator.NewCellGenerator(r)
 	switch mode {
 	case GameModeDefault:
 		board := NewTableBoard(5, 5, game.Rules.Options.TableBoardOptions)
@@ -185,33 +191,13 @@ func (g *Game) BoardID() string {
 	return g.board.ID()
 }
 func (g *Game) generateCellToEmptyCell() bool {
-	i := g.getRandomEmptyCell()
-	if i == nil {
+	cell, index, ok := g.cellGenerator.Generate(g.board)
+	if !ok {
 		return false
 	}
-	cell := g.cellGenerator.Generate()
-	err := g.board.AddCellToBoard(cell, *i, false)
+	err := g.board.AddCellToBoard(cell, index, false)
 	return err == nil
 
-}
-func (g *Game) getRandomEmptyCell() *int {
-	empty := g.getEmptyCellIndexes()
-	if len(empty) == 0 {
-		return nil
-	}
-	i := g.cellGenerator.Intn(len(empty))
-	return &empty[i]
-
-}
-func (g *Game) getEmptyCellIndexes() []int {
-	cells := g.board.Cells()
-	var empty []int
-	for i, v := range cells {
-		if v.Value() == 0 {
-			empty = append(empty, i)
-		}
-	}
-	return empty
 }
 
 func (g *Game) inceaseMoveCount() {
@@ -471,7 +457,7 @@ func (g *Game) ForTemplate() map[string]any {
 	m["cells"] = g.board.Cells()
 	return m
 }
-func (g *Game) IsLastSelection(requested Cell) bool {
+func (g *Game) IsLastSelection(requested cell.Cell) bool {
 	if len(g.selectedCells) == 0 {
 		return false
 	}
@@ -481,7 +467,7 @@ func (g *Game) IsLastSelection(requested Cell) bool {
 	return cells[last].ID == requested.ID
 
 }
-func (g *Game) IsSelected(requested Cell) bool {
+func (g *Game) IsSelected(requested cell.Cell) bool {
 	if len(g.selectedCells) == 0 {
 		return false
 	}
@@ -549,7 +535,8 @@ func (g Game) ValidatePath(indexes []int) (error, int) {
 	return g.board.ValidatePath(indexes)
 }
 func (g Game) HighestCellValue() int64 {
-	return g.board.HighestValue()
+	c, _ := g.board.HighestValue()
+	return c.Value()
 }
 func (g Game) Moves() int {
 	return g.moves
@@ -557,7 +544,7 @@ func (g Game) Moves() int {
 func (g Game) SelectedCells() []int {
 	return g.selectedCells
 }
-func (g Game) Cells() []Cell {
+func (g Game) Cells() []cell.Cell {
 	return g.board.Cells()
 }
 func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {

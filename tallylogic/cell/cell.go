@@ -1,4 +1,4 @@
-package tallylogic
+package cell
 
 import (
 	"fmt"
@@ -17,6 +17,9 @@ type Cell struct {
 func NewEmptyCell() Cell {
 	return NewCell(0, 0)
 }
+func NewCellCopy(c Cell) Cell {
+	return NewCell(c.baseValue, c.power)
+}
 func NewCell(baseValue int64, power int) Cell {
 	return Cell{
 		ID:        gonanoid.Must(),
@@ -27,6 +30,9 @@ func NewCell(baseValue int64, power int) Cell {
 func (c *Cell) Double() *Cell {
 	c.power += 1
 	return c
+}
+func (c *Cell) IsEmpty() bool {
+	return c.baseValue == 0
 }
 func (c Cell) Doubled() Cell {
 	return NewCell(c.baseValue, c.power+1)

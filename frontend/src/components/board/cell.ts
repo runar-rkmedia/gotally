@@ -42,7 +42,6 @@ export const primeFactors = (n: number) => {
 			continue
 		}
 		n /= prime
-		console.log('nnnnn', n, mod, prime)
 		factors.push(prime)
 	}
 	if (!factors.length) {

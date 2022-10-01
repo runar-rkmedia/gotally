@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/gookit/color"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
 type TableBoard struct {
-	cells   []Cell
+	cells   []cell.Cell
 	rows    int
 	columns int
 	// Only for saved boards
@@ -43,33 +44,33 @@ func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
 		panic(fmt.Errorf("NoAddition && NoMultiply cannot both be set (need at least one evauluation-method)"))
 	}
 	cellCount := columns * rows
-	tb.cells = make([]Cell, cellCount)
+	tb.cells = make([]cell.Cell, cellCount)
 	for i := 0; i < cellCount; i++ {
-		tb.cells[i] = NewCell(0, 0)
+		tb.cells[i] = cell.NewCell(0, 0)
 	}
 	return tb
 }
 
 func (tb *TableBoard) Copy() BoardController {
 	board := TableBoard{
-		cells:             make([]Cell, len(tb.cells)),
+		cells:             make([]cell.Cell, len(tb.cells)),
 		rows:              tb.rows,
 		columns:           tb.columns,
 		TableBoardOptions: tb.TableBoardOptions,
 	}
-	for i, v := range tb.cells {
-		board.cells[i] = NewCell(v.baseValue, v.power)
+	for i, c := range tb.cells {
+		board.cells[i] = cell.NewCellCopy(c)
 	}
 	return &board
 
 }
-func (tb TableBoard) GetCellAtIndex(n int) *Cell {
+func (tb TableBoard) GetCellAtIndex(n int) *cell.Cell {
 	if tb.ValidCellIndex(n) {
 		return &tb.cells[n]
 	}
 	return nil
 }
-func (tb TableBoard) FindCell(c Cell) (int, bool) {
+func (tb TableBoard) FindCell(c cell.Cell) (int, bool) {
 	for i := 0; i < len(tb.cells); i++ {
 		if tb.cells[i].ID == c.ID {
 			return i, true
@@ -83,32 +84,38 @@ func (tb TableBoard) String() string {
 func (tb TableBoard) ID() string {
 	return tb.id
 }
-func (tb TableBoard) HighestValue() int64 {
+func (tb TableBoard) HighestValue() (cell.Cell, int) {
 	var v int64
+	var index int
+
 	for i := 0; i < len(tb.cells); i++ {
 		val := tb.cells[i].Value()
 		if val > v {
 			v = val
+			index = i
 		}
 	}
-	return v
+	return tb.cells[index], index
 }
 
 type Sprinter interface {
 	Sprintf(format string, a ...any) string
 }
 
-func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded string) string) string {
+type CellValuer interface {
+	Value() int64
+}
+
+func (tb TableBoard) PrintBoard(highlighter func(c CellValuer, index int, padded string) string) string {
 	withColors := false
-	h := int64(tb.HighestValue())
-	longest := len(strconv.FormatInt(h, 10))
+	h, _ := tb.HighestValue()
+	longest := len(strconv.FormatInt(h.Value(), 10))
 	headerPrinter := fmt.Sprintf
 	if withColors {
 		headerPrinter = color.Gray.Sprintf
 	}
 
-	s := "\n------ Table -------"
-	s += "\n    "
+	s := "\n    "
 	for j := 0; j < tb.columns; j++ {
 		formatted := strconv.FormatInt(int64(j), 10)
 		padLength := longest - len(formatted)
@@ -118,7 +125,7 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 
 	}
 	for i := 0; i < tb.rows; i++ {
-		s += "\n" + headerPrinter(" %d: ", i)
+		s += "\n" + headerPrinter(" %02d: ", i*tb.rows)
 		for j := 0; j < tb.columns; j++ {
 			index := ((i + 1) * tb.columns) - tb.columns + ((j + 1) + tb.rows) - tb.rows - 1
 			value := tb.cells[index].Value()
@@ -139,7 +146,6 @@ func (tb TableBoard) PrintBoard(highlighter func(c Cell, index int, padded strin
 			s += fmt.Sprintf("[ %s ]", valueStr)
 		}
 	}
-	s += "\n---- End Table -----"
 	return s
 }
 
@@ -273,7 +279,7 @@ func (tb TableBoard) EvaluatesTo(indexes []int, commit, noValidate bool) (int64,
 	}
 	tb.GetCellAtIndex(last).Double()
 	for _, index := range rest {
-		tb.cells[index] = NewEmptyCell()
+		tb.cells[index] = cell.NewEmptyCell()
 	}
 	return v, method, err
 }
@@ -321,16 +327,16 @@ func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, E
 	return 0, EvalMethodNil, ErrResultNoMatch
 }
 
-func (tb TableBoard) getRows() [][]Cell {
+func (tb TableBoard) getRows() [][]cell.Cell {
 	return tb._getColumnsOrRows(true)
 }
-func (tb TableBoard) getColumns() [][]Cell {
+func (tb TableBoard) getColumns() [][]cell.Cell {
 	return tb._getColumnsOrRows(false)
 }
-func (tb TableBoard) _getColumnsOrRows(rows bool) [][]Cell {
-	var columns = make([][]Cell, tb.rows)
+func (tb TableBoard) _getColumnsOrRows(rows bool) [][]cell.Cell {
+	var columns = make([][]cell.Cell, tb.rows)
 	for rowIndex := 0; rowIndex < tb.rows; rowIndex++ {
-		columns[rowIndex] = make([]Cell, tb.columns)
+		columns[rowIndex] = make([]cell.Cell, tb.columns)
 		for colIndex := 0; colIndex < tb.columns; colIndex++ {
 			var index int
 			var ok bool
@@ -385,7 +391,7 @@ outer:
 	tb.cells = newCells
 	return changed
 }
-func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []Cell {
+func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []cell.Cell {
 	switch direction {
 	case SwipeDirectionUp:
 		return tb.swipeVertical(false)
@@ -399,12 +405,12 @@ func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []Cell {
 	return tb.cells
 
 }
-func (tb *TableBoard) Cells() []Cell {
+func (tb *TableBoard) Cells() []cell.Cell {
 	return tb.cells
 }
-func (tb *TableBoard) swipeHorizontal(positive bool) []Cell {
+func (tb *TableBoard) swipeHorizontal(positive bool) []cell.Cell {
 	rows := tb.getRows()
-	tiles := make([]Cell, len(tb.cells))
+	tiles := make([]cell.Cell, len(tb.cells))
 	for r, row := range rows {
 		sort.Slice(row, func(i, j int) bool {
 			if positive {
@@ -418,9 +424,9 @@ func (tb *TableBoard) swipeHorizontal(positive bool) []Cell {
 	}
 	return tiles
 }
-func (tb *TableBoard) swipeVertical(positive bool) []Cell {
+func (tb *TableBoard) swipeVertical(positive bool) []cell.Cell {
 	columns := tb.getColumns()
-	tiles := make([]Cell, len(tb.cells))
+	tiles := make([]cell.Cell, len(tb.cells))
 	for c, column := range columns {
 		sort.Slice(column, func(i, j int) bool {
 			if positive {
@@ -487,7 +493,7 @@ func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	return neighbours, true
 }
 
-func (tb *TableBoard) AddCellToBoard(c Cell, index int, overwrite bool) error {
+func (tb *TableBoard) AddCellToBoard(c cell.Cell, index int, overwrite bool) error {
 	if !tb.ValidCellIndex(index) {
 		return ErrIndexInvalid
 	}
@@ -497,4 +503,15 @@ func (tb *TableBoard) AddCellToBoard(c Cell, index int, overwrite bool) error {
 	tb.cells[index] = c
 	return nil
 
+}
+
+func (cg *TableBoard) ListEmptyCells() []int {
+	cells := cg.Cells()
+	empty := []int{}
+	for i := 0; i < len(cells); i++ {
+		if cells[i].IsEmpty() {
+			empty = append(empty, i)
+		}
+	}
+	return empty
 }

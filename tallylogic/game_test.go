@@ -7,9 +7,9 @@ import (
 	"github.com/gookit/color"
 )
 
-func BoardHightlighter(g *Game) func(Cell, int, string) string {
+func BoardHightlighter(g *Game) func(CellValuer, int, string) string {
 
-	return func(c Cell, index int, padded string) string {
+	return func(c CellValuer, index int, padded string) string {
 		p := color.Yellow
 		if c.Value() == 0 {
 			p = color.Gray
@@ -110,16 +110,24 @@ func TestGame_Play(t *testing.T) {
 			1568,
 		},
 		{
-			"Play a seeded randomized game, copy it and play again",
+			"Game.History should reliably replay the game with the seeded randomizer",
+			// This is important for at least these reasons:
+			// 1. The game-solver should be able to play many moves ahead to look for good solutions
+			// 2. A played game should be verifiable, for instace to detect some forms of cheating with highscores.
+			// #. A played game should be replayable, in a UI.
 			mustCreateNewGame(GameModeDefault, nil, NewGameOptions{Seed: 123}),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
+					SwipeDirectionRight,
 					SwipeDirectionUp,
+					SwipeDirectionDown,
+					SwipeDirectionRight,
+					SwipeDirectionDown,
 					SwipeDirectionRight,
 					SwipeDirectionDown,
 					SwipeDirectionLeft,
-					[]int{22, 21, 20},
-					SwipeDirectionLeft,
+					[]int{16, 21, 20},
+					SwipeDirectionUp,
 				}
 				gCopy := g.Copy()
 				h := BoardHightlighter(g)
@@ -157,7 +165,7 @@ func TestGame_Play(t *testing.T) {
 					}
 				}
 			},
-			27,
+			30,
 		},
 	}
 	for _, tt := range tests {
