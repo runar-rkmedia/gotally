@@ -3,6 +3,7 @@ package api
 import (
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
 func toGameSwipeDirection(dir model.SwipeDirection) logic.SwipeDirection {
@@ -42,7 +43,7 @@ func toModalBoard(game *logic.Game) *model.Board {
 	}
 }
 
-func toModalCells(cells []logic.Cell) []*model.Cell {
+func toModalCells(cells []cell.Cell) []*model.Cell {
 	c := make([]*model.Cell, len(cells))
 	for i := 0; i < len(cells); i++ {
 		base, twopow := cells[i].Raw()

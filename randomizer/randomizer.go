@@ -15,6 +15,7 @@ type randomizer struct {
 }
 
 func NewSeededRandomizer() *randomizer {
+
 	return NewRandomizerFromSeed(new(maphash.Hash).Sum64(), new(maphash.Hash).Sum64())
 }
 

@@ -2,16 +2,19 @@
 
 package tallylogic
 
+import "github.com/runar-rkmedia/gotally/tallylogic/cell"
+
 // BoardController ...
 type BoardController interface {
 	ID() string
 	Copy() BoardController
-	GetCellAtIndex(n int) *Cell
+	GetCellAtIndex(n int) *cell.Cell
 	IndexToCord(i int) (column int, row int)
-	FindCell(c Cell) (int, bool)
+	FindCell(c cell.Cell) (int, bool)
 	String() string
-	HighestValue() int64
-	PrintBoard(highlighter func(c Cell, index int, padded string) string) string
+	HighestValue() (cell.Cell, int)
+	PrintBoard(highlighter func(c CellValuer, index int, padded string) string) string
+	ListEmptyCells() []int
 	// Uniqely identifies the board by its value. ID's etc are ignored.
 	Hash() string
 	ValidCellIndex(index int) bool
@@ -22,10 +25,10 @@ type BoardController interface {
 	// This method should ideally be as performant as possible, as it will be run in loops.
 	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 	SwipeDirection(direction SwipeDirection) bool
-	SwipeDirectionPreview(direction SwipeDirection) []Cell
-	Cells() []Cell
+	SwipeDirectionPreview(direction SwipeDirection) []cell.Cell
+	Cells() []cell.Cell
 	AreNeighboursByIndex(a, b int) bool
 	// Returns the neighbours for a gives cell. Note that the cells might be empty
 	NeighboursForCellIndex(index int) ([]int, bool)
-	AddCellToBoard(c Cell, index int, overwrite bool) error
+	AddCellToBoard(c cell.Cell, index int, overwrite bool) error
 }

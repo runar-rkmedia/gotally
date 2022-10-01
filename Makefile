@@ -30,10 +30,12 @@ go-lint:
 	# @echo "Golinter returned ok"
 
 # tests
+go-bench:
+	gotest -test.run=none -bench=. -benchmem ./...
 go-test:
-	gotest ./tallylogic/
+	gotest ./...
 test-watch:
-	fd '.go' | entr -r sh -c "gotest ./tallylogic"
+	fd '.go' | entr -r sh -c "gotest ./..."
 
 # web and servers
 web:

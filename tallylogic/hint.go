@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
 func (g *hintCalculator) GetHints() map[string]Hint {
@@ -48,7 +50,7 @@ type Hint struct {
 }
 
 type CellRetriever interface {
-	Cells() []Cell
+	Cells() []cell.Cell
 }
 type NeighbourRetriever interface {
 	NeighboursForCellIndex(index int) ([]int, bool)

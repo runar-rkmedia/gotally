@@ -1,9 +1,11 @@
 package tallylogic
 
-func cellCreator(vals ...int64) []Cell {
-	cells := make([]Cell, len(vals))
+import "github.com/runar-rkmedia/gotally/tallylogic/cell"
+
+func cellCreator(vals ...int64) []cell.Cell {
+	cells := make([]cell.Cell, len(vals))
 	for i, v := range vals {
-		cells[i] = NewCell(v, 0)
+		cells[i] = cell.NewCell(v, 0)
 	}
 	return cells
 }

@@ -156,7 +156,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 				}
 				if !reflect.DeepEqual(gotHints, wantMap) {
 					for _, hint := range gotHints {
-						t.Logf("hint %v %d, %s", hint.Path, hint.Value, tt.board.PrintBoard(func(c Cell, index int, padded string) string {
+						t.Logf("hint %v %d, %s", hint.Path, hint.Value, tt.board.PrintBoard(func(c CellValuer, index int, padded string) string {
 							s := fmt.Sprintf("[ %s ]", padded)
 							for _, v := range hint.Path {
 								if v == index {
