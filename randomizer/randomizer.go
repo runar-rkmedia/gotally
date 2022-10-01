@@ -15,8 +15,7 @@ type randomizer struct {
 }
 
 func NewSeededRandomizer() *randomizer {
-
-	return NewRandomizerFromSeed(new(maphash.Hash).Sum64(), new(maphash.Hash).Sum64())
+	return NewRandomizerFromSeed(0, 0)
 }
 
 // Thread-safe randomizer.
@@ -26,6 +25,12 @@ func NewRandomizer(seed uint64) *randomizer {
 	return NewRandomizerFromSeed(seed, 0)
 }
 func NewRandomizerFromSeed(seed, state uint64) *randomizer {
+	if seed == 0 {
+		seed = new(maphash.Hash).Sum64()
+	}
+	if state == 0 {
+		state = new(maphash.Hash).Sum64()
+	}
 	src := fastrand.NewPCG64(seed, state)
 	r := randomizer{src, seed, "", sync.RWMutex{}}
 	return &r

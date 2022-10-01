@@ -30,8 +30,18 @@ func BoardHightlighter(g *Game) func(CellValuer, int, string) string {
 	}
 }
 
-func mustCreateNewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) Game {
-	game, err := NewGame(mode, template, options...)
+func mustCreateNewGameForTest(mode GameMode, template *GameTemplate, options ...NewGameOptions) Game {
+	opt := NewGameOptions{}
+	if len(options) != 0 {
+		opt = options[0]
+	}
+	if opt.Seed == 0 {
+		opt.Seed = 1
+	}
+	if opt.State == 0 {
+		opt.State = 1
+	}
+	game, err := NewGame(mode, template, opt)
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +58,7 @@ func TestGame_Play(t *testing.T) {
 	}{
 		{
 			"Play the first daily board",
-			mustCreateNewGame(GameModeTemplate, GetGameTemplateById("Ch:NotTheObviousPath")),
+			mustCreateNewGameForTest(GameModeTemplate, GetGameTemplateById("Ch:NotTheObviousPath")),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					// Combine 4 into 4 (+) resulting in 8
@@ -115,18 +125,18 @@ func TestGame_Play(t *testing.T) {
 			// 1. The game-solver should be able to play many moves ahead to look for good solutions
 			// 2. A played game should be verifiable, for instace to detect some forms of cheating with highscores.
 			// #. A played game should be replayable, in a UI.
-			mustCreateNewGame(GameModeDefault, nil, NewGameOptions{Seed: 123}),
+			mustCreateNewGameForTest(GameModeDefault, nil, NewGameOptions{Seed: 123}),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					SwipeDirectionRight,
 					SwipeDirectionUp,
 					SwipeDirectionDown,
-					SwipeDirectionRight,
+					SwipeDirectionLeft,
 					SwipeDirectionDown,
 					SwipeDirectionRight,
 					SwipeDirectionDown,
 					SwipeDirectionLeft,
-					[]int{16, 21, 20},
+					[]int{16, 11, 10},
 					SwipeDirectionUp,
 				}
 				gCopy := g.Copy()
@@ -165,7 +175,7 @@ func TestGame_Play(t *testing.T) {
 					}
 				}
 			},
-			30,
+			24,
 		},
 	}
 	for _, tt := range tests {

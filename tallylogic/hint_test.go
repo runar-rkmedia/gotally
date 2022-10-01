@@ -48,7 +48,7 @@ func Test_hintCalculator_GetHints(t *testing.T) {
 		},
 		{
 			"Test for challenge 0",
-			mustCreateNewGame(GameModeTemplate, &ChallengeGames[0]).board,
+			mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[0]).board,
 			[]Hint{
 				{
 					Value:  18,

@@ -17,22 +17,23 @@ func Benchmark_Randomizer(b *testing.B) {
 
 func Test_randomizer_Intn(t *testing.T) {
 	tests := []struct {
-		name string
-		seed uint64
-		arg  int
-		want []int
+		name  string
+		seed  uint64
+		state uint64
+		arg   int
+		want  []int
 	}{
-		// TODO: Add test cases.
 		{
 			"Simple test",
 			123,
+			123,
 			144,
-			[]int{16, 60, 138},
+			[]int{120, 104, 95},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRandomizer(tt.seed)
+			r := NewRandomizerFromSeed(tt.seed, tt.seed)
 			got := make([]int, len(tt.want))
 			for i := range tt.want {
 				got[i] = r.Intn(tt.arg)

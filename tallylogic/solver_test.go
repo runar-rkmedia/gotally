@@ -15,12 +15,12 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 
 		{
 			"Solve a simple game",
-			mustCreateNewGame(GameModeTemplate, &ChallengeGames[0]),
+			mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[0]),
 			12,
 		},
 		{
 			"Solve next game",
-			mustCreateNewGame(GameModeTemplate, &ChallengeGames[1]),
+			mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[1]),
 			218,
 		},
 		{
@@ -31,7 +31,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// - A mix of root-number-types makes it more complex. This has to take into account the
 			//   fraction of the composite.
 			"'Solve' an infinite game",
-			mustCreateNewGame(GameModeDefault, nil, NewGameOptions{Seed: 1238}),
+			mustCreateNewGameForTest(GameModeDefault, nil, NewGameOptions{Seed: 1238}),
 			// Not sure what to make of this value
 			-1,
 		},
