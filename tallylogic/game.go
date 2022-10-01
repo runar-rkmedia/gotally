@@ -95,7 +95,8 @@ func (g Game) Copy() Game {
 
 type NewGameOptions struct {
 	TableBoardOptions
-	Seed uint64
+	Seed  uint64
+	State uint64
 }
 
 func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (Game, error) {
@@ -114,7 +115,8 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 	for _, o := range options {
 		game.Rules.Options = o
 	}
-	r := randomizer.NewRandomizer(game.Rules.Options.Seed)
+
+	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
 	game.cellGenerator = cellgenerator.NewCellGenerator(r)
 	switch mode {
 	case GameModeDefault:
