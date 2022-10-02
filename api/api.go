@@ -3,8 +3,10 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/database"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
@@ -97,6 +99,19 @@ func StartServer() {
 		Logger(logger.GetLogger("request")),
 		Authorization(debug),
 	}
+	// Register metrics
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics/", promhttp.Handler())
+	// Register pprof handlers
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
 	han := pipeline(connectHandler, pipe...)
 	mux.Handle(path, han)
 	mux.Handle("/", http.StripPrefix("/", web.StaticWebHandler()))
