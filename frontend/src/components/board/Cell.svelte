@@ -19,6 +19,7 @@
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
 	$: angle = 100 / factors.length
+	$: formattedValue = numberFormatter(cellValue(cell))
 </script>
 
 <div
@@ -48,7 +49,7 @@
 	</div>
 	<div class="cellValue">
 		<div class="inner">
-			{cellValue(cell)}
+			{formattedValue}
 		</div>
 	</div>
 </div>

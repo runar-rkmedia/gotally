@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { numberFormatter } from './formatNumber'
+
 	export let value = 0
 	export let variant: 'normal' | 'error' | 'success' = 'normal'
 	export let show = true
@@ -14,7 +16,7 @@
 	<div class="label">
 		{label}:
 	</div>
-	{value}
+	{numberFormatter(value)}
 </div>
 
 <style>
