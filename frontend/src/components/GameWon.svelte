@@ -2,13 +2,13 @@
 	import { onMount } from 'svelte'
 
 	import { GameMode } from '../connect-web'
-	import { go } from '../connect-web/client'
 
 	import { store, storeHandler } from '../connect-web/store'
 	import FancyText from './FancyText.svelte'
 
 	import Giphy from './Giphy.svelte'
 	import Pyro from './Pyro.svelte'
+	export let open = true
 	let seed = 0
 	let userName = ''
 	function newSeed() {
@@ -74,7 +74,10 @@
 
 	<p>You are a fantastic person and deserve a big hug!</p>
 
-	<Pyro />
+	{#if open}
+		<!-- Pyro component is a bit expensive to mount, so we don't preload it -->
+		<Pyro />
+	{/if}
 	<hr />
 	{#if $store.session.game.board?.id}
 		<p>Would you like to have your nickname on the scoreboard?</p>

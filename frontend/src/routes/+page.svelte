@@ -217,8 +217,8 @@
 </script>
 
 {#if $store?.session?.game?.board}
-	<Dialog open={$store.didWin}>
-		<GameWon />
+	<Dialog open={$store.didWin} let:open>
+		<GameWon {open} />
 	</Dialog>
 	<div class="headControls">
 		<div>
