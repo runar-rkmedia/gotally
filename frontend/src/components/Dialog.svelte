@@ -3,7 +3,7 @@
 </script>
 
 <dialog {open}>
-	<slot />
+	<slot {open} />
 </dialog>
 
 <style>

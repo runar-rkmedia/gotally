@@ -67,10 +67,6 @@
 		align-items: center;
 		text-align: center;
 		transform: scale(0.4);
-		animation-name: pulse;
-		animation-duration: 1.3s;
-		animation-direction: both;
-		animation-iteration-count: infinite;
 		margin: auto;
 		color: var(--color-blue-300);
 		font-size: 3rem;
@@ -81,6 +77,10 @@
 	}
 	.active {
 		opacity: 0.9;
+		animation-name: pulse;
+		animation-duration: 1.3s;
+		animation-direction: both;
+		animation-iteration-count: infinite;
 	}
 	@keyframes bounce {
 		0%,
