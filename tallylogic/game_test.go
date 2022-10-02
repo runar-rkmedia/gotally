@@ -136,7 +136,7 @@ func TestGame_Play(t *testing.T) {
 					SwipeDirectionRight,
 					SwipeDirectionDown,
 					SwipeDirectionLeft,
-					[]int{16, 11, 10},
+					[]int{22, 21, 20},
 					SwipeDirectionUp,
 				}
 				gCopy := g.Copy()

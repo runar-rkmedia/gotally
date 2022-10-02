@@ -11,17 +11,28 @@ type randomGenerator struct {
 
 var (
 	cellWeightMapEasy = weightmap.NewWeightMap().
-		Add(1, 1).
+		// 1 is useful,
+		// since it can be used to connect cells via multiplication (8 x 1 * 4 = 32),
+		// and to combine odd-numbers, transforming unwanted numbers into highly usable numbers (7 + 1 = 8)
+		Add(80, 1).
+		// The most useful cell, but a bit boring
 		Add(100, 2).
+		// Offers both fun and a challenge
 		Add(80, 3).
+		// Is basically just a two, but not as good
 		Add(50, 4).
+		// Generally only makes the game harder, but it is also very easy to work with.
+		// Most people are comfortable with multiplying fives
 		Add(25, 5).
 		Add(20, 6).
+		// One of the higher primes available. Makes the game harder, but gives a nice challenge
 		Add(10, 7).
+		// Very useful, but many people have difficulties with multiplying it.
 		Add(50, 8).
 		Add(20, 9).
 		Add(20, 10).
 		Add(10, 11).
+		// Highly composable, fun and gives a challenge
 		Add(50, 12)
 )
 

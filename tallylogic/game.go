@@ -41,6 +41,34 @@ type Game struct {
 	History       Instruction
 }
 
+type GameSerialized struct {
+	Cells       []cell.Cell
+	Rules       GameRules
+	Seed        uint64
+	State       uint64
+	Score       int64
+	Moves       int
+	Name        string
+	Description string
+	History     Instruction
+}
+
+func SerializeGame(g Game) GameSerialized {
+	seed, state := g.cellGenerator.Seed()
+	s := GameSerialized{
+		Cells:       g.Cells(),
+		Rules:       g.Rules,
+		Seed:        seed,
+		State:       state,
+		Score:       g.score,
+		Moves:       g.moves,
+		Name:        g.Name,
+		Description: g.Description,
+		History:     g.History,
+	}
+	return s
+}
+
 type GameRules struct {
 	BoardType
 	GameMode
