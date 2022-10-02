@@ -12,7 +12,6 @@
 		const url =
 			!!apiKey &&
 			`https://api.giphy.com/v1/gifs/${endpoint}?api_key=${apiKey}&tag=${tag}&rating=${rating}`
-		console.log('tag', tag)
 		if (url && true) {
 			fetch(url).then(async (result) => {
 				if (!result.ok) {
