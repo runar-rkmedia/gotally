@@ -216,103 +216,92 @@
 		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
 </script>
 
-{#if $store?.session?.game?.board}
-	<Dialog open={$store.didWin} let:open>
-		<GameWon {open} />
-	</Dialog>
-	<div class="headControls">
-		<div>
-			<div class="score">
-				Score: {$store.session.game.score}
-			</div>
-			<small class="boardName" title={$store.session.game.board.id}
-				>{$store.session.game.board.name}</small
-			>
-			<div class="moves">
-				Moves: {$store.session.game.moves}
+<div class="gameView">
+	{#if $store?.session?.game?.board}
+		<Dialog open={$store.didWin} let:open>
+			<GameWon {open} />
+		</Dialog>
+		<div class="headControls">
+			<div>
+				<div class="score">
+					Score: {$store.session.game.score}
+				</div>
+				<small class="boardName" title={$store.session.game.board.id}
+					>{$store.session.game.board.name}</small
+				>
+				<div class="moves">
+					Moves: {$store.session.game.moves}
+				</div>
 			</div>
 		</div>
-	</div>
 
-	<div class="boardContainer">
-		<SwipeHint
-			instruction={nextHint?.instructionOneof.value}
-			active={nextHint?.instructionOneof.case === 'swipe'}
-		/>
-		<div
-			bind:this={boardDiv}
-			use:createSwiper
-			class="board"
-			style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
-		>
-			{#each $store.session.game.board.cells as c, i}
-				<CellComp
-					noEval={invalidSelectionMap[i]}
-					selected={selectionMap[i]}
-					hinted={nextHint?.instructionOneof.case === 'combine' &&
-						nextHint.instructionOneof.value.index.includes(i)}
-					selectedLast={!!selection.length && selection[selection.length - 1] === i}
-					cell={c}
-					on:click={() => select(i)}
-				/>
-			{/each}
+		<div class="boardContainer">
+			<SwipeHint
+				instruction={nextHint?.instructionOneof.value}
+				active={nextHint?.instructionOneof.case === 'swipe'}
+			/>
+			<div
+				bind:this={boardDiv}
+				use:createSwiper
+				class="board"
+				style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
+			>
+				{#each $store.session.game.board.cells as c, i}
+					<CellComp
+						noEval={invalidSelectionMap[i]}
+						selected={selectionMap[i]}
+						hinted={nextHint?.instructionOneof.case === 'combine' &&
+							nextHint.instructionOneof.value.index.includes(i)}
+						selectedLast={!!selection.length && selection[selection.length - 1] === i}
+						cell={c}
+						on:click={() => select(i)}
+					/>
+				{/each}
+			</div>
 		</div>
-	</div>
-	{#if showSelectionInfo}
-		<div class="selectionCounter">
-			<Counter
-				show={!!selectionSum}
-				value={selectionSum}
-				label="Sum"
-				variant={lastSelectionValue * 2 < selectionSum
-					? 'error'
-					: lastSelectionValue * 2 === selectionSum
-					? 'success'
-					: 'normal'}
-			/>
-			<Counter
-				show={selectionProduct > 1}
-				value={selectionProduct}
-				label="Product"
-				variant={lastSelectionValue < selectionProduct / lastSelectionValue
-					? 'error'
-					: lastSelectionValue === selectionProduct / lastSelectionValue
-					? 'success'
-					: 'normal'}
-			/>
+		{#if showSelectionInfo}
+			<div class="selectionCounter">
+				<Counter
+					show={!!selectionSum}
+					value={selectionSum}
+					label="Sum"
+					variant={lastSelectionValue * 2 < selectionSum
+						? 'error'
+						: lastSelectionValue * 2 === selectionSum
+						? 'success'
+						: 'normal'}
+				/>
+				<Counter
+					show={selectionProduct > 1}
+					value={selectionProduct}
+					label="Product"
+					variant={lastSelectionValue < selectionProduct / lastSelectionValue
+						? 'error'
+						: lastSelectionValue === selectionProduct / lastSelectionValue
+						? 'success'
+						: 'normal'}
+				/>
+			</div>
+		{/if}
+		<div class="bottom-controls">
+			<button on:click={() => getHint()}>Hint </button>
+
+			<div>
+				<button on:click={() => restartGame()}>Restart </button>
+				<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
+				<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
+				<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
+			</div>
 		</div>
 	{/if}
-	<div class="bottom-controls">
-		<button on:click={() => getHint()}>Hint </button>
-
-		<div>
-			<button on:click={() => restartGame()}>Restart </button>
-			<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
-			<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
-			<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
-		</div>
-	</div>
-{/if}
+</div>
 
 <style>
-	button:disabled {
-		opacity: 0.4;
-	}
-	.boardName {
-		opacity: 0.7;
-		float: right;
-	}
-	.bottom-controls {
+	.gameView {
+		height: 100%;
+		max-height: 100%;
 		display: flex;
-		justify-content: center;
 		flex-direction: column;
-	}
-	button {
-		background-color: var(--color-blue);
-		transition: opacity 70ms var(--easing-standard);
-		min-width: 52px;
-		min-height: 52px;
-		color: var(--color-black);
 	}
 
 	.boardContainer {
@@ -320,20 +309,38 @@
 		border: 2px solid var(--color-blue-700);
 		border-radius: var(--radius-lg);
 		margin-block-end: var(--size-4);
+		height: 100%;
+		max-height: 100%;
 	}
 	.board {
 		position: relative;
 		transition: opacity 300ms var(--easing-standard);
 		/* margin-inline: -4px; */
 		display: grid;
-
 		height: 100%;
-		min-height: 60vw;
-		max-height: 100vw;
+	}
+	.boardName {
+		opacity: 0.7;
+		float: right;
 	}
 	.selectionCounter {
 		display: flex;
 		justify-content: center;
 		gap: 10px;
+	}
+	.bottom-controls {
+		display: flex;
+		justify-content: center;
+		flex-direction: column;
+	}
+	button:disabled {
+		opacity: 0.4;
+	}
+	button {
+		background-color: var(--color-blue);
+		transition: opacity 70ms var(--easing-standard);
+		min-width: 52px;
+		min-height: 52px;
+		color: var(--color-black);
 	}
 </style>

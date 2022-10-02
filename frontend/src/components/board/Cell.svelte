@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { numberFormatter } from '../formatNumber'
+
 	import { cellValue, primeFactors } from './cell'
 
 	// noEval={invalidSelectionMap[i]}
@@ -19,6 +21,8 @@
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
 	$: angle = 100 / factors.length
+	let h: number
+	let w: number
 	$: formattedValue = numberFormatter(cellValue(cell))
 </script>
 
@@ -31,6 +35,11 @@
 	class:blank={Number(cell.base) === 0}
 	data-base={cell.base}
 	on:click
+	bind:clientHeight={h}
+	bind:clientWidth={w}
+	style={`--cell-width: ${w}px; --cell-height: ${h}px; --value-length: ${
+		w / formattedValue.length
+	}px`}
 >
 	<div class="factors" data-factors={factors.length}>
 		<div class="inner">
@@ -56,13 +65,16 @@
 
 <style>
 	.cell {
-		--width: 12vw;
-		--inner-padding: calc(var(--width) / 2 / 1.5);
+		--max-font-size: 1.8rem;
+		--min-font-size: 1rem;
+		--factor-width: 18vw;
+		--factor-width: calc(min(var(--cell-height), var(--cell-width)) - 5px);
+		--width-inner-circle: calc(var(--factor-width) * 0.8);
+		--sector-width: var(--factor-width);
+		--inner-padding: calc(var(--width-inner-circle) / 2 / 1.5);
 		--ctb: var(--color-grey-50);
 		--ctc: var(--color-black);
 		font-weight: bold;
-		font-size: 1.4rem;
-		transition: transform 300ms var(--easing-standard);
 		user-select: none;
 		display: flex;
 		justify-content: center;
@@ -77,6 +89,7 @@
 	.cell:empty,
 	.cell.blank {
 		opacity: 0;
+		visibility: hidden;
 	}
 	.cell.hinted:not(.selected) {
 		background-color: var(--color-blue-500);
@@ -101,8 +114,8 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%) rotate(-90deg);
-		width: var(--width);
-		height: var(--width);
+		width: var(--factor-width);
+		height: var(--factor-width);
 	}
 	.sector-wrapper {
 		position: absolute;
@@ -116,14 +129,11 @@
 		/* offset from center */
 		--b: 200px;
 		--c: darkred;
-		--w: var(--width);
 		--o: 0deg;
 
-		width: var(--w);
+		width: var(--sector-width);
 		aspect-ratio: 1;
 		position: relative;
-		display: inline-grid;
-		margin: 5px;
 		place-content: center;
 		font-weight: bold;
 		font-family: sans-serif;
@@ -187,17 +197,36 @@
 		transition-duration: 300ms;
 		transition-timing-function: var(--easing-standard);
 		position: relative;
-		box-shadow: var(--elevation-2);
+		position: absolute;
+		margin: auto;
+		text-align: center;
 	}
 	.cellValue .inner {
+		color: var(--color-black);
+		--text-shadow-color: var(--color-grey-100);
+		text-shadow: 
+      /* outer contrast for readability */ -1px 1px 2px var(--text-shadow-color),
+			/* outer contrast for readability */ 1px 1px 2px var(--text-shadow-color),
+			/* outer contrast for readability */ 1px -1px 2px var(--text-shadow-color),
+			/* outer contrast for readability */ -1px -1px 2px var(--text-shadow-color),
+			/* Added shadow for depth */ 2px 4px 4px #282828;
+
+		/* -webkit-text-stroke: 1px white; */
+		/* text-shadow: 0px 4px 4px #282828; */
 		position: absolute;
-		display: flex;
-		justify-content: center;
-		align-items: center;
+		margin: auto;
+		text-align: center;
+		font-size: max(min(var(--value-length), var(--max-font-size)), var(--min-font-size));
 		top: 0;
 		left: 0;
 		right: 0;
 		bottom: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		/* width: var(--factor-width); */
+		/* max-width: var(--factor-width); */
+		transform: translateY(-5%);
 	}
 
 	.cell.selected {
