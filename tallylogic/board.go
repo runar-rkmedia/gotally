@@ -203,6 +203,20 @@ const (
 	EvalMethodProduct
 )
 
+func PrintEvalMethod(e EvalMethod) string {
+	switch e {
+	case EvalMethodNil:
+		return "EvalMethodNil"
+	case EvalMethodProduct:
+		return "EvalMethodProduct"
+	case EvalMethodSum:
+		return "EvalMethodSum"
+	default:
+		return "EvalMethodUnknown"
+
+	}
+}
+
 var (
 	ErrResultInvalidCount     = errors.New("Too few items in the index")
 	ErrResultIndexOverflow    = errors.New("Index overflow")
@@ -317,11 +331,13 @@ func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, E
 			return 0, EvalMethodNil, ErrResultOvershot
 		}
 	}
-	if !tb.NoAddition && sum == targetValue {
-		return sum, EvalMethodSum, nil
-	}
+	// In cases where both addition and multipcation can be used,
+	// prefer multipcation.
 	if !tb.NoMultiply && product == targetValue {
 		return product, EvalMethodProduct, nil
+	}
+	if !tb.NoAddition && sum == targetValue {
+		return sum, EvalMethodSum, nil
 	}
 
 	return 0, EvalMethodNil, ErrResultNoMatch
