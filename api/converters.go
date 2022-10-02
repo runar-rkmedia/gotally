@@ -50,6 +50,7 @@ func toModalCells(cells []cell.Cell) []*model.Cell {
 		c[i] = &model.Cell{
 			Base:   base,
 			Twopow: twopow,
+			Id:     cells[i].ID,
 		}
 
 	}
