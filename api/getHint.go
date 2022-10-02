@@ -27,6 +27,13 @@ func (s *TallyServer) GetHint(
 	ctx context.Context,
 	req *connect.Request[model.GetHintRequest],
 ) (*connect.Response[model.GetHintResponse], error) {
+	// There are usually a lot of hints available,
+	// but some hints leads to more fun games than others
+	// In general, multiplication is more fun than addition
+	// and swiping is a bit dull.
+	// Long hints seem like magic, so we prefer shorter hints.
+	// However, too short hints are also boring
+	// TODO: introduce a weighted hint and solution-sorter
 	session := ContextGetUserState(ctx)
 
 	response := &model.GetHintResponse{
@@ -35,23 +42,37 @@ func (s *TallyServer) GetHint(
 	// Get a single hint. Does not look ahead to do swipes etc.
 	if session.Game.Rules.GameMode == tallylogic.GameModeDefault {
 		hints := session.GetHint()
-		response.Instructions = make([]*model.Instruction, len(hints))
-		for _, h := range hints {
-			response.Instructions[0] = &model.Instruction{
-				InstructionOneof: &model.Instruction_Combine{
-					Combine: &model.Indexes{
-						Index: intsToInt32s(h.Path),
+		if len(hints) > 0 {
+
+			response.Instructions = make([]*model.Instruction, 1)
+			// TODO: sort these better
+			for _, h := range hints {
+				if h.Method != tallylogic.EvalMethodProduct {
+					continue
+				}
+				fmt.Println("adding", h.Path)
+				response.Instructions[0] = &model.Instruction{
+					InstructionOneof: &model.Instruction_Combine{
+						Combine: &model.Indexes{
+							Index: intsToInt32s(h.Path),
+						},
 					},
-				},
+				}
+				return connect.NewResponse(response), nil
 			}
-			break
-		}
-		if len(response.Instructions) > 0 {
-			fmt.Println("returned early")
-			return connect.NewResponse(response), nil
+			for _, h := range hints {
+				response.Instructions[0] = &model.Instruction{
+					InstructionOneof: &model.Instruction_Combine{
+						Combine: &model.Indexes{
+							Index: intsToInt32s(h.Path),
+						},
+					},
+				}
+				return connect.NewResponse(response), nil
+			}
 		}
 	}
-	// Deeper hint, looking ahead to find better hints, attemtping to solve the game if possible.
+	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
 	solver := tallylogic.NewBruteSolver(tallylogic.SolveOptions{
 		MaxDepth:     10,
 		MaxVisits:    100,
