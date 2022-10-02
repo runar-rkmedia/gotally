@@ -18,13 +18,14 @@ const getColumns = (boardEl: HTMLElement, nColumns: number) => {
 const cellIsEmpty = (cell: Element) =>
 	!cell || !cell.hasChildNodes() || cell.classList.contains('blank')
 
+/** Gets the offset of an element with subpixel-preciction */
 const cumulativeOffset = function (el: HTMLElement) {
 	let element = el
 	let top = 0,
 		left = 0
 	do {
-		top += element.offsetTop || 0
-		left += element.offsetLeft || 0
+		top += element.getBoundingClientRect().y || 0
+		left += element.getBoundingClientRect().x || 0
 		element = element.offsetParent as any
 	} while (element)
 
