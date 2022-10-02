@@ -70,7 +70,6 @@ func SerializeGame(g Game) GameSerialized {
 }
 
 type GameRules struct {
-	BoardType
 	GameMode
 	SizeX int
 	SizeY int
@@ -86,7 +85,6 @@ type GameRules struct {
 }
 
 type GameMode int
-type BoardType int
 
 const (
 	GameModeDefault GameMode = iota
@@ -183,7 +181,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 			game.board = &board
 			game.Rules = GameRules{
 				GameMode:        mode,
-				BoardType:       0,
 				SizeX:           board.columns,
 				SizeY:           board.rows,
 				RecreateOnSwipe: false,

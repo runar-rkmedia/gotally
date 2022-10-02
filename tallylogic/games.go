@@ -149,7 +149,6 @@ type GameTemplate struct {
 
 func DefaultGameRules(sizeX, sizeY int) GameRules {
 	return GameRules{
-		BoardType:       0,
 		GameMode:        GameModeDefault,
 		SizeX:           sizeX,
 		SizeY:           sizeY,
@@ -203,7 +202,6 @@ func (t *GameTemplate) Create() GameTemplate {
 		Rows:        t.Rows,
 		Columns:     t.Columns,
 		Rules: GameRules{
-			BoardType:       t.Rules.BoardType,
 			GameMode:        t.Rules.GameMode,
 			SizeX:           t.Rules.SizeX,
 			SizeY:           t.Rules.SizeY,
