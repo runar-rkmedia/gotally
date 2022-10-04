@@ -33,9 +33,9 @@ go-lint:
 go-bench:
 	gotest -test.run=none -bench=. -benchmem ./...
 go-test:
-	gotest ./...
+	gotest -race ./...
 test-watch:
-	fd '.go' | entr -r sh -c "gotest ./..."
+	fd '.go' | entr -r sh -c "gotest -race ./..."
 
 # web and servers
 web:

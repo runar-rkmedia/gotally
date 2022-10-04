@@ -55,9 +55,6 @@ func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 	var err error
 	go func() {
 		err = b.solveGame(ctx, game, g.moves, solutionsChan, -1, &seen, &g)
-		if len(solutions) > 0 && errors.Is(err, context.DeadlineExceeded) {
-			err = nil
-		}
 		cancel()
 	}()
 	for {
@@ -66,10 +63,17 @@ func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 			solutions = append(solutions, solvedGame)
 			if solvedGame.Rules.GameMode == GameModeDefault && len(solutions) > 0 {
 				if solvedGame.score-g.score > int64(b.InfiniteGameMaxScoreIncrease) {
+					if err != nil && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+						err = nil
+					}
 					return solutions, err
 				}
 			}
 		case <-ctx.Done():
+			err := ctx.Err()
+			if err != nil && len(solutions) > 0 && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				err = nil
+			}
 			return solutions, err
 		}
 	}
