@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -50,7 +49,6 @@ func (s *TallyServer) GetHint(
 				if h.Method != tallylogic.EvalMethodProduct {
 					continue
 				}
-				fmt.Println("adding", h.Path)
 				response.Instructions[0] = &model.Instruction{
 					InstructionOneof: &model.Instruction_Combine{
 						Combine: &model.Indexes{

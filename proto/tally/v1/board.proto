@@ -40,9 +40,12 @@ message Cell {
   int64 base = 1;
   // Pow-value 
   int64 twopow = 2;
-  string id = 3;
+  /* string id = 3; */
 }
 
+message CompactCells {
+  repeated int64 cells = 1;
+}
 message Board {
   repeated Cell cells = 1;
   int32 columns = 2;
@@ -164,10 +167,7 @@ message VoteBoardRequest {
 }
 message VoteBoardResponse {
 	string id = 1;
-  string session_id = 2; 
-  string user_name = 3; 
-  Vote fun_vote = 4;
-
+  Vote fun_vote = 2;
 }
 
 message Game {

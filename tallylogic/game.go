@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 	"github.com/runar-rkmedia/gotally/tallylogic/cellgenerator"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 type CellGenerator interface {
@@ -27,6 +29,8 @@ type IntRandomizer interface {
 }
 
 type Game struct {
+	// Uniquely identifies this board
+	ID            string
 	board         BoardController
 	selectedCells []int
 	cellGenerator CellGenerator
@@ -41,32 +45,8 @@ type Game struct {
 	History       Instruction
 }
 
-type GameSerialized struct {
-	Cells       []cell.Cell
-	Rules       GameRules
-	Seed        uint64
-	State       uint64
-	Score       int64
-	Moves       int
-	Name        string
-	Description string
-	History     Instruction
-}
-
-func SerializeGame(g Game) GameSerialized {
-	seed, state := g.cellGenerator.Seed()
-	s := GameSerialized{
-		Cells:       g.Cells(),
-		Rules:       g.Rules,
-		Seed:        seed,
-		State:       state,
-		Score:       g.score,
-		Moves:       g.moves,
-		Name:        g.Name,
-		Description: g.Description,
-		History:     g.History,
-	}
-	return s
+func (g Game) Seed() (uint64, uint64) {
+	return g.cellGenerator.Seed()
 }
 
 type GameRules struct {
@@ -84,6 +64,7 @@ type GameRules struct {
 	Options   NewGameOptions
 }
 
+// Deprecated, use types.GameMode
 type GameMode int
 
 const (
@@ -94,10 +75,12 @@ const (
 
 // Copies the game and all values to a new game
 func (g Game) Copy() Game {
+	// IMPORTANT: Do not copy the onDidChangeEvents here.
 	seed, state := g.cellGenerator.Seed()
 	r := randomizer.NewRandomizerFromSeed(seed, state)
 	cg := cellgenerator.NewCellGenerator(r)
 	game := Game{
+		ID:            g.ID,
 		board:         g.board.Copy(),
 		selectedCells: g.selectedCells,
 		cellGenerator: cg,
@@ -125,8 +108,62 @@ type NewGameOptions struct {
 	State uint64
 }
 
+func RestoreGame(g *types.Game) (Game, error) {
+	var mode GameMode
+	game := Game{
+		ID:            g.ID,
+		board:         nil,
+		selectedCells: []int{},
+		cellGenerator: nil,
+		Rules: GameRules{
+			GameMode:        mode,
+			SizeX:           int(g.Rules.Columns),
+			SizeY:           int(g.Rules.Rows),
+			RecreateOnSwipe: g.Rules.RecreateOnSwipe,
+			// WithSuperPowers: g.Rules.WithSuperPowers,
+			// StartingBricks:  g.Rules.,
+			NoReswipe: g.Rules.NoReSwipe,
+			Options: NewGameOptions{
+				TableBoardOptions: TableBoardOptions{
+					EvaluateOptions: EvaluateOptions{
+						NoMultiply: g.Rules.NoMultiply,
+						NoAddition: g.Rules.NoAddition,
+					},
+				},
+				Seed:  g.Seed,
+				State: g.State,
+			},
+		},
+		score:       int64(g.Score),
+		moves:       int(g.Moves),
+		Description: g.Description,
+		// Name:        g.Name,
+		GoalChecker:   nil,
+		DefeatChecker: nil,
+		History:       []any{},
+	}
+
+	switch game.Rules.GameMode {
+	case GameModeDefault:
+		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+		game.GoalChecker = GoalCheck{"Game runs forever"}
+	default:
+		return game, fmt.Errorf("not implemented for this gamemode")
+	}
+
+	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
+	game.cellGenerator = cellgenerator.NewCellGenerator(r)
+	board := RestoreTableBoard(game.Rules.SizeX, game.Rules.SizeY, g.Cells, game.Rules.Options.TableBoardOptions)
+	game.board = &board
+	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
+
+	return game, nil
+
+}
+
 func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (Game, error) {
 	game := Game{
+		ID: gonanoid.Must(),
 		// Default rules
 		Rules: GameRules{
 			SizeX:           5,

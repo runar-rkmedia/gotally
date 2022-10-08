@@ -6,6 +6,7 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 func (s *TallyServer) SwipeBoard(
@@ -18,12 +19,31 @@ func (s *TallyServer) SwipeBoard(
 	}
 	session := ContextGetUserState(ctx)
 	dir := toGameSwipeDirection(req.Msg.Direction)
+	// We copy the game, to rollback the in-memory cache if anything goes wrong
+	gameCopy := session.Game.Copy()
 	response := &model.SwipeBoardResponse{
-		DidChange: session.Swipe(dir),
+		DidChange: session.Game.Swipe(dir),
 		Board:     toModalBoard(&session.Game),
 		Moves:     int64(session.Game.Moves()),
 	}
+	if response.DidChange {
+		_, state := session.Game.Seed()
+		err := s.storage.SwipeBoard(ctx, types.SwipePayload{
+			GameID:         session.Game.ID,
+			SwipeDirection: types.SwipeDirection(dir),
+			Moves:          session.Game.Moves(),
+			State:          state,
+			Cells:          session.Cells(),
+		})
+		if err != nil {
+			s.l.Error().
+				Err(err).
+				Msg("failed to save the board to storage during swipe-operation")
+			// rollback the game in memory
+			session.Game = gameCopy
+			return nil, fmt.Errorf("intarnal failure while saving the board")
+		}
+	}
 	res := connect.NewResponse(response)
-	res.Header().Set("PetV", "v1")
 	return res, nil
 }

@@ -98,3 +98,4 @@ frontend/src/connect-web/proto
 
 static/*
 !static/web.go
+models/*.xo.go

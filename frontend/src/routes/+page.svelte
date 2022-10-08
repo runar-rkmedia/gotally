@@ -1,7 +1,13 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GameMode, GetHintRequest, NewGameRequest, SwipeDirection } from '../connect-web'
+	import {
+		GameMode,
+		GetHintRequest,
+		httpErrorStore,
+		NewGameRequest,
+		SwipeDirection
+	} from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
 	import { animateSwipe } from '../logic'
@@ -215,6 +221,16 @@
 		? 0
 		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
 </script>
+
+{#if $httpErrorStore.errors.length}
+	<div>
+		{#each $httpErrorStore.errors as err}
+			{err.error}
+			<!-- content here -->
+		{/each}
+	</div>
+	<!-- content here -->
+{/if}
 
 <div class="gameView">
 	{#if $store?.session?.game?.board}

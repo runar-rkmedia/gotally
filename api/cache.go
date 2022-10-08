@@ -28,6 +28,7 @@ func (c *stupidcache) SetUserState(game *UserState) {
 }
 
 var (
+	// deprecated
 	Store stupidcache = stupidcache{
 		games: map[string]*UserState{},
 	}
@@ -35,22 +36,21 @@ var (
 )
 
 type UserState struct {
-	UserName     string
-	SelfVotes    map[string]int
-	GamesStarted int
+	SessionID string
+	UserName  string
+	UserID    string
 	// Current game being played
 	tallylogic.Game
 	// The current game that is being played, but as a snapshot for the start of the game
 	// This is to be able to reset the game
 	GameSnapshotAtStart tallylogic.Game
-	SessionID           string
 }
 
 func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, sessionID string) (UserState, error) {
 	m := UserState{
-		SelfVotes:    map[string]int{},
-		SessionID:    sessionID,
-		GamesStarted: 1}
+		SessionID: sessionID,
+		UserName:  GenerateNameForUser(),
+	}
 	if m.SessionID == "" {
 		return m, fmt.Errorf("SessionID not set")
 	}

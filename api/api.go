@@ -8,10 +8,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/runar-rkmedia/go-common/logger"
-	"github.com/runar-rkmedia/gotally/database"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
 	"github.com/runar-rkmedia/gotally/generated"
 	web "github.com/runar-rkmedia/gotally/static"
+	"github.com/runar-rkmedia/gotally/storage"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -85,7 +85,7 @@ func StartServer() {
 		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
 
-	tally := NewTallyServer()
+	tally := NewTallyServer(logger.GetLogger("tally-server"))
 	mux := http.NewServeMux()
 	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
 	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
@@ -97,7 +97,7 @@ func StartServer() {
 		CORSHandler(),
 		RequestIDHandler(mustCreateUUidgenerator()),
 		Logger(logger.GetLogger("request")),
-		Authorization(debug),
+		Authorization(tally.storage, AuthorizationOptions{}),
 	}
 	// Register metrics
 	mux.Handle("/metrics", promhttp.Handler())
@@ -131,14 +131,17 @@ func StartServer() {
 type TallyServer struct {
 	UidGenerator func() string
 	storage      PersistantStorage
+	l            logger.AppLogger
 }
 
-func NewTallyServer() TallyServer {
-	db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
+func NewTallyServer(l logger.AppLogger) TallyServer {
+	db, err := storage.NewPersistantStorage("")
+	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
 	}
 	ts := TallyServer{
+		l:            l,
 		UidGenerator: mustCreateUUidgenerator(),
 		storage:      db,
 	}
