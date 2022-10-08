@@ -351,3 +351,19 @@ func TestTableBoard_EvaluatesTo(t *testing.T) {
 		})
 	}
 }
+func Benchmark_TableBoardHash(b *testing.B) {
+	tb := NewTableBoard(5, 5, TableBoardOptions{
+		Cells: cellCreator(
+			1, 2, 3, 4, 5,
+			1, 2, 3, 4, 5,
+			1, 2, 3, 4, 5,
+			1, 2, 3, 4, 5,
+			1, 2, 3, 4, 5,
+		),
+	})
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			tb.Hash()
+		}
+	})
+}
