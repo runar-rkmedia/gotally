@@ -367,3 +367,33 @@ func Benchmark_TableBoardHash(b *testing.B) {
 		}
 	})
 }
+func Benchmark_TableBoardSwipeVertical(b *testing.B) {
+	tb := NewTableBoard(5, 5, TableBoardOptions{
+		Cells: cellCreator(
+			0, 1, 3, 0, 0,
+			0, 3, 4, 0, 0,
+			0, 0, 0, 3, 0,
+			1, 2, 3, 4, 5,
+		),
+	})
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			tb.swipeVertical(false)
+		}
+	})
+}
+func Benchmark_TableBoardSwipeHorizontal(b *testing.B) {
+	tb := NewTableBoard(5, 5, TableBoardOptions{
+		Cells: cellCreator(
+			0, 1, 3, 0, 0,
+			0, 3, 4, 0, 0,
+			0, 0, 0, 3, 0,
+			1, 2, 3, 4, 5,
+		),
+	})
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			tb.swipeHorizontal(true)
+		}
+	})
+}
