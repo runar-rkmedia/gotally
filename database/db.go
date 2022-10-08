@@ -86,8 +86,8 @@ func (db DB) Deploy() error {
 	return err
 }
 
-func (db DB) VoteForBoard(id, user, userName string, funVote int) (*Vote, error) {
-	vote := Vote{
+func (db DB) VoteForBoard(id, user, userName string, funVote int) (*VoteOld, error) {
+	vote := VoteOld{
 		ID:        id,
 		User:      user,
 		UserName:  userName,
@@ -119,7 +119,7 @@ type DateType time.Time
 func (t DateType) String() string {
 	return time.Time(t).String()
 }
-func (db DB) GetAllVotes() (map[string]Vote, error) {
+func (db DB) GetAllVotes() (map[string]VoteOld, error) {
 	if db.l.HasDebug() {
 		db.l.Debug().Msg("getting all votes")
 	}
@@ -133,10 +133,10 @@ func (db DB) GetAllVotes() (map[string]Vote, error) {
 		return nil, err
 	}
 
-	votes := map[string]Vote{}
+	votes := map[string]VoteOld{}
 
 	for result.Next() {
-		vote := Vote{}
+		vote := VoteOld{}
 		var createdAt string
 		var updatedAt sql.NullString
 		err := result.Scan(&vote.ID, &vote.User, &createdAt, &updatedAt, &vote.FunVote)
@@ -159,15 +159,15 @@ func (db DB) GetAllVotes() (map[string]Vote, error) {
 	return votes, nil
 
 }
-func (db DB) GetVotesForBoardByUserName(userName string) (map[string]Vote, error) {
+func (db DB) GetVotesForBoardByUserName(userName string) (map[string]VoteOld, error) {
 	result, err := db.db.Query(
 		"SELECT id, user, createdAt, updatedAt, funVote FROM board_vote WHERE userName = ?", userName)
 	if err != nil {
 		return nil, err
 	}
-	votes := map[string]Vote{}
+	votes := map[string]VoteOld{}
 	for result.Next() {
-		vote := Vote{}
+		vote := VoteOld{}
 		var createdAt string
 		var updatedAt sql.NullString
 		err := result.Scan(&vote.ID, &vote.User, &createdAt, &updatedAt, &vote.FunVote)
@@ -198,7 +198,7 @@ func parseTime(datePointer *time.Time, value string) error {
 	return nil
 }
 
-type Vote struct {
+type VoteOld struct {
 	ID, User, UserName string
 	CreatedAt          time.Time
 	UpdatedAt          *time.Time

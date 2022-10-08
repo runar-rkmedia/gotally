@@ -25,7 +25,6 @@ func (s *TallyServer) GetSession(
 		},
 	}
 	res := connect.NewResponse(response)
-	res.Header().Set("PetV", "v1")
 	return res, nil
 }
 

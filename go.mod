@@ -38,6 +38,7 @@ require (
 )
 
 require (
+	github.com/cip8/autoname v1.0.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/go-test/deep v1.0.8
 	github.com/google/go-cmp v0.5.8 // indirect
@@ -47,6 +48,7 @@ require (
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/runar-rkmedia/skiver v0.8.0
+	github.com/xo/dburl v0.12.4
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect

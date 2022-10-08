@@ -6,6 +6,7 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/gotally/types"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 
@@ -47,6 +48,7 @@ func (s *TallyServer) CombineCells(
 
 		return nil, cerr.ToConnectError()
 	}
+	gameCopy := session.Game.Copy()
 	ok := session.EvaluateForPath(path)
 	if !ok {
 		cerr := connect.NewError(connect.CodeNotFound, fmt.Errorf("path does evaluate to the final item the selection"))
@@ -58,6 +60,21 @@ func (s *TallyServer) CombineCells(
 		}
 		return nil, cerr
 	}
+	_, state := session.Game.Seed()
+	err := s.storage.CombinePath(ctx, types.CombinePathPayload{
+		GameID: session.Game.ID,
+		Moves:  session.Game.Moves(),
+		Points: int(session.Game.Score() - gameCopy.Score()),
+		Score:  uint64(session.Game.Score()),
+		State:  state,
+		Cells:  session.Game.Cells(),
+	})
+	if err != nil {
+		s.l.Error().Err(err).Msg("internal failure during CombinePath-operation")
+
+		session.Game = gameCopy
+		return nil, fmt.Errorf("internal failure during CombinePath-operation")
+	}
 	response := model.CombineCellsResponse{
 		Board:  toModalBoard(&session.Game),
 		Score:  session.Game.Score(),
@@ -65,6 +82,5 @@ func (s *TallyServer) CombineCells(
 		DidWin: session.Game.IsGameWon(),
 	}
 	res := connect.NewResponse(&response)
-	res.Header().Set("PetV", "v1")
 	return res, nil
 }

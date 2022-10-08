@@ -1,8 +1,13 @@
 repo=github.com/runar-rkmedia/gotallly
-version := $(shell git describe --tags)
-gitHash := $(shell git rev-parse --short HEAD)
-buildDate := $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
+version = $(shell git describe --tags)
+gitHash = $(shell git rev-parse --short HEAD)
+buildDate = $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
 ldflags=-X 'main.version=$(version)' -X 'main.date=$(buildDate)' -X 'main.commit=$(gitHash)' -X 'main.IsDevStr=0'
+
+hasGoTestDox = $(shell command -v gotestdox 2>/dev/null)
+gotester = $(shell command -v gotest 2>/dev/null || printf "go test")
+
+# gotester=gotestdox
 
 ifndef VERBOSE
 MAKEFLAGS += --no-print-directory
@@ -16,6 +21,9 @@ deps:
 	@cd frontend && npm install
 generate:
 	buf generate
+model:
+	@echo "Attempting to generate model with xo from local development-schema"
+	xo schema mysql://root:secret@localhost:3306/tallyboard 
 buf-watch:
 	fd '' ./proto | entr -r sh -c "make buf-lint && make generate"
 
@@ -31,11 +39,15 @@ go-lint:
 
 # tests
 go-bench:
-	gotest -test.run=none -bench=. -benchmem ./...
+	go test -test.run=none -bench=. -benchmem ./...
+go-cover:
+	go test ./...  -cover -json | tparse -all
 go-test:
-	gotest -race ./...
+	@ echo Using $(gotester) as tester
+	$(gotester) -race ./...
+
 test-watch:
-	fd '.go' | entr -r sh -c "gotest -race ./..."
+	fd '.go' | entr -r gotest ./... 
 
 # web and servers
 web:

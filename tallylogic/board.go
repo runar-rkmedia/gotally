@@ -22,6 +22,7 @@ type TableBoard struct {
 
 type TableBoardOptions struct {
 	EvaluateOptions
+	Cells []cell.Cell
 }
 
 type EvaluateOptions struct {
@@ -32,7 +33,8 @@ type EvaluateOptions struct {
 }
 
 // TODO: return error here
-func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
+func RestoreTableBoard(columns, rows int, cells []cell.Cell, options ...TableBoardOptions) TableBoard {
+
 	tb := TableBoard{
 		rows:    rows,
 		columns: columns,
@@ -43,12 +45,16 @@ func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
 	if tb.NoMultiply && tb.NoAddition {
 		panic(fmt.Errorf("NoAddition && NoMultiply cannot both be set (need at least one evauluation-method)"))
 	}
-	cellCount := columns * rows
-	tb.cells = make([]cell.Cell, cellCount)
-	for i := 0; i < cellCount; i++ {
-		tb.cells[i] = cell.NewCell(0, 0)
-	}
+	tb.cells = cells
 	return tb
+}
+func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
+	cellCount := columns * rows
+	cells := make([]cell.Cell, cellCount)
+	for i := 0; i < cellCount; i++ {
+		cells[i] = cell.NewCell(0, 0)
+	}
+	return RestoreTableBoard(columns, rows, cells, options...)
 }
 
 func (tb *TableBoard) Copy() BoardController {

@@ -7,10 +7,20 @@ import {
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
 import { browser } from '$app/env'
+import { writable } from 'svelte/store'
 
 const state = {
 	authHeader: browser && localStorage.getItem('sessionID')
 }
+
+type ErrorStore = {
+	errors: Array<{
+		error: unknown
+		time: Date
+	}>
+}
+
+export const httpErrorStore = writable<ErrorStore>({ errors: [] })
 
 const retrier: Interceptor =
 	(next, retries = 0) =>
@@ -43,6 +53,10 @@ const retrier: Interceptor =
 			return res
 		} catch (err) {
 			if (err instanceof Error) {
+				httpErrorStore.update((e) => ({
+					...e,
+					errors: [...e.errors, { time: new Date(), error: err }]
+				}))
 				if (err.message.includes('NetworkError')) {
 					const waitPeriod = Math.min(100 * retries, 3000)
 					await new Promise((r) => setTimeout(r, waitPeriod))
@@ -59,8 +73,11 @@ const transportOptions: ConnectTransportOptions = {
 	baseUrl:
 		import.meta.env.VITE_API ||
 		(isHttps ? '/' : import.meta.env.VITE_DEV_API || 'http://localhost:8080/'),
+	...(!!true && {
+		baseUrl: 'http://localhost:8080'
+	}),
 	interceptors: [retrier],
-	useBinaryFormat: false
+	useBinaryFormat: browser ? !window.location.search.includes('json=1') : true
 }
 console.log({ transportOptions })
 

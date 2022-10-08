@@ -1,9 +1,13 @@
 package api
 
 import (
+	"time"
+
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/gotally/tallylogic"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 func toGameSwipeDirection(dir model.SwipeDirection) logic.SwipeDirection {
@@ -35,7 +39,7 @@ func toModalDirection(dir logic.SwipeDirection) model.SwipeDirection {
 
 func toModalBoard(game *logic.Game) *model.Board {
 	return &model.Board{
-		Id:      game.BoardID(),
+		Id:      game.ID,
 		Cells:   toModalCells(game.Cells()),
 		Columns: int32(game.Rules.SizeX),
 		Rows:    int32(game.Rules.SizeX),
@@ -50,9 +54,44 @@ func toModalCells(cells []cell.Cell) []*model.Cell {
 		c[i] = &model.Cell{
 			Base:   base,
 			Twopow: twopow,
-			Id:     cells[i].ID,
 		}
 
 	}
 	return c
+}
+
+func toTypeGame(Game tallylogic.Game, userId string) types.Game {
+
+	seed, state := Game.Seed()
+	g := types.Game{
+		ID:        Game.ID,
+		CreatedAt: time.Now(),
+		UserID:    userId,
+		Seed:      seed,
+		State:     state,
+		Score:     uint64(Game.Score()),
+		Moves:     uint(Game.Moves()),
+		Cells:     Game.Cells(),
+		PlayState: types.PlayStateCurrent,
+		Rules: types.Rules{
+			ID:              "",
+			CreatedAt:       time.Now(),
+			Description:     "",
+			Rows:            uint8(Game.Rules.SizeY),
+			Columns:         uint8(Game.Rules.SizeX),
+			RecreateOnSwipe: Game.Rules.RecreateOnSwipe,
+			NoReSwipe:       Game.Rules.NoReswipe,
+			NoMultiply:      Game.Rules.Options.NoMultiply,
+			NoAddition:      Game.Rules.Options.NoAddition,
+		},
+	}
+	switch Game.Rules.GameMode {
+	case tallylogic.GameModeDefault:
+		g.Rules.Mode = types.RuleModeInfiniteNormal
+	case tallylogic.GameModeRandomChallenge:
+		g.Rules.Mode = types.RuleModeChallenge
+	case tallylogic.GameModeTemplate:
+		g.Rules.Mode = types.RuleModeTutorial
+	}
+	return g
 }

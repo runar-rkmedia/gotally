@@ -9,10 +9,15 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/cip8/autoname"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/types"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func CORSHandler() MiddleWare {
@@ -236,30 +241,98 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 	}
 }
 
-func Authorization(debug bool) MiddleWare {
+type AuthorizationOptions struct {
+	Debug           bool
+	SessionLifeTime time.Duration
+}
+
+var caser = cases.Title(language.English)
+
+func GenerateNameForUser() string {
+	name := autoname.Generate(" ")
+	return caser.String(name)
+
+}
+
+func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare {
+	if options.SessionLifeTime == 0 {
+		// Its a game, I don't see a reason to use short lifetimes
+		// There is no sensitive information.
+		options.SessionLifeTime = time.Hour * 24 * 30 * 24
+
+	}
 	return func(next http.Handler) http.HandlerFunc {
+		// idgenerator := mustCreateUUidgenerator()
 		return func(w http.ResponseWriter, r *http.Request) {
 			l := ContextGetLogger(r.Context())
 
 			// Get a sessionID
 			sessionID := getSessionIDFromRequest(r)
+			now := time.Now()
+			if sessionID == "" {
+				l.Error().Msg("no session-id for request")
+				w.WriteHeader(500)
+				return
+
+			}
 
 			// Get the session-state for the user
 			var userState *UserState
+
 			if len(sessionID) == tokenLength {
-				userState = Store.GetUserState(sessionID)
+				// userState = Store.GetUserState(sessionID)
 			}
 			if userState == nil {
-				// The session is either not set or invalid / not found.
-				// Create a new session and a new game
-				sessionID = mustCreateUUidgenerator()()
-				if debug {
-					l.Debug().Msg("New user encountered")
+				us, err := store.GetUserBySessionID(r.Context(), types.GetUserPayload{ID: sessionID})
+				if err != nil {
+					l.Error().Str("sessionID", sessionID).Err(err).Msg("failed to lookup user by session-id")
+					w.WriteHeader(500)
+					return
 				}
-				if us, err := NewUserState(tallylogic.GameModeTemplate, &tallylogic.ChallengeGames[0], sessionID); err != nil {
+				if us != nil {
+
+					userState = &UserState{
+						SessionID: us.Session.ID,
+						UserName:  us.UserName,
+						UserID:    us.UserID,
+					}
+					if us.ActiveGame != nil {
+						g, err := tallylogic.RestoreGame(us.ActiveGame)
+						if err != nil {
+							w.WriteHeader(500)
+							return
+						}
+						userState.Game = g
+					} else {
+						l.Error().Interface("userSession", us).Msg("user does not have an active game")
+
+						w.WriteHeader(500)
+						return
+					}
+				}
+			}
+
+			if userState == nil {
+				// sessionID = idgenerator()
+				if us, err := NewUserState(tallylogic.GameModeDefault, &tallylogic.ChallengeGames[0], sessionID); err != nil {
 					l.Fatal().Err(err).Msg("Failed in NewUserState")
 				} else {
 					userState = &us
+
+					payload := types.CreateUserSessionPayload{
+						SessionID:    sessionID,
+						InvalidAfter: now.Add(options.SessionLifeTime),
+						Username:     userState.UserName,
+						Game:         toTypeGame(userState.Game, ""),
+					}
+					createdUserSession, err := store.CreateUserSession(r.Context(), payload)
+					if err != nil {
+						l.Error().Err(err).Msg("failed to in CreateUserSession")
+						w.WriteHeader(500)
+						return
+					}
+					userState.SessionID = createdUserSession.Session.ID
+					sessionID = createdUserSession.Session.ID
 					Store.SetUserState(userState)
 				}
 				// Set the cookie /user-session

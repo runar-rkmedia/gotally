@@ -9,7 +9,9 @@ import (
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/generated"
+	"github.com/runar-rkmedia/gotally/tallylogic"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 var (
@@ -51,8 +53,17 @@ func (s *TallyServer) NewGame(
 	if err != nil {
 		return nil, fmt.Errorf("failed to created game: %w", err)
 	}
+	payload := types.NewGamePayload{
+		Game: toTypeGame(game, session.UserID),
+	}
+	tg, err := s.storage.NewGameForUser(ctx, payload)
+	if err != nil {
+		s.l.Error().Err(err).Msg("failed to create new game")
+		return nil, fmt.Errorf("internal error while creating new game")
+	}
+	game.ID = tg.ID
+	game, err = tallylogic.RestoreGame(&tg)
 	session.Game = game
-	session.GamesStarted++
 	session.GameSnapshotAtStart = game.Copy()
 	Store.SetUserState(session)
 	response := &model.NewGameResponse{
