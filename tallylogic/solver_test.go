@@ -108,3 +108,21 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 		})
 	}
 }
+
+func Benchmark_Solver(b *testing.B) {
+	game := mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[1])
+	brute := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
+	hinter := NewHintCalculator(game.board, game.board, game.board)
+	brute.hinter = &hinter
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			s, err := brute.SolveGame(game)
+			if err != nil {
+				b.Error(err)
+			}
+			if len(s) == 0 {
+				b.Errorf("Found no solutions")
+			}
+		}
+	})
+}
