@@ -10,7 +10,6 @@ type BoardController interface {
 	Copy() BoardController
 	GetCellAtIndex(n int) *cell.Cell
 	IndexToCord(i int) (column int, row int)
-	FindCell(c cell.Cell) (int, bool)
 	String() string
 	HighestValue() (cell.Cell, int)
 	PrintBoard(highlighter func(c CellValuer, index int, padded string) string) string

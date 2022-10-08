@@ -1,15 +1,11 @@
 package cell
 
 import (
-	"fmt"
 	"math"
 	"strconv"
-
-	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 type Cell struct {
-	ID        string
 	baseValue int64
 	power     int
 }
@@ -20,9 +16,9 @@ func NewEmptyCell() Cell {
 func NewCellCopy(c Cell) Cell {
 	return NewCell(c.baseValue, c.power)
 }
+
 func NewCell(baseValue int64, power int) Cell {
 	return Cell{
-		ID:        gonanoid.Must(),
 		baseValue: baseValue,
 		power:     power,
 	}
@@ -50,6 +46,6 @@ func (c Cell) Value() int64 {
 func (c Cell) String() string {
 	return strconv.FormatInt(c.Value(), 10)
 }
-func (c Cell) Hash() string {
-	return fmt.Sprintf("%d*%d", c.baseValue, c.power)
+func (c Cell) Hash() int64 {
+	return c.Value()
 }

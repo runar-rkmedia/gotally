@@ -76,14 +76,6 @@ func (tb TableBoard) GetCellAtIndex(n int) *cell.Cell {
 	}
 	return nil
 }
-func (tb TableBoard) FindCell(c cell.Cell) (int, bool) {
-	for i := 0; i < len(tb.cells); i++ {
-		if tb.cells[i].ID == c.ID {
-			return i, true
-		}
-	}
-	return 0, false
-}
 func (tb TableBoard) String() string {
 	return tb.PrintBoard(nil)
 }
@@ -158,9 +150,11 @@ func (tb TableBoard) PrintBoard(highlighter func(c CellValuer, index int, padded
 // Uniqely identifies the board by its value. ID's etc are ignored.
 func (tb TableBoard) Hash() string {
 	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("%dx%d;", tb.columns, tb.rows))
-	for _, v := range tb.cells {
-		builder.WriteString(v.Hash() + ";")
+	// builder.WriteString(fmt.Sprintf("%dx%d;", tb.columns, tb.rows))
+	builder.WriteByte(byte(tb.columns))
+	builder.WriteByte(byte(tb.rows))
+	for i := 0; i < len(tb.cells); i++ {
+		builder.WriteByte(byte(tb.cells[i].Value()))
 	}
 	return builder.String()
 }
@@ -262,9 +256,6 @@ func (tb TableBoard) ValidatePath(indexes []int) (err error, invalidIndex int) {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexOutsideBounds, index, i), i
 		}
 		c := tb.cells[index]
-		if c.ID == "" {
-			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexInvalidCell, index, i), i
-		}
 		if c.Value() == 0 {
 			return fmt.Errorf("%w for index %d at position %d", ErrPathIndexEmptyCell, index, i), i
 		}
@@ -323,7 +314,7 @@ func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, E
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		cell := tb.cells[index]
-		if cell.ID == "" {
+		if cell.IsEmpty() {
 			return 0, EvalMethodNil, ErrResultIndexOverflow
 		}
 		v := cell.Value()
@@ -399,7 +390,7 @@ outer:
 			if tb.cells[j].Value() == 0 {
 				continue
 			}
-			if tb.cells[i].ID != newCells[i].ID {
+			if tb.cells[i].Hash() != newCells[i].Hash() {
 				changed = true
 				break outer
 			}
