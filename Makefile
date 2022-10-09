@@ -53,9 +53,9 @@ test-watch:
 web:
 	cd frontend && npm run dev --host -- --clearScreen false 
 server:
-	go run ./api/cmd/main.go
+	go run ./api/cmd/
 server-watch:
-	fd '.go' | entr -r sh -c "golangci-lint run & go run ./api/cmd/main.go"
+	fd '.go' | entr -r sh -c "golangci-lint run & go run ./api/cmd/"
 
 build-web:
 	@echo "VITE_API: '$$VITE_API' $VITE_API"
@@ -67,7 +67,7 @@ build-web:
 	cp frontend/.svelte-kit/output/prerendered/pages/index.html static/static
 
 build-api:
-	CGO_ENABLED=0 GOOS=linux go build -v -ldflags="$(ldflags)" -o gotally ./api/cmd/main.go
+	CGO_ENABLED=0 GOOS=linux go build -v -ldflags="$(ldflags)" -o gotally ./api/cmd/
 # build a container with the application
 build-container: 
 	docker build . \
