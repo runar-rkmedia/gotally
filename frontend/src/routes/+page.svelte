@@ -303,10 +303,12 @@
 			<button on:click={() => getHint()}>Hint </button>
 
 			<div>
-				<button on:click={() => restartGame()}>Restart </button>
+				<button disabled on:click={() => restartGame()}>Restart </button>
 				<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
-				<button on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
-				<button on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}>New Challenge</button>
+				<button disabled on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
+				<button disabled on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}
+					>New Challenge</button
+				>
 			</div>
 		</div>
 	{/if}
