@@ -2,7 +2,7 @@ repo=github.com/runar-rkmedia/gotallly
 version = $(shell git describe --tags)
 gitHash = $(shell git rev-parse --short HEAD)
 buildDate = $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
-ldflags=-X 'main.version=$(version)' -X 'main.date=$(buildDate)' -X 'main.commit=$(gitHash)' -X 'main.IsDevStr=0'
+ldflags=-X 'main.Version=$(version)' -X 'main.Date=$(buildDate)' -X 'main.Commit=$(gitHash)' -X 'main.IsDevStr=0'
 
 hasGoTestDox = $(shell command -v gotestdox 2>/dev/null)
 gotester = $(shell command -v gotest 2>/dev/null || printf "go test")
@@ -66,6 +66,8 @@ build-web:
 	# Not really sure why, but currently I have to copy the index file... I am sure I am doing something wrong....
 	cp frontend/.svelte-kit/output/prerendered/pages/index.html static/static
 
+build-api:
+	CGO_ENABLED=0 GOOS=linux go build -v -ldflags="$(ldflags)" -o gotally ./api/cmd/main.go
 # build a container with the application
 build-container: 
 	docker build . \
