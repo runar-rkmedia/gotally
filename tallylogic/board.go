@@ -18,6 +18,7 @@ type TableBoard struct {
 	// Only for saved boards
 	id string
 	TableBoardOptions
+	neighboursForCellIndexCache *[][]int
 }
 
 type TableBoardOptions struct {
@@ -46,6 +47,7 @@ func RestoreTableBoard(columns, rows int, cells []cell.Cell, options ...TableBoa
 		panic(fmt.Errorf("NoAddition && NoMultiply cannot both be set (need at least one evauluation-method)"))
 	}
 	tb.cells = cells
+	tb.precalculateNeighboursForCellIndex()
 	return tb
 }
 func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
@@ -59,10 +61,11 @@ func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
 
 func (tb *TableBoard) Copy() BoardController {
 	board := TableBoard{
-		cells:             make([]cell.Cell, len(tb.cells)),
-		rows:              tb.rows,
-		columns:           tb.columns,
-		TableBoardOptions: tb.TableBoardOptions,
+		cells:                       make([]cell.Cell, len(tb.cells)),
+		neighboursForCellIndexCache: tb.neighboursForCellIndexCache,
+		rows:                        tb.rows,
+		columns:                     tb.columns,
+		TableBoardOptions:           tb.TableBoardOptions,
 	}
 	for i, c := range tb.cells {
 		board.cells[i] = cell.NewCellCopy(c)
@@ -340,16 +343,16 @@ func (tb TableBoard) SoftEvaluatesTo(indexes []int, targetValue int64) (int64, E
 	return 0, EvalMethodNil, ErrResultNoMatch
 }
 
-func (tb TableBoard) getRows() [][]cell.Cell {
+func (tb TableBoard) getRows() [][]*cell.Cell {
 	return tb._getColumnsOrRows(true)
 }
-func (tb TableBoard) getColumns() [][]cell.Cell {
+func (tb TableBoard) getColumns() [][]*cell.Cell {
 	return tb._getColumnsOrRows(false)
 }
-func (tb TableBoard) _getColumnsOrRows(rows bool) [][]cell.Cell {
-	var columns = make([][]cell.Cell, tb.rows)
+func (tb TableBoard) _getColumnsOrRows(rows bool) [][]*cell.Cell {
+	var columns = make([][]*cell.Cell, tb.rows)
 	for rowIndex := 0; rowIndex < tb.rows; rowIndex++ {
-		columns[rowIndex] = make([]cell.Cell, tb.columns)
+		columns[rowIndex] = make([]*cell.Cell, tb.columns)
 		for colIndex := 0; colIndex < tb.columns; colIndex++ {
 			var index int
 			var ok bool
@@ -361,7 +364,7 @@ func (tb TableBoard) _getColumnsOrRows(rows bool) [][]cell.Cell {
 			if !ok {
 				panic(fmt.Sprintf("overflow in getRows %d %d", rowIndex, colIndex))
 			}
-			columns[rowIndex][colIndex] = tb.cells[index]
+			columns[rowIndex][colIndex] = &tb.cells[index]
 		}
 	}
 	return columns
@@ -421,23 +424,56 @@ func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []cell.Cel
 func (tb *TableBoard) Cells() []cell.Cell {
 	return tb.cells
 }
+
+// hotpath-method, therefore optimized
 func (tb *TableBoard) swipeHorizontal(positive bool) []cell.Cell {
 	rows := tb.getRows()
 	tiles := make([]cell.Cell, len(tb.cells))
-	for r, row := range rows {
-		sort.Slice(row, func(i, j int) bool {
-			if positive {
-				return row[i].Value() == 0
-			}
-			return row[j].Value() == 0
-		})
-		for i, cell := range row {
-			tiles[i+tb.rows*r] = cell
+	for ri := 0; ri < len(rows); ri++ {
+		if positive {
+			sort.Sort(PosCellRange(rows[ri]))
+		} else {
+			sort.Sort(NegCellRange(rows[ri]))
+		}
+		for i := 0; i < len(rows[ri]); i++ {
+			tiles[i+tb.rows*ri] = *rows[ri][i]
 		}
 	}
 	return tiles
 }
+
+// hotpath-method, therefore optimized
 func (tb *TableBoard) swipeVertical(positive bool) []cell.Cell {
+	columns := tb.getColumns()
+	tiles := make([]cell.Cell, len(tb.cells))
+	for ci := 0; ci < len(columns); ci++ {
+
+		if positive {
+			sort.Sort(PosCellRange(columns[ci]))
+		} else {
+			sort.Sort(NegCellRange(columns[ci]))
+		}
+		for i := 0; i < len(columns[ci]); i++ {
+			// for i, cell := range columns[ci] {
+			tiles[i*tb.columns+ci] = *columns[ci][i]
+		}
+	}
+	return tiles
+}
+
+type PosCellRange []*cell.Cell
+
+func (pp PosCellRange) Less(i, j int) bool { return pp[i].IsEmpty() }
+func (pp PosCellRange) Len() int           { return len(pp) }
+func (pp PosCellRange) Swap(i, j int)      { pp[i], pp[j] = pp[j], pp[i] }
+
+type NegCellRange []*cell.Cell
+
+func (pp NegCellRange) Less(i, j int) bool { return pp[j].IsEmpty() }
+func (pp NegCellRange) Len() int           { return len(pp) }
+func (pp NegCellRange) Swap(i, j int)      { pp[i], pp[j] = pp[j], pp[i] }
+
+func (tb *TableBoard) swipeOldVertical(positive bool) []cell.Cell {
 	columns := tb.getColumns()
 	tiles := make([]cell.Cell, len(tb.cells))
 	for c, column := range columns {
@@ -448,7 +484,7 @@ func (tb *TableBoard) swipeVertical(positive bool) []cell.Cell {
 			return column[j].Value() == 0
 		})
 		for i, cell := range column {
-			tiles[i*tb.columns+c] = cell
+			tiles[i*tb.columns+c] = *cell
 		}
 	}
 	return tiles
@@ -473,17 +509,32 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	return true
 }
 
-// Returns the neighbours for a gives cell. Note that the cells might be empty
-func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
-	var neighbours []int
+func (tb *TableBoard) precalculateNeighboursForCellIndex() {
 
+	cache := make([][]int, len(tb.cells))
+	for i := 0; i < len(tb.cells); i++ {
+		cache[i] = tb.neighboursForCellIndex(i)
+	}
+	tb.neighboursForCellIndexCache = &cache
+
+}
+
+// Returns the neighbours for a gives cell. Note that the cells might be empty
+func (tb *TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 	if index < 0 {
-		return neighbours, false
+		return []int{}, false
 	}
 	if index >= len(tb.cells) {
-		return neighbours, false
+		return []int{}, false
 	}
-
+	if tb.neighboursForCellIndexCache == nil {
+		tb.precalculateNeighboursForCellIndex()
+	}
+	return (*tb.neighboursForCellIndexCache)[index], true
+	// return tb.neighboursForCellIndex(index), false
+}
+func (tb TableBoard) neighboursForCellIndex(index int) []int {
+	var neighbours []int
 	column, row := tb.IndexToCord(index)
 
 	// Neighbour above
@@ -503,7 +554,7 @@ func (tb TableBoard) NeighboursForCellIndex(index int) ([]int, bool) {
 		neighbours = append(neighbours, index+tb.columns)
 	}
 	// This should now be sorted, becouse of the ordering above
-	return neighbours, true
+	return neighbours
 }
 
 func (tb *TableBoard) AddCellToBoard(c cell.Cell, index int, overwrite bool) error {

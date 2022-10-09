@@ -1,0 +1,39 @@
+?   	github.com/runar-rkmedia/gotally	[no test files]
+?   	github.com/runar-rkmedia/gotally/api	[no test files]
+?   	github.com/runar-rkmedia/gotally/api/cmd	[no test files]
+?   	github.com/runar-rkmedia/gotally/database	[no test files]
+?   	github.com/runar-rkmedia/gotally/fastrand	[no test files]
+?   	github.com/runar-rkmedia/gotally/gen/proto/tally/v1	[no test files]
+?   	github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect	[no test files]
+?   	github.com/runar-rkmedia/gotally/generated	[no test files]
+?   	github.com/runar-rkmedia/gotally/models	[no test files]
+goos: linux
+goarch: amd64
+pkg: github.com/runar-rkmedia/gotally/randomizer
+cpu: 12th Gen Intel(R) Core(TM) i9-12900H
+Benchmark_Randomizer-20    	10979846	       119.5 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/runar-rkmedia/gotally/randomizer	1.426s
+?   	github.com/runar-rkmedia/gotally/static	[no test files]
+PASS
+ok  	github.com/runar-rkmedia/gotally/storage	0.003s
+goos: linux
+goarch: amd64
+pkg: github.com/runar-rkmedia/gotally/tallylogic
+cpu: 12th Gen Intel(R) Core(TM) i9-12900H
+Benchmark_TableBoardHash-20               	76084129	        15.70 ns/op	      56 B/op	       3 allocs/op
+Benchmark_TableBoardSwipeVertical-20      	 3313944	       365.9 ns/op	    1384 B/op	      22 allocs/op
+Benchmark_TableBoardSwipeHorizontal-20    	 3294344	       373.6 ns/op	    1384 B/op	      22 allocs/op
+BenchmarkGetHints5x5ofOnes-20             	       1	3500739753 ns/op	1667431136 B/op	17492846 allocs/op
+BenchmarkGetHints3x3ofOnes-20             	    2689	   1018298 ns/op	  265166 B/op	    2545 allocs/op
+BenchmarkHint_Hash-20                     	16063680	        64.12 ns/op	      24 B/op	       2 allocs/op
+BenchmarkHint_Hash_reverse-20             	18980030	        63.96 ns/op	      24 B/op	       2 allocs/op
+Benchmark_Solver-20                       	    1875	    632160 ns/op	 2194053 B/op	   37931 allocs/op
+PASS
+ok  	github.com/runar-rkmedia/gotally/tallylogic	15.668s
+PASS
+ok  	github.com/runar-rkmedia/gotally/tallylogic/cell	0.001s
+?   	github.com/runar-rkmedia/gotally/tallylogic/cellgenerator	[no test files]
+?   	github.com/runar-rkmedia/gotally/types	[no test files]
+PASS
+ok  	github.com/runar-rkmedia/gotally/weightmap	0.001s
