@@ -2,7 +2,6 @@ package tallylogic
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
@@ -125,8 +124,7 @@ func (h Hint) Hash() string {
 	}
 	b := strings.Builder{}
 	for i := 0; i < len(h.Path); i++ {
-		b.WriteString(strconv.FormatInt(int64(h.Path[i]), 36))
-		b.WriteString(";")
+		b.WriteByte(byte(h.Path[i]))
 	}
 	return b.String()
 

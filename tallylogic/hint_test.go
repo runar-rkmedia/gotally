@@ -193,7 +193,7 @@ func BenchmarkGetHints5x5ofOnes(b *testing.B) {
 	}
 	g := &hintCalculator{
 		CellRetriever:      &board,
-		NeighbourRetriever: board,
+		NeighbourRetriever: &board,
 		Evaluator:          board,
 	}
 
@@ -212,9 +212,10 @@ func BenchmarkGetHints3x3ofOnes(b *testing.B) {
 		rows:    3,
 		columns: 3,
 	}
+	board.precalculateNeighboursForCellIndex()
 	g := &hintCalculator{
 		CellRetriever:      &board,
-		NeighbourRetriever: board,
+		NeighbourRetriever: &board,
 		Evaluator:          board,
 	}
 
