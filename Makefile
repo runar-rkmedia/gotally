@@ -39,7 +39,7 @@ go-lint:
 
 # tests
 go-bench:
-	go test -test.run=none -bench=. -benchmem ./...
+	go test -test.run=none -bench=. -benchmem ./... > ./.bench/$(buildDate)-$(gitHash).bench
 go-cover:
 	go test ./...  -cover -json | tparse -all
 go-test:
