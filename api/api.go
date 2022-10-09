@@ -12,6 +12,7 @@ import (
 	"github.com/runar-rkmedia/gotally/generated"
 	web "github.com/runar-rkmedia/gotally/static"
 	"github.com/runar-rkmedia/gotally/storage"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -71,6 +72,10 @@ func isSecureRequest(r *http.Request) (bool, string) {
 
 }
 
+var (
+	name = "foobar"
+)
+
 func StartServer() {
 	logger.InitLogger(logger.LogConfig{
 		Level:      "debug",
@@ -79,6 +84,8 @@ func StartServer() {
 	})
 	baseLogger = logger.GetLogger("base")
 
+	f := initializeOpenTelemetry(baseLogger)
+	defer f()
 	debug := baseLogger.HasDebug()
 	err := generated.ReadGeneratedBoardsFromDisk()
 	if err != nil {
@@ -113,6 +120,7 @@ func StartServer() {
 	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
 	han := pipeline(connectHandler, pipe...)
+	han = otelhttp.NewHandler(han, "gotally-api")
 	mux.Handle(path, han)
 	mux.Handle("/", http.StripPrefix("/", web.StaticWebHandler()))
 	// mux.Handle("/", web.StaticWebHandler())

@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -16,6 +17,8 @@ import (
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -133,6 +136,7 @@ func Logger(l logger.AppLogger) MiddleWare {
 		return func(w http.ResponseWriter, r *http.Request) {
 
 			reqID := r.Header.Get("X-Request-ID")
+
 			if reqID == "" {
 				l.Warn().Msg("No request-id. Is the ordering of middleware correct?")
 			}
@@ -151,9 +155,22 @@ func Logger(l logger.AppLogger) MiddleWare {
 
 			next.ServeHTTP(w, r)
 			if lw.statusCode >= 500 {
-				l.Error().
-					Int("statusCode", lw.statusCode).
-					Msg("Outgoing response")
+				span := trace.SpanFromContext(r.Context())
+				if lw.collectsBody && len(lw.responseBody) > 0 {
+					fmt.Println("spanny")
+					span.SetAttributes(
+						attribute.String("error.details", string(lw.responseBody)),
+					)
+					l.Error().
+						Int("statusCode", lw.statusCode).
+						Str("errorDetails", string(lw.responseBody)).
+						Msg("Outgoing response")
+				} else {
+					l.Error().
+						Int("statusCode", lw.statusCode).
+						Msg("Outgoing response")
+				}
+				fmt.Println(string(lw.responseBody))
 			} else if lw.statusCode >= 400 {
 				// var result []byte
 				// var resultJson map[string]any
@@ -178,6 +195,11 @@ func Logger(l logger.AppLogger) MiddleWare {
 }
 func ContextGetLogger(ctx context.Context) logger.AppLogger {
 	v := ctx.Value(ContextKeyLogger)
+	if v == nil {
+		l := logger.GetLogger("unspecified http-logger")
+		l.Warn().Stack().Err(fmt.Errorf("no logger available in context")).Msg("no logger available in context. using fallback-logger")
+		return l
+	}
 
 	return v.(logger.AppLogger)
 }
@@ -188,6 +210,7 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 			defer func() {
 
 				if panickedErr := recover(); panickedErr != nil {
+					span := trace.SpanFromContext(r.Context())
 					w.WriteHeader(http.StatusBadGateway)
 					type s struct {
 						Code    connect.Code `json:"code"`
@@ -205,6 +228,9 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 						stack := make([]byte, 4096)
 						j := runtime.Stack(stack, false)
 						cess.Stack = string(stack[:j])
+						span.SetAttributes(
+							attribute.String("panic.stack", cess.Stack),
+						)
 					}
 
 					l.Error().
@@ -286,6 +312,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 				us, err := store.GetUserBySessionID(r.Context(), types.GetUserPayload{ID: sessionID})
 				if err != nil {
 					l.Error().Str("sessionID", sessionID).Err(err).Msg("failed to lookup user by session-id")
+					w.Write([]byte("failed to lookup user by session-id"))
 					w.WriteHeader(500)
 					return
 				}

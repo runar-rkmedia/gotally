@@ -15,6 +15,7 @@ import (
 	"github.com/runar-rkmedia/gotally/types"
 	"github.com/xo/dburl"
 	"github.com/xo/dburl/passfile"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/context"
 )
 
@@ -87,7 +88,13 @@ func sqlOk(err error) error {
 	return err
 }
 
+var (
+	tracer = otel.Tracer("database")
+)
+
 func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (*types.SessionUser, error) {
+	ctx, span := tracer.Start(ctx, "GetUserBySessionID")
+	defer span.End()
 	s, err := models.SessionByID(ctx, p.db, payload.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to find session for user by ID: %w", err)
@@ -142,6 +149,8 @@ func (p *persistantStorage) ensureRuleExists(ctx context.Context, db models.DB, 
 	return created, nil
 }
 func (p *persistantStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (*types.SessionUser, error) {
+	ctx, span := tracer.Start(ctx, "CreateUserSession")
+	defer span.End()
 	err := payload.Validate()
 	if err != nil {
 		return nil, err
@@ -227,6 +236,8 @@ func parse(dsn string) (*dburl.URL, error) {
 	return v, nil
 }
 func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipePayload) error {
+	ctx, span := tracer.Start(ctx, "SwipeBoard")
+	defer span.End()
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -293,6 +304,8 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 	return err
 }
 func (p *persistantStorage) CombinePath(ctx context.Context, payload types.CombinePathPayload) error {
+	ctx, span := tracer.Start(ctx, "CombinePath")
+	defer span.End()
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -355,6 +368,8 @@ func (p *persistantStorage) CombinePath(ctx context.Context, payload types.Combi
 }
 
 func (p *persistantStorage) fetchRules(ctx context.Context) error {
+	ctx, span := tracer.Start(ctx, "fetchRules")
+	defer span.End()
 	rules, err := models.GetAllRules(ctx, p.db)
 	if err != nil {
 		return err
@@ -367,6 +382,8 @@ func (p *persistantStorage) fetchRules(ctx context.Context) error {
 	return nil
 }
 func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error) {
+	ctx, span := tracer.Start(ctx, "NewGameForUser")
+	defer span.End()
 	tg := types.Game{}
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
