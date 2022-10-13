@@ -25,7 +25,7 @@ func initializeOpenTelemetry(l logger.AppLogger) func() {
 		version = "v0.0.1-dev"
 	}
 	attr := []attribute.KeyValue{
-		semconv.ServiceVersionKey.String(""),
+		semconv.ServiceVersionKey.String(version),
 		attribute.String("environment", env),
 	}
 	attributes := make(map[string]string, len(attr))

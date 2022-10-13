@@ -294,7 +294,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 
 			sessionID := getSessionIDFromRequest(r)
 			now := time.Now()
-			if sessionID == "" {
+			if sessionID == "" || len(sessionID) != tokenLength {
 				sessionID = gonanoid.Must()
 
 			}
@@ -309,7 +309,10 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 				us, err := store.GetUserBySessionID(r.Context(), types.GetUserPayload{ID: sessionID})
 				if err != nil {
 					l.Error().Str("sessionID", sessionID).Err(err).Msg("failed to lookup user by session-id")
-					w.Write([]byte("failed to lookup user by session-id"))
+					_, err := w.Write([]byte("failed to lookup user by session-id"))
+					if err != nil {
+						l.Warn().Str("sessionID", sessionID).Err(err).Msg("failed to write to ResponseWriter. Did the user hang up?")
+					}
 					w.WriteHeader(500)
 					return
 				}

@@ -473,23 +473,6 @@ func (pp NegCellRange) Less(i, j int) bool { return pp[j].IsEmpty() }
 func (pp NegCellRange) Len() int           { return len(pp) }
 func (pp NegCellRange) Swap(i, j int)      { pp[i], pp[j] = pp[j], pp[i] }
 
-func (tb *TableBoard) swipeOldVertical(positive bool) []cell.Cell {
-	columns := tb.getColumns()
-	tiles := make([]cell.Cell, len(tb.cells))
-	for c, column := range columns {
-		sort.Slice(column, func(i, j int) bool {
-			if positive {
-				return column[i].Value() == 0
-			}
-			return column[j].Value() == 0
-		})
-		for i, cell := range column {
-			tiles[i*tb.columns+c] = *cell
-		}
-	}
-	return tiles
-}
-
 func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	if a < 0 || b < 0 {
 		return false

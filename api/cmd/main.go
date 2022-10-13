@@ -14,7 +14,10 @@ func main() {
 	{
 		pyroScopeUrl := os.Getenv("PYROSCOPE_URL")
 		if pyroScopeUrl != "" {
-			startPeriscope(pyroScopeUrl, os.Getenv("PYROSCOPE_AUTH_TOKEN"), true, true)
+			err := startPeriscope(pyroScopeUrl, os.Getenv("PYROSCOPE_AUTH_TOKEN"), true, true)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 	api.StartServer()
