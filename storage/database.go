@@ -2,91 +2,28 @@ package storage
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/XSAM/otelsql"
 	_ "github.com/go-sql-driver/mysql"
-	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/runar-rkmedia/go-common/logger"
 	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/models"
 	"github.com/runar-rkmedia/gotally/types"
 	"github.com/xo/dburl"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"golang.org/x/net/context"
 )
+
+type persistantStorage struct {
+	db        *sql.DB
+	ruleCache ruleCache
+}
 
 // NOTE: sqlboiler does not seem to be a perfect match here.
 // I'm thinking of switching to https://docs.sqlc.dev/en/latest/tutorials/getting-started-postgresql.html
 
 func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, error) {
-	if dsn == "" {
-		dsn = os.Getenv("DSN")
-	}
-	if dsn == "" {
-		// database for local development, don't worry, this is not the password I use for everything, I swear!
-		dsn = "my://root:secret@localhost/tallyboard"
-	}
-
-	models.SetErrorLogger(log.Logger)
-	models.SetLogger(log.Logger)
-
-	u, err := parse(dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse dsn-string: %w", err)
-	}
-	if l.HasDebug() {
-		l.Debug().
-			Str("host", u.Host).
-			Str("user", u.User.Username()).
-			Str("scheme", u.Scheme).
-			Str("driver", u.Driver).
-			Str("redacted", u.Redacted()).
-			Msg("Attempting to connect to database with these details (some are hidden)")
-	}
-	// db, err := passfile.OpenURL(u, ".", "db")
-	var attr attribute.KeyValue
-	switch u.Driver {
-	case "mysql":
-		attr = semconv.DBSystemMySQL
-	default:
-		l.Warn().Str("driver", u.Driver).Msg("unmapped driver-attribute for opentelemetry")
-	}
-
-	db, err := otelsql.Open(u.Driver, u.DSN, otelsql.WithAttributes(attr), otelsql.WithSpanOptions(otelsql.SpanOptions{
-		Ping:           true,
-		RowsNext:       false,
-		DisableErrSkip: true,
-		DisableQuery:   false,
-		RecordError: func(err error) bool {
-			return !errors.Is(err, sql.ErrNoRows)
-		},
-		OmitConnResetSession: false,
-		OmitConnPrepare:      false,
-		OmitConnQuery:        false,
-		OmitRows:             false,
-		OmitConnectorConnect: false,
-	}))
-	if err != nil {
-		return nil, fmt.Errorf("failed during passfile.OpenUrl: %w", err)
-	}
-	if l.HasDebug() {
-		l.Debug().
-			Msg("Successfully connected to database")
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-
-	}
-	err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attr))
+	db, err := newDb(l, dsn, true)
 	if err != nil {
 		return nil, err
 	}
@@ -103,29 +40,6 @@ func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, e
 	return p, nil
 
 }
-
-type persistantStorage struct {
-	db        *sql.DB
-	ruleCache ruleCache
-}
-
-func createID() string {
-	return gonanoid.Must()
-}
-
-func sqlOk(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	return err
-}
-
-var (
-	tracer = otel.Tracer("database")
-)
 
 func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (*types.SessionUser, error) {
 	ctx, span := tracer.Start(ctx, "GetUserBySessionID")
@@ -502,8 +416,3 @@ func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.Ne
 	}
 	return tg, err
 }
-
-var (
-	ErrArgumentRequired = errors.New("argument required")
-	ErrArgumentInvalid  = errors.New("argument invalid")
-)

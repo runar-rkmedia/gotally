@@ -1,0 +1,103 @@
+package storage
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/XSAM/otelsql"
+	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/rs/zerolog/log"
+	"github.com/runar-rkmedia/go-common/logger"
+	"github.com/runar-rkmedia/gotally/models"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+)
+
+func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, error) {
+	if dsn == "" {
+		dsn = os.Getenv("DSN")
+	}
+	if dsn == "" {
+		// database for local development, don't worry, this is not the password I use for everything, I swear!
+		dsn = "my://root:secret@localhost/tallyboard"
+	}
+
+	models.SetErrorLogger(log.Logger)
+	models.SetLogger(log.Logger)
+
+	u, err := parse(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse dsn-string: %w", err)
+	}
+	if l.HasDebug() {
+		l.Debug().
+			Str("host", u.Host).
+			Str("user", u.User.Username()).
+			Str("scheme", u.Scheme).
+			Str("driver", u.Driver).
+			Str("redacted", u.Redacted()).
+			Msg("Attempting to connect to database with these details (some are hidden)")
+	}
+	// db, err := passfile.OpenURL(u, ".", "db")
+	var attr attribute.KeyValue
+	switch u.Driver {
+	case "mysql":
+		attr = semconv.DBSystemMySQL
+	default:
+		l.Warn().Str("driver", u.Driver).Msg("unmapped driver-attribute for opentelemetry")
+	}
+
+	db, err := otelsql.Open(u.Driver, u.DSN, otelsql.WithAttributes(attr), otelsql.WithSpanOptions(otelsql.SpanOptions{
+		Ping:           true,
+		RowsNext:       false,
+		DisableErrSkip: true,
+		DisableQuery:   false,
+		RecordError: func(err error) bool {
+			return !errors.Is(err, sql.ErrNoRows)
+		},
+		OmitConnResetSession: false,
+		OmitConnPrepare:      false,
+		OmitConnQuery:        false,
+		OmitRows:             false,
+		OmitConnectorConnect: false,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("failed during passfile.OpenUrl: %w", err)
+	}
+	if l.HasDebug() {
+		l.Debug().
+			Msg("Successfully connected to database")
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+
+	}
+	err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attr))
+	if err != nil {
+		return nil, err
+	}
+	return db, err
+}
+
+func createID() string {
+	return gonanoid.Must()
+}
+
+func sqlOk(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	return err
+}
+
+var (
+	tracer = otel.Tracer("database")
+)

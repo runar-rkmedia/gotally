@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -164,3 +165,8 @@ func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {
 	}
 	return tallyv1.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED
 }
+
+var (
+	ErrArgumentRequired = errors.New("argument required")
+	ErrArgumentInvalid  = errors.New("argument invalid")
+)
