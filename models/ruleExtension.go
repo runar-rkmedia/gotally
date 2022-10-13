@@ -35,7 +35,7 @@ func (r *Rule) CreateIfUnique(ctx context.Context, db DB) (*Rule, bool, error) {
 		return r, false, err
 
 	}
-	if existing == nil {
+	if existing != nil {
 		return existing, false, nil
 	}
 	err = r.Insert(ctx, db)

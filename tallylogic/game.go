@@ -50,6 +50,7 @@ func (g Game) Seed() (uint64, uint64) {
 }
 
 type GameRules struct {
+	ID string
 	GameMode
 	SizeX int
 	SizeY int

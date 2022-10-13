@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/jfyne/live"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 )
 
@@ -58,6 +59,7 @@ func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, s
 	if err != nil {
 		return m, err
 	}
+	game.Rules.ID = gonanoid.Must()
 	m.Game = game
 	m.GameSnapshotAtStart = game.Copy()
 	return m, nil

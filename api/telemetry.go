@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -35,9 +34,6 @@ func initializeOpenTelemetry(l logger.AppLogger) func() {
 
 	}
 
-	fmt.Println(attributes)
-	fmt.Println(attr)
-	fmt.Println(version, versioninfo.Version)
 	// use honeycomb distro to setup OpenTelemetry SDK
 	name := os.Getenv("OTEL_SERVICE_NAME")
 	baseLogger.Info().Str("servicename", name).Msg("Tracing via honeycomb is enabled")

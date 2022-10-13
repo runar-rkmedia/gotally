@@ -27,12 +27,13 @@ func (s *TallyServer) SwipeBoard(
 		Moves:     int64(session.Game.Moves()),
 	}
 	if response.DidChange {
-		_, state := session.Game.Seed()
+		seed, state := session.Game.Seed()
 		err := s.storage.SwipeBoard(ctx, types.SwipePayload{
 			GameID:         session.Game.ID,
 			SwipeDirection: types.SwipeDirection(dir),
 			Moves:          session.Game.Moves(),
 			State:          state,
+			Seed:           seed,
 			Cells:          session.Cells(),
 		})
 		if err != nil {

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -35,7 +36,7 @@ func TestMarshalCells(t *testing.T) {
 				cell.NewCell(3, 4),
 				cell.NewCell(3, 4),
 			},
-			19,
+			24,
 			false,
 		},
 		{
@@ -68,23 +69,31 @@ func TestMarshalCells(t *testing.T) {
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 			},
-			54,
+			62,
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := MarshalCellValues(tt.cells)
+			var seed uint64 = 123
+			var state uint64 = 456
+			got, err := MarshalInternalDataGame(context.TODO(), seed, state, tt.cells)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MarshalCells() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MarshalInternalDataHistory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(len(got), tt.wantSize) {
-				t.Errorf("MarshalCells() = %v, want %v (%v)", len(got), tt.wantSize, got)
+				t.Errorf("MarshalInternalDataHistory() = %v, want %v (%v)", len(got), tt.wantSize, got)
 			}
-			unmarshalled, err := UnmarshalCellValues(got)
+			unmarshalled, gotseed, gotstate, err := UnmarshalInternalDataGame(context.TODO(), got)
 			if err != nil {
 				t.Errorf("failed to unmarshal: %s", err)
+			}
+			if gotseed != seed {
+				t.Errorf("UnmarshalInternalDataHistory() seed is , want %v (%v)", gotseed, seed)
+			}
+			if gotstate != state {
+				t.Errorf("UnmarshalInternalDataHistory() state is , want %v (%v)", gotstate, state)
 			}
 			// The ids do not matter, so we just compare the values
 			uValues := make([]int64, len(unmarshalled))

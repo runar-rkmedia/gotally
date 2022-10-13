@@ -73,9 +73,6 @@ const transportOptions: ConnectTransportOptions = {
 	baseUrl:
 		import.meta.env.VITE_API ||
 		(isHttps ? '/' : import.meta.env.VITE_DEV_API || 'http://localhost:8080/'),
-	...(!!true && {
-		baseUrl: 'http://localhost:8080'
-	}),
 	interceptors: [retrier],
 	useBinaryFormat: browser ? !window.location.search.includes('json=1') : true
 }

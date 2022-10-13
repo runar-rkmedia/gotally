@@ -23,7 +23,8 @@ generate:
 	buf generate
 model:
 	@echo "Attempting to generate model with xo from local development-schema"
-	xo schema mysql://root:secret@localhost:3306/tallyboard 
+	@echo xo schema $$\{DSN\}
+	@xo schema ${DSN}
 buf-watch:
 	fd '' ./proto | entr -r sh -c "make buf-lint && make generate"
 

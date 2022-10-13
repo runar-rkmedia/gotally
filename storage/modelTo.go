@@ -1,15 +1,18 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
+	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/models"
 	"github.com/runar-rkmedia/gotally/types"
 )
 
-func modelToSessionUser(u models.User, s models.Session, activeGame *models.Game, rules *models.Rule) (types.SessionUser, error) {
-	sess, err := modelToSession(s, activeGame, rules)
+func modelToSessionUser(ctx context.Context, u models.User, s models.Session, activeGame *models.Game, rules *models.Rule) (types.SessionUser, error) {
+	sess, err := modelToSession(ctx, s, activeGame, rules)
 	if err != nil {
 		return types.SessionUser{}, err
 	}
@@ -29,7 +32,7 @@ func modelToUser(u models.User) types.User {
 	return session
 }
 
-func modelToSession(s models.Session, activeGame *models.Game, r *models.Rule) (types.Session, error) {
+func modelToSession(ctx context.Context, s models.Session, activeGame *models.Game, r *models.Rule) (types.Session, error) {
 	session := types.Session{
 		ID:           s.ID,
 		CreatedAt:    s.CreatedAt,
@@ -38,7 +41,10 @@ func modelToSession(s models.Session, activeGame *models.Game, r *models.Rule) (
 		InvalidAfter: s.InvalidAfter,
 	}
 	if activeGame != nil {
-		g, err := modelToGame(*activeGame, *r)
+		if r == nil {
+			return session, fmt.Errorf("session has a game associated, but no rules.")
+		}
+		g, err := modelToGame(ctx, *activeGame, *r)
 		if err != nil {
 			return session, err
 		}
@@ -46,8 +52,8 @@ func modelToSession(s models.Session, activeGame *models.Game, r *models.Rule) (
 	}
 	return session, nil
 }
-func modelToGame(s models.Game, r models.Rule) (types.Game, error) {
-	cells, err := UnmarshalCellValues(s.Cells)
+func modelToGame(ctx context.Context, s models.Game, r models.Rule) (types.Game, error) {
+	cells, seed, state, err := UnmarshalInternalDataGame(ctx, s.Data)
 	if err != nil {
 		return types.Game{}, err
 	}
@@ -56,8 +62,8 @@ func modelToGame(s models.Game, r models.Rule) (types.Game, error) {
 		CreatedAt: s.CreatedAt,
 		UpdatedAt: nullTime(s.UpdatedAt),
 		UserID:    s.UserID,
-		Seed:      s.Seed,
-		State:     s.State,
+		Seed:      seed,
+		State:     state,
 		Score:     s.Score,
 		Moves:     s.Moves,
 		PlayState: "",
@@ -130,4 +136,30 @@ func toNullTime(t *time.Time) sql.NullTime {
 		Time:  *t,
 	}
 
+}
+func toGameSwipeDirection(dir tallyv1.SwipeDirection) types.SwipeDirection {
+	switch dir {
+	case tallyv1.SwipeDirection_SWIPE_DIRECTION_UP:
+		return types.SwipeDirectionUp
+	case tallyv1.SwipeDirection_SWIPE_DIRECTION_RIGHT:
+		return types.SwipeDirectionRight
+	case tallyv1.SwipeDirection_SWIPE_DIRECTION_DOWN:
+		return types.SwipeDirectionDown
+	case tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT:
+		return types.SwipeDirectionLeft
+	}
+	return ""
+}
+func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {
+	switch dir {
+	case types.SwipeDirectionUp:
+		return tallyv1.SwipeDirection_SWIPE_DIRECTION_UP
+	case types.SwipeDirectionRight:
+		return tallyv1.SwipeDirection_SWIPE_DIRECTION_RIGHT
+	case types.SwipeDirectionDown:
+		return tallyv1.SwipeDirection_SWIPE_DIRECTION_DOWN
+	case types.SwipeDirectionLeft:
+		return tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT
+	}
+	return tallyv1.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED
 }

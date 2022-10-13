@@ -14,6 +14,7 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	"github.com/cip8/autoname"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
@@ -157,7 +158,6 @@ func Logger(l logger.AppLogger) MiddleWare {
 			if lw.statusCode >= 500 {
 				span := trace.SpanFromContext(r.Context())
 				if lw.collectsBody && len(lw.responseBody) > 0 {
-					fmt.Println("spanny")
 					span.SetAttributes(
 						attribute.String("error.details", string(lw.responseBody)),
 					)
@@ -168,9 +168,9 @@ func Logger(l logger.AppLogger) MiddleWare {
 				} else {
 					l.Error().
 						Int("statusCode", lw.statusCode).
+						Str("responseBody", string(lw.responseBody)).
 						Msg("Outgoing response")
 				}
-				fmt.Println(string(lw.responseBody))
 			} else if lw.statusCode >= 400 {
 				// var result []byte
 				// var resultJson map[string]any
@@ -292,22 +292,19 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 		return func(w http.ResponseWriter, r *http.Request) {
 			l := ContextGetLogger(r.Context())
 
-			// Get a sessionID
 			sessionID := getSessionIDFromRequest(r)
 			now := time.Now()
 			if sessionID == "" {
-				l.Error().Msg("no session-id for request")
-				w.WriteHeader(500)
-				return
+				sessionID = gonanoid.Must()
 
 			}
 
 			// Get the session-state for the user
 			var userState *UserState
 
-			if len(sessionID) == tokenLength {
-				// userState = Store.GetUserState(sessionID)
-			}
+			// if len(sessionID) == tokenLength {
+			// 	userState = Store.GetUserState(sessionID)
+			// }
 			if userState == nil {
 				us, err := store.GetUserBySessionID(r.Context(), types.GetUserPayload{ID: sessionID})
 				if err != nil {
@@ -354,9 +351,30 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					}
 					createdUserSession, err := store.CreateUserSession(r.Context(), payload)
 					if err != nil {
-						l.Error().Err(err).Msg("failed to in CreateUserSession")
+						l.Error().Err(err).Msg("failed in CreateUserSession")
 						w.WriteHeader(500)
 						return
+					}
+					{
+						// sanity-checks. All of these null-checks should have ben handled in store.CreateUserSession
+						// This is just a loud alert to help development
+						// If any of these errors do show up, there is probably something really bad going on, and it is better to stop the serice.
+						if createdUserSession == nil {
+							l.Fatal().Msg("expected createdUserSession to be set")
+							return
+						}
+						if createdUserSession.ActiveGame == nil {
+							l.Fatal().Msg("expected createdUserSession.ActiveGame to be set")
+							return
+						}
+						if createdUserSession.ActiveGame.Rules.ID == "" {
+							l.Fatal().Msg("expected createdUserSession.ActiveGame.Rules.ID to be set")
+							return
+						}
+						if createdUserSession.User.ID == "" {
+							l.Fatal().Msg("expected createdUserSession.User.ID to be set")
+							return
+						}
 					}
 					userState.SessionID = createdUserSession.Session.ID
 					sessionID = createdUserSession.Session.ID

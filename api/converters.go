@@ -41,8 +41,8 @@ func toModalBoard(game *logic.Game) *model.Board {
 	return &model.Board{
 		Id:      game.ID,
 		Cells:   toModalCells(game.Cells()),
-		Columns: int32(game.Rules.SizeX),
-		Rows:    int32(game.Rules.SizeX),
+		Columns: uint32(game.Rules.SizeX),
+		Rows:    uint32(game.Rules.SizeX),
 		Name:    game.Name,
 	}
 }
@@ -74,7 +74,7 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 		Cells:     Game.Cells(),
 		PlayState: types.PlayStateCurrent,
 		Rules: types.Rules{
-			ID:              "",
+			ID:              Game.Rules.ID,
 			CreatedAt:       time.Now(),
 			Description:     "",
 			Rows:            uint8(Game.Rules.SizeY),

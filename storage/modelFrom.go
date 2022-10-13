@@ -1,13 +1,17 @@
 package storage
 
 import (
+	"context"
+	"encoding/binary"
+	"fmt"
+
 	"github.com/runar-rkmedia/gotally/models"
 	"github.com/runar-rkmedia/gotally/types"
 )
 
-func modelFromSessionUser(s types.SessionUser) (models.User, models.Session, *models.Game, *models.Rule, error) {
+func modelFromSessionUser(ctx context.Context, s types.SessionUser) (models.User, models.Session, *models.Game, *models.Rule, error) {
 	mu := modelFromUser(s.User)
-	ms, mg, mr, err := modelFromSession(s.Session)
+	ms, mg, mr, err := modelFromSession(ctx, s.Session)
 	return mu, ms, mg, mr, err
 }
 func modelFromUser(u types.User) models.User {
@@ -20,7 +24,7 @@ func modelFromUser(u types.User) models.User {
 	return user
 }
 
-func modelFromSession(s types.Session) (models.Session, *models.Game, *models.Rule, error) {
+func modelFromSession(ctx context.Context, s types.Session) (models.Session, *models.Game, *models.Rule, error) {
 	ms := models.Session{
 		ID:           s.ID,
 		CreatedAt:    s.CreatedAt,
@@ -31,12 +35,12 @@ func modelFromSession(s types.Session) (models.Session, *models.Game, *models.Ru
 	if s.ActiveGame == nil {
 		return ms, nil, nil, nil
 	}
-	mg, mr, err := modelFromGame(*s.ActiveGame)
+	mg, mr, err := modelFromGame(ctx, *s.ActiveGame)
 	return ms, &mg, &mr, err
 
 }
-func modelFromGame(g types.Game) (models.Game, models.Rule, error) {
-	cells, err := MarshalCellValues(g.Cells)
+func modelFromGame(ctx context.Context, g types.Game) (models.Game, models.Rule, error) {
+	data, err := MarshalInternalDataGame(ctx, g.Seed, g.State, g.Cells)
 	if err != nil {
 		return models.Game{}, models.Rule{}, err
 	}
@@ -46,12 +50,10 @@ func modelFromGame(g types.Game) (models.Game, models.Rule, error) {
 		UpdatedAt: toNullTime(g.UpdatedAt),
 		UserID:    g.UserID,
 		RuleID:    g.Rules.ID,
-		Seed:      g.Seed,
-		State:     g.State,
 		Score:     g.Score,
 		Moves:     g.Moves,
 		PlayState: modelFromPlayState(g.PlayState),
-		Cells:     cells,
+		Data:      data,
 	}
 	mr := modelFromRule(g.Rules)
 	mg.RuleID = mr.ID
@@ -118,4 +120,16 @@ func modelFromPlayState(p types.PlayState) models.PlayState {
 		return models.PlayStateWon
 	}
 	return 0
+}
+
+func uint64ToByteSlice(n uint64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, n)
+	return b
+}
+func byteSliceToUint64(b []byte) (uint64, error) {
+	if len(b) != 8 {
+		return 0, fmt.Errorf("expected byteslice for uin64 to be of length 8, but it was %d", len(b))
+	}
+	return binary.LittleEndian.Uint64(b), nil
 }
