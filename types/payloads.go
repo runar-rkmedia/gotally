@@ -28,6 +28,9 @@ func (p CreateUserSessionPayload) Validate() error {
 	if p.SessionID == "" {
 		return fmt.Errorf("%w: SessionID", ErrArgumentMissing)
 	}
+	if p.Game.Rules.ID == "" {
+		return fmt.Errorf("%w: Game.Rules.ID", ErrArgumentMissing)
+	}
 	if p.InvalidAfter.Before(time.Now()) {
 		return fmt.Errorf("%w: InvalidAfter cannot be in the past", ErrArgumentInvalid)
 	}
@@ -41,6 +44,8 @@ type SwipePayload struct {
 	Moves int
 	// State of any randomizer
 	State uint64
+	//Seed of randomizer
+	Seed  uint64
 	Cells []cell.Cell
 }
 type CombinePathPayload struct {
@@ -51,8 +56,11 @@ type CombinePathPayload struct {
 	Points int
 	// Score total in this game
 	Score uint64
-	// State of any randomizer
+	// State of randomizer
 	State uint64
+	//Seed of randomizer
+	Seed  uint64
+	Path  []uint32
 	Cells []cell.Cell
 }
 type NewGamePayload struct {

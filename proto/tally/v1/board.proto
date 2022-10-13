@@ -6,7 +6,6 @@ option go_package = "github.com/runar-rkmedia/gotally/gen/proto/tally/v1;tallyv1
 
 /* # import "google/type/datetime.proto"; */
 
-
 // Direction for swipe, e.g. the direction one wants to move all the cells into
 enum SwipeDirection {
   // null
@@ -21,12 +20,13 @@ enum SwipeDirection {
   SWIPE_DIRECTION_LEFT = 4;
 }
 enum GameMode {
-	GAME_MODE_UNSPECIFIED = 0;
-  // Cells are generated randomly at start, and each swipe adds another cell to the board.
-	GAME_MODE_RANDOM = 1;
+  GAME_MODE_UNSPECIFIED = 0;
+  // Cells are generated randomly at start, and each swipe adds another cell to
+  // the board.
+  GAME_MODE_RANDOM = 1;
   // Tutorial-like. Can be indexed to start at a specific board.
-	GAME_MODE_TUTORIAL = 2;
-	GAME_MODE_RANDOM_CHALLENGE = 3;
+  GAME_MODE_TUTORIAL = 2;
+  GAME_MODE_RANDOM_CHALLENGE = 3;
 }
 enum Difficulty {
   DIFFICULTY_UNSPECIFIED = 0;
@@ -34,66 +34,70 @@ enum Difficulty {
   DIFFICULTY_MEDIUM = 2;
   DIFFICULTY_HARD = 3;
 }
-// Cell is single value on the board. The value can then be calculated with base * 2^twopow
+// Cell is single value on the board. The value can then be calculated with base
+// * 2^twopow
 message Cell {
   // Base-value
   int64 base = 1;
-  // Pow-value 
+  // Pow-value
   int64 twopow = 2;
   /* string id = 3; */
 }
 
-message CompactCells {
-  repeated int64 cells = 1;
+message InternalDataHistory {
+  uint64 state = 1;
+  Instruction instruction = 2;
+
+  repeated int64 cells = 3;
+}
+message InternalDataGame {
+  uint64 state = 1;
+  uint64 seed = 2;
+  repeated int64 cells = 3;
 }
 message Board {
   repeated Cell cells = 1;
-  int32 columns = 2;
-  int32 rows = 3;
+  uint32 columns = 2;
+  uint32 rows = 3;
   string name = 4;
   string id = 5;
 }
 
-
 message Instruction {
-    oneof instruction_oneof {
-         SwipeDirection swipe = 1;
-         Indexes combine = 2;
-      }
+  oneof instruction_oneof {
+    SwipeDirection swipe = 1;
+    Indexes combine = 2;
   }
+}
 
 enum HintPreference {
-    HINT_PREFERENCE_UNSPECIFIED = 0;
-    // Returns the shortest hint, counting swipes and combines.
-    HINT_PREFERENCE_SHORT = 2;
-    // Returns the hint calculated as giving the highest score
-    HINT_PREFERENCE_HIGHEST_SCORE = 3;
-    // Returns the hint that has the least amount of swipes.
-    HINT_PREFERENCE_MINIMUM_SWIPES = 4;
-    // Return the hint that has the lowest swipes to combine ratio
-    HINT_PREFERENCE_MINIMUM_SWIPES_TO_COMBINE_RATIO = 5;
-    // Return the hint that has the first hint of type combine
-    HINT_PREFERENCE_FIRST_COMBINE= 6;
-  }
+  HINT_PREFERENCE_UNSPECIFIED = 0;
+  // Returns the shortest hint, counting swipes and combines.
+  HINT_PREFERENCE_SHORT = 2;
+  // Returns the hint calculated as giving the highest score
+  HINT_PREFERENCE_HIGHEST_SCORE = 3;
+  // Returns the hint that has the least amount of swipes.
+  HINT_PREFERENCE_MINIMUM_SWIPES = 4;
+  // Return the hint that has the lowest swipes to combine ratio
+  HINT_PREFERENCE_MINIMUM_SWIPES_TO_COMBINE_RATIO = 5;
+  // Return the hint that has the first hint of type combine
+  HINT_PREFERENCE_FIRST_COMBINE = 6;
+}
 
 message GetHintRequest {
   HintPreference hint_preference = 1;
-  int32 max_length = 2;
+  uint32 max_length = 2;
 }
-message GetHintResponse {
-  repeated Instruction instructions = 1;
-}
-message GetSessionRequest {
-}
-message RestartGameRequest {
-}
+message GetHintResponse { repeated Instruction instructions = 1; }
+message GetSessionRequest {}
+message RestartGameRequest {}
 message NewGameRequest {
   GameMode mode = 1;
   oneof variant {
     Difficulty difficulty = 2;
-    int32 level_index = 3;
+    uint32 level_index = 3;
     string id = 4;
-    } 
+  }
 }
 message RestartGameResponse {
   Board board = 1;
@@ -101,24 +105,21 @@ message RestartGameResponse {
   int64 moves = 3;
 }
 
-message GetSessionResponse {
-  Session session = 1;
-}
+message GetSessionResponse { Session session = 1; }
 message NewGameResponse {
   Board board = 1;
   int64 score = 2;
   int64 moves = 3;
 }
 
-message SwipeBoardRequest {
-  SwipeDirection direction = 2;
-}
+message SwipeBoardRequest { SwipeDirection direction = 2; }
 message SwipeBoardResponse {
-  // Indicates whether or not any change was made. 
+  // Indicates whether or not any change was made.
   // This can happen in these scenarios:
   // 1. The board is full.
   // 2. Cell-generating is not active and
-  //    - All the bricks in the direction of which is beeing swiped is already stacked at that edge
+  //    - All the bricks in the direction of which is beeing swiped is already
+  //    stacked at that edge
   //
   // This may be expanded upon with future gamemodes.
   bool did_change = 1;
@@ -127,22 +128,18 @@ message SwipeBoardResponse {
 }
 
 message Coordinate {
-  int32 x = 1;
-  int32 y = 2;
+  uint32 x = 1;
+  uint32 y = 2;
 }
 
-message Indexes {
-  repeated int32 index = 1;
-}
-message SelectionCoordinates {
-  repeated Coordinate coordinate = 1;
-}
+message Indexes { repeated uint32 index = 1; }
+message SelectionCoordinates { repeated Coordinate coordinate = 1; }
 
 message CombineCellsRequest {
   oneof selection {
     Indexes indexes = 1;
     Coordinate coordinate = 2;
-  } 
+  }
 }
 message CombineCellsResponse {
   Board board = 1;
@@ -158,15 +155,15 @@ enum Vote {
   VOTE_OK_3 = 3;
   VOTE_GOOD_4 = 4;
   VOTE_GREAT_5 = 5;
-  }
+}
 
 message VoteBoardRequest {
-  string user_name = 2; 
+  string user_name = 2;
   // How fun the board is to play
   Vote fun_vote = 3;
 }
 message VoteBoardResponse {
-	string id = 1;
+  string id = 1;
   Vote fun_vote = 2;
 }
 

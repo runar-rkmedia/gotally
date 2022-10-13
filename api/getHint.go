@@ -10,11 +10,10 @@ import (
 	"github.com/runar-rkmedia/gotally/tallylogic"
 )
 
-func intsToInt32s(ints []int) []int32 {
-	out := make([]int32, len(ints))
+func intsTouInt32s(ints []int) []uint32 {
+	out := make([]uint32, len(ints))
 	for i := 0; i < len(ints); i++ {
-		out[i] = int32(ints[i])
-
+		out[i] = uint32(ints[i])
 	}
 	return out
 }
@@ -52,7 +51,7 @@ func (s *TallyServer) GetHint(
 				response.Instructions[0] = &model.Instruction{
 					InstructionOneof: &model.Instruction_Combine{
 						Combine: &model.Indexes{
-							Index: intsToInt32s(h.Path),
+							Index: intsTouInt32s(h.Path),
 						},
 					},
 				}
@@ -62,7 +61,7 @@ func (s *TallyServer) GetHint(
 				response.Instructions[0] = &model.Instruction{
 					InstructionOneof: &model.Instruction_Combine{
 						Combine: &model.Indexes{
-							Index: intsToInt32s(h.Path),
+							Index: intsTouInt32s(h.Path),
 						},
 					},
 				}
@@ -172,7 +171,7 @@ func (s *TallyServer) GetHint(
 	}
 	bestInstructions := games[0].History
 	var length int = len(bestInstructions)
-	if req.Msg.MaxLength > 0 && req.Msg.MaxLength < int32(length) {
+	if req.Msg.MaxLength > 0 && req.Msg.MaxLength < uint32(length) {
 		length = int(req.Msg.MaxLength)
 	}
 	response.Instructions = make([]*model.Instruction, length)
@@ -189,7 +188,7 @@ func (s *TallyServer) GetHint(
 			response.Instructions[i] = &model.Instruction{
 				InstructionOneof: &model.Instruction_Combine{
 					Combine: &model.Indexes{
-						Index: intsToInt32s(t),
+						Index: intsTouInt32s(t),
 					},
 				},
 			}

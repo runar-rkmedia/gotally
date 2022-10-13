@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"fmt"
 	"io"
 
@@ -38,53 +39,89 @@ func UnpackCells(m []int64) []cell.Cell {
 	return cells
 }
 
-// Packs, marshals and compresses cellvalues.
-// Note that this ignores other values of the cell, like the ID.
-// The ID normally does not matter, and is only used by clients to track animation across changes.
-func MarshalCellValues(cells []cell.Cell) ([]byte, error) {
+func MarshalInternalDataHistory(ctx context.Context, state uint64, cells []cell.Cell, instruction *protomodel.Instruction) ([]byte, error) {
+	_, span := tracer.Start(ctx, "MarshalInternalDataHistory")
+	defer span.End()
 	packed := PackCells(cells)
-	protocells := protomodel.CompactCells{
-		Cells: packed,
+	protocells := protomodel.InternalDataHistory{
+		Cells:       packed,
+		State:       state,
+		Instruction: instruction,
 	}
 	b, err := proto.Marshal(&protocells)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal protocells: %s", err)
 	}
+	return compressProto(b)
+}
+func MarshalInternalDataGame(ctx context.Context, seed, state uint64, cells []cell.Cell) ([]byte, error) {
+	_, span := tracer.Start(ctx, "MarshalInternalDataGame")
+	defer span.End()
+	packed := PackCells(cells)
+	protocells := protomodel.InternalDataGame{
+		Cells: packed,
+		State: state,
+		Seed:  seed,
+	}
+	b, err := proto.Marshal(&protocells)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal protocells: %s", err)
+	}
+	return compressProto(b)
+}
 
+func compressProto(b []byte) ([]byte, error) {
 	w := bytes.Buffer{}
 	z := zlib.NewWriter(&w)
-	_, err = z.Write(b)
+	_, err := z.Write(b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compress protocells: %s", err)
 	}
 	z.Close()
-
 	zb := w.Bytes()
 	return zb, err
 }
 
-func UnmarshalCellValues(b []byte) ([]cell.Cell, error) {
+func UnmarshalInternalDataHistory(ctx context.Context, b []byte) ([]cell.Cell, uint64, error) {
+	_, span := tracer.Start(ctx, "UnmarshalInternalDataHistory")
+	defer span.End()
+	var j protomodel.InternalDataHistory
+	err := unmarshalCompressedProto(b, &j)
+	if err != nil {
+		return []cell.Cell{}, 0, err
+	}
+	return UnpackCells(j.Cells), j.State, nil
+}
+func UnmarshalInternalDataGame(ctx context.Context, b []byte) ([]cell.Cell, uint64, uint64, error) {
+	_, span := tracer.Start(ctx, "UnmarshalInternalDataGame")
+	defer span.End()
+	var j protomodel.InternalDataGame
+	err := unmarshalCompressedProto(b, &j)
+	if err != nil {
+		return []cell.Cell{}, 0, 0, err
+	}
+	return UnpackCells(j.Cells), j.Seed, j.State, nil
+}
+func unmarshalCompressedProto(b []byte, j proto.Message) error {
 	rb := bytes.NewReader(b)
 	r := bytes.Buffer{}
 	z, err := zlib.NewReader(rb)
 	if err != nil {
-		return []cell.Cell{}, fmt.Errorf("failed to create zlib-reader: %w", err)
+		return fmt.Errorf("failed to create zlib-reader: %w", err)
 	}
 	defer z.Close()
 	_, err = io.Copy(&r, z)
 	if err != nil {
-		return []cell.Cell{}, fmt.Errorf("failed to copy zlib-reader: %w", err)
+		return fmt.Errorf("failed to copy zlib-reader: %w", err)
 	}
-	// n, err := z.Read(b)
 	if err != nil {
-		return []cell.Cell{}, fmt.Errorf("failed to read with zlib: %w", err)
+		return fmt.Errorf("failed to read with zlib: %w", err)
 	}
 	zb := r.Bytes()
 
-	var m protomodel.CompactCells
-	err = proto.Unmarshal(zb, &m)
+	err = proto.Unmarshal(zb, j)
 	if err != nil {
-		return []cell.Cell{}, fmt.Errorf("failed in protobuf-unmarshal: %w", err)
+		return fmt.Errorf("failed in protobuf-unmarshal: %w", err)
 	}
-	return UnpackCells(m.Cells), nil
+	return nil
 }

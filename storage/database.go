@@ -142,37 +142,37 @@ func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload type
 	ctx, span := tracer.Start(ctx, "GetUserBySessionID")
 	defer span.End()
 	s, err := models.SessionByID(ctx, p.db, payload.ID)
-	if err != nil {
+	if sqlOk(err) != nil {
 		return nil, fmt.Errorf("Failed to find session for user by ID: %w", err)
 	}
 	if s == nil {
-		return nil, fmt.Errorf("session was unexpectedly nil")
+		return nil, nil
 	}
-	u, err := s.User(ctx, p.db)
-	if err != nil {
+	u, err := models.UserByID(ctx, p.db, s.UserID)
+	if sqlOk(err) != nil {
 		return nil, fmt.Errorf("Failed to find user from session: %w", err)
 	}
 	if u == nil {
 		return nil, fmt.Errorf("sessions user-object was unexpectedly nil")
 	}
 	if !u.ActiveGameID.Valid {
-		us, err := modelToSessionUser(*u, *s, nil, nil)
+		us, err := modelToSessionUser(ctx, *u, *s, nil, nil)
 		return &us, err
 	}
-	g, err := u.Game(ctx, p.db)
+	g, err := models.GameByID(ctx, p.db, u.ActiveGameID.String)
 	if sqlOk(err) != nil {
 		return nil, fmt.Errorf("Failed to find game for user: %w", err)
 	}
 	if g == nil {
-		us, err := modelToSessionUser(*u, *s, nil, nil)
+		us, err := modelToSessionUser(ctx, *u, *s, nil, nil)
 		return &us, err
 	}
-	r, err := g.Rule(ctx, p.db)
+	r, err := models.RuleByID(ctx, p.db, g.RuleID)
 	if sqlOk(err) != nil {
 		return nil, fmt.Errorf("Failed to find rule for game: %w", err)
 	}
-	us, err := modelToSessionUser(*u, *s, g, r)
-	if err != nil {
+	us, err := modelToSessionUser(ctx, *u, *s, g, r)
+	if sqlOk(err) != nil {
 		return nil, fmt.Errorf("failed to convert model-data to SessionUser: %w", err)
 	}
 	return &us, err
@@ -180,7 +180,10 @@ func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload type
 func (p *persistantStorage) getCachedRule(hash string) *models.Rule {
 	p.ruleCache.RLock()
 	defer p.ruleCache.RUnlock()
-	r := p.ruleCache.rules[hash]
+	r, ok := p.ruleCache.rules[hash]
+	if !ok {
+		return nil
+	}
 	return &r
 }
 func (p *persistantStorage) ensureRuleExists(ctx context.Context, db models.DB, r models.Rule) (*models.Rule, error) {
@@ -229,7 +232,7 @@ func (p *persistantStorage) CreateUserSession(ctx context.Context, payload types
 		return nil, err
 	}
 	user.ActiveGameID = sql.NullString{Valid: true, String: payload.Game.ID}
-	modelGame, modelRule, err := modelFromGame(payload.Game)
+	modelGame, modelRule, err := modelFromGame(ctx, payload.Game)
 	if err != nil {
 		return nil, err
 	}
@@ -237,8 +240,13 @@ func (p *persistantStorage) CreateUserSession(ctx context.Context, payload types
 	// TOOD: only save rule if it does not exist yet.
 	if r, err := p.ensureRuleExists(ctx, tx, modelRule); err != nil {
 		return nil, err
+	} else if r == nil {
+		return nil, fmt.Errorf("failed to ensure the rule-set exists, it returned nil")
+	} else if r.ID == "" {
+		return nil, fmt.Errorf("failed to ensure the rule-set exists, the ID was not set")
 	} else {
 		modelRule = *r
+		modelGame.RuleID = r.ID
 	}
 	if err := modelGame.Insert(ctx, tx); err != nil {
 		return nil, err
@@ -254,7 +262,7 @@ func (p *persistantStorage) CreateUserSession(ctx context.Context, payload types
 	if err := modelGame.Update(ctx, tx); err != nil {
 		return nil, err
 	}
-	session, err := modelToSessionUser(user, sess, &modelGame, &modelRule)
+	session, err := modelToSessionUser(ctx, user, sess, &modelGame, &modelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +304,10 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 		return fmt.Errorf("%w: Moves", ErrArgumentRequired)
 	}
 	if payload.State <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentRequired)
+		return fmt.Errorf("%w: Seed", ErrArgumentRequired)
+	}
+	if payload.Seed <= 0 {
+		return fmt.Errorf("%w: Seed", ErrArgumentRequired)
 	}
 	if payload.SwipeDirection == "" {
 		return fmt.Errorf("%w: SwipeDirection", ErrArgumentRequired)
@@ -308,10 +319,9 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 		CreatedAt: time.Now(),
 		GameID:    payload.GameID,
 		Move:      uint(payload.Moves),
-		// Kind:      models.kind,
-		State:  payload.State,
-		Points: 0,
-		Data:   nil,
+		Points:    0,
+		Kind:      0,
+		Data:      nil,
 	}
 	switch payload.SwipeDirection {
 	case types.SwipeDirectionUp:
@@ -325,7 +335,17 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 	default:
 		return fmt.Errorf("%w: SwipeDirection (%s)", ErrArgumentInvalid, payload.SwipeDirection)
 	}
-	cells, err := MarshalCellValues(payload.Cells)
+	instr := tallyv1.Instruction{
+		InstructionOneof: &tallyv1.Instruction_Swipe{
+			Swipe: toModalDirection(payload.SwipeDirection),
+		},
+	}
+	historyData, err := MarshalInternalDataHistory(ctx, payload.State, payload.Cells, &instr)
+	if err != nil {
+		return fmt.Errorf("%s %w: Cells", err, ErrArgumentInvalid)
+	}
+	h.Data = historyData
+	gameData, err := MarshalInternalDataGame(ctx, payload.Seed, payload.State, payload.Cells)
 	if err != nil {
 		return fmt.Errorf("%s %w: Cells", err, ErrArgumentInvalid)
 	}
@@ -334,8 +354,7 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 		return fmt.Errorf("failed to find game %w", err)
 	}
 	g.Moves++
-	g.Cells = cells
-	g.State = payload.State
+	g.Data = gameData
 	g.UpdatedAt = toNullTimeNonNullable(time.Now())
 	err = g.Update(ctx, tx)
 	if err != nil {
@@ -375,18 +394,28 @@ func (p *persistantStorage) CombinePath(ctx context.Context, payload types.Combi
 	if len(payload.Cells) == 0 {
 		return fmt.Errorf("%w: Cells", ErrArgumentRequired)
 	}
+	instr := tallyv1.Instruction{
+		InstructionOneof: &tallyv1.Instruction_Combine{
+			Combine: &tallyv1.Indexes{
+				Index: payload.Path,
+			},
+		},
+	}
+	dataHistory, err := MarshalInternalDataHistory(ctx, payload.State, payload.Cells, &instr)
+	if err != nil {
+		return fmt.Errorf("%s %w: dataHistory", err, ErrArgumentInvalid)
+	}
+	dataGame, err := MarshalInternalDataGame(ctx, payload.Seed, payload.State, payload.Cells)
+	if err != nil {
+		return fmt.Errorf("%s %w: dataGame", err, ErrArgumentInvalid)
+	}
 	h := models.GameHistory{
 		CreatedAt: time.Now(),
 		GameID:    payload.GameID,
 		Move:      uint(payload.Moves),
-		Kind:      models.KindCombine,
-		State:     payload.State,
 		Points:    payload.Points,
-		Data:      nil,
-	}
-	cells, err := MarshalCellValues(payload.Cells)
-	if err != nil {
-		return fmt.Errorf("%s %w: Cells", err, ErrArgumentInvalid)
+		Kind:      models.KindCombine,
+		Data:      dataHistory,
 	}
 	g, err := models.GameByID(ctx, tx, payload.GameID)
 	if err != nil {
@@ -397,8 +426,7 @@ func (p *persistantStorage) CombinePath(ctx context.Context, payload types.Combi
 		return fmt.Errorf("mismatch between score and points")
 	}
 	g.Score = uint64(payload.Points)
-	g.Cells = cells
-	g.State = payload.State
+	g.Data = dataGame
 	g.UpdatedAt = toNullTimeNonNullable(time.Now())
 	err = g.Update(ctx, tx)
 	if err != nil {
@@ -453,7 +481,7 @@ func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.Ne
 	}
 
 	if u.ActiveGameID.Valid {
-		activeGame, err := u.Game(ctx, tx)
+		activeGame, err := models.GameByID(ctx, tx, u.ActiveGameID.String)
 		if err != nil {
 			return tg, fmt.Errorf("failed to to retrieve activegame for user %w", err)
 		}
@@ -466,7 +494,7 @@ func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.Ne
 			}
 		}
 	}
-	modelGame, modelRules, err := modelFromGame(payload.Game)
+	modelGame, modelRules, err := modelFromGame(ctx, payload.Game)
 	if err != nil {
 		return tg, err
 	}
@@ -488,7 +516,7 @@ func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.Ne
 	if err != nil {
 		return tg, fmt.Errorf("failed to update userut: %w", err)
 	}
-	tg, err = modelToGame(modelGame, modelRules)
+	tg, err = modelToGame(ctx, modelGame, modelRules)
 	if err != nil {
 		return tg, err
 	}
