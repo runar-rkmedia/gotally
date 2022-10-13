@@ -73,10 +73,6 @@ func isSecureRequest(r *http.Request) (bool, string) {
 
 }
 
-var (
-	name = "foobar"
-)
-
 func StartServer() {
 	logger.InitLogger(logger.LogConfig{
 		Level:      "debug",

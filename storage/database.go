@@ -66,10 +66,7 @@ func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, e
 		DisableErrSkip: true,
 		DisableQuery:   false,
 		RecordError: func(err error) bool {
-			if err == sql.ErrNoRows {
-				return false
-			}
-			return true
+			return !errors.Is(err, sql.ErrNoRows)
 		},
 		OmitConnResetSession: false,
 		OmitConnPrepare:      false,

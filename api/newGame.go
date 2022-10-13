@@ -63,6 +63,9 @@ func (s *TallyServer) NewGame(
 	}
 	game.ID = tg.ID
 	game, err = tallylogic.RestoreGame(&tg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to restore game: %w", err)
+	}
 	session.Game = game
 	session.GameSnapshotAtStart = game.Copy()
 	Store.SetUserState(session)

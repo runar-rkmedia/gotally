@@ -101,22 +101,22 @@ func modelToRuleMode(m models.Mode) types.RuleMode {
 	return ""
 }
 
-func modelToPlayState(m models.NullPlayState) types.PlayState {
-	if !m.Valid {
-		return ""
-	}
-	switch m.PlayState {
-	case models.PlayStateAbandoned:
-		return types.PlayStateAbandoned
-	case models.PlayStateCurrent:
-		return types.PlayStateCurrent
-	case models.PlayStateLost:
-		return types.PlayStateLost
-	case models.PlayStateWon:
-		return types.PlayStateWon
-	}
-	return ""
-}
+// func modelToPlayState(m models.NullPlayState) types.PlayState {
+// 	if !m.Valid {
+// 		return ""
+// 	}
+// 	switch m.PlayState {
+// 	case models.PlayStateAbandoned:
+// 		return types.PlayStateAbandoned
+// 	case models.PlayStateCurrent:
+// 		return types.PlayStateCurrent
+// 	case models.PlayStateLost:
+// 		return types.PlayStateLost
+// 	case models.PlayStateWon:
+// 		return types.PlayStateWon
+// 	}
+// 	return ""
+// }
 
 func nullTime(t sql.NullTime) *time.Time {
 	if !t.Valid {
@@ -137,19 +137,20 @@ func toNullTime(t *time.Time) sql.NullTime {
 	}
 
 }
-func toGameSwipeDirection(dir tallyv1.SwipeDirection) types.SwipeDirection {
-	switch dir {
-	case tallyv1.SwipeDirection_SWIPE_DIRECTION_UP:
-		return types.SwipeDirectionUp
-	case tallyv1.SwipeDirection_SWIPE_DIRECTION_RIGHT:
-		return types.SwipeDirectionRight
-	case tallyv1.SwipeDirection_SWIPE_DIRECTION_DOWN:
-		return types.SwipeDirectionDown
-	case tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT:
-		return types.SwipeDirectionLeft
-	}
-	return ""
-}
+
+//	func toGameSwipeDirection(dir tallyv1.SwipeDirection) types.SwipeDirection {
+//		switch dir {
+//		case tallyv1.SwipeDirection_SWIPE_DIRECTION_UP:
+//			return types.SwipeDirectionUp
+//		case tallyv1.SwipeDirection_SWIPE_DIRECTION_RIGHT:
+//			return types.SwipeDirectionRight
+//		case tallyv1.SwipeDirection_SWIPE_DIRECTION_DOWN:
+//			return types.SwipeDirectionDown
+//		case tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT:
+//			return types.SwipeDirectionLeft
+//		}
+//		return ""
+//	}
 func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {
 	switch dir {
 	case types.SwipeDirectionUp:
