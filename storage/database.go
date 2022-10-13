@@ -8,21 +8,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	_ "github.com/go-sql-driver/mysql"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/rs/zerolog/log"
+	"github.com/runar-rkmedia/go-common/logger"
+	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/models"
 	"github.com/runar-rkmedia/gotally/types"
 	"github.com/xo/dburl"
-	"github.com/xo/dburl/passfile"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"golang.org/x/net/context"
 )
 
 // NOTE: sqlboiler does not seem to be a perfect match here.
 // I'm thinking of switching to https://docs.sqlc.dev/en/latest/tutorials/getting-started-postgresql.html
 
-func NewPersistantStorage(dsn string) (*persistantStorage, error) {
+func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, error) {
 	if dsn == "" {
 		dsn = os.Getenv("DSN")
 	}
@@ -38,15 +42,57 @@ func NewPersistantStorage(dsn string) (*persistantStorage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse dsn-string: %w", err)
 	}
+	if l.HasDebug() {
+		l.Debug().
+			Str("host", u.Host).
+			Str("user", u.User.Username()).
+			Str("scheme", u.Scheme).
+			Str("driver", u.Driver).
+			Str("redacted", u.Redacted()).
+			Msg("Attempting to connect to database with these details (some are hidden)")
+	}
+	// db, err := passfile.OpenURL(u, ".", "db")
+	var attr attribute.KeyValue
+	switch u.Driver {
+	case "mysql":
+		attr = semconv.DBSystemMySQL
+	default:
+		l.Warn().Str("driver", u.Driver).Msg("unmapped driver-attribute for opentelemetry")
+	}
 
-	db, err := passfile.OpenURL(u, ".", "db")
+	db, err := otelsql.Open(u.Driver, u.DSN, otelsql.WithAttributes(attr), otelsql.WithSpanOptions(otelsql.SpanOptions{
+		Ping:           true,
+		RowsNext:       false,
+		DisableErrSkip: true,
+		DisableQuery:   false,
+		RecordError: func(err error) bool {
+			if err == sql.ErrNoRows {
+				return false
+			}
+			return true
+		},
+		OmitConnResetSession: false,
+		OmitConnPrepare:      false,
+		OmitConnQuery:        false,
+		OmitRows:             false,
+		OmitConnectorConnect: false,
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("failed during passfile.OpenUrl: %w", err)
 	}
+	if l.HasDebug() {
+		l.Debug().
+			Msg("Successfully connected to database")
+	}
+
 	err = db.Ping()
 	if err != nil {
 		return nil, err
 
+	}
+	err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attr))
+	if err != nil {
+		return nil, err
 	}
 	p := &persistantStorage{
 		db,
