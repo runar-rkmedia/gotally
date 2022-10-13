@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/XSAM/otelsql"
@@ -93,10 +92,7 @@ func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, e
 	}
 	p := &persistantStorage{
 		db,
-		ruleCache{
-			make(map[string]models.Rule),
-			sync.RWMutex{},
-		},
+		newRuleCache(),
 	}
 
 	err = p.fetchRules(context.TODO())
@@ -108,10 +104,6 @@ func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, e
 
 }
 
-type ruleCache struct {
-	rules map[string]models.Rule
-	sync.RWMutex
-}
 type persistantStorage struct {
 	db        *sql.DB
 	ruleCache ruleCache
@@ -174,17 +166,8 @@ func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload type
 	}
 	return &us, err
 }
-func (p *persistantStorage) getCachedRule(hash string) *models.Rule {
-	p.ruleCache.RLock()
-	defer p.ruleCache.RUnlock()
-	r, ok := p.ruleCache.rules[hash]
-	if !ok {
-		return nil
-	}
-	return &r
-}
 func (p *persistantStorage) ensureRuleExists(ctx context.Context, db models.DB, r models.Rule) (*models.Rule, error) {
-	existing := p.getCachedRule(r.Slug)
+	existing := p.ruleCache.getCachedRule(r.Slug)
 	if existing != nil {
 		return existing, nil
 	}
@@ -445,11 +428,7 @@ func (p *persistantStorage) fetchRules(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	p.ruleCache.Lock()
-	defer p.ruleCache.Unlock()
-	for i := 0; i < len(rules); i++ {
-		p.ruleCache.rules[rules[i].Slug] = rules[i]
-	}
+	p.ruleCache.addRulesToCache(rules)
 	return nil
 }
 func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error) {
