@@ -6,6 +6,7 @@ import (
 	"net/http/pprof"
 	"strings"
 
+	"github.com/carlmjohnson/versioninfo"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/gen/proto/tally/v1/tallyv1connect"
@@ -125,7 +126,12 @@ func StartServer() {
 	mux.Handle("/", http.StripPrefix("/", web.StaticWebHandler()))
 	// mux.Handle("/", web.StaticWebHandler())
 	address := "localhost:" + port
-	baseLogger.Info().Str("address", "http://"+address+path).Msg("Starting server")
+	baseLogger.Info().
+		Str("address", "http://"+address+path).
+		Str("version", versioninfo.Version).
+		Bool("dirtyBuild", versioninfo.DirtyBuild).
+		Str("revision", versioninfo.Revision).
+		Msg("Starting server")
 	if err := http.ListenAndServe(
 		"0.0.0.0:"+port,
 		h2c.NewHandler(
@@ -143,7 +149,7 @@ type TallyServer struct {
 }
 
 func NewTallyServer(l logger.AppLogger) TallyServer {
-	db, err := storage.NewPersistantStorage("")
+	db, err := storage.NewPersistantStorage(logger.GetLogger("database"), "")
 	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
