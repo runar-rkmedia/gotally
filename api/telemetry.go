@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -24,14 +25,29 @@ func initializeOpenTelemetry(l logger.AppLogger) func() {
 		env = "development"
 		version = "v0.0.1-dev"
 	}
+	if v := os.Getenv("OTEL_VALUE_DEPLOYMENT_ENVIRONMENT"); v != "" {
+		env = v
+	}
+	fmt.Println("version", version)
+	version = strings.TrimPrefix(version, "v")
+	// os.en
 	attr := []attribute.KeyValue{
 		semconv.ServiceVersionKey.String(version),
-		attribute.String("environment", env),
+		semconv.DeploymentEnvironmentKey.String(env),
+	}
+	if versioninfo.Revision != "unknown" && versioninfo.Revision != "" {
+		attr = append(attr, attribute.String("vcs.revision", versioninfo.Revision))
 	}
 	attributes := make(map[string]string, len(attr))
+
 	for _, v := range attr {
 		attributes[string(v.Key)] = v.Value.AsString()
+	}
 
+	if l.HasDebug() {
+		l.Debug().
+			Interface("attributes", attributes).
+			Msg("static attributes set")
 	}
 
 	// use honeycomb distro to setup OpenTelemetry SDK

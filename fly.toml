@@ -10,6 +10,7 @@ strategy = "rolling"
 
 [env]
 OTEL_SERVICE_NAME = "gotally"
+OTEL_ENVIRONMENT_NAME = "production"
 # HONEYCOMB_API_KEY="set-with-fly-secret"
 # DSN="set-with-fly-secret"
 

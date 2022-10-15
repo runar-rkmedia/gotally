@@ -19,6 +19,7 @@ import (
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
 	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -291,6 +292,8 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 		// idgenerator := mustCreateUUidgenerator()
 		return func(w http.ResponseWriter, r *http.Request) {
 			l := ContextGetLogger(r.Context())
+			ctx := r.Context()
+			span := trace.SpanFromContext(ctx)
 
 			sessionID := getSessionIDFromRequest(r)
 			now := time.Now()
@@ -306,7 +309,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 			// 	userState = Store.GetUserState(sessionID)
 			// }
 			if userState == nil {
-				us, err := store.GetUserBySessionID(r.Context(), types.GetUserPayload{ID: sessionID})
+				us, err := store.GetUserBySessionID(ctx, types.GetUserPayload{ID: sessionID})
 				if err != nil {
 					l.Error().Str("sessionID", sessionID).Err(err).Msg("failed to lookup user by session-id")
 					_, err := w.Write([]byte("failed to lookup user by session-id"))
@@ -410,6 +413,9 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 				}
 				http.SetCookie(w, cookie)
 			}
+			span.SetAttributes(
+				semconv.EnduserIDKey.String(userState.UserID),
+			)
 			r = r.WithContext(context.WithValue(r.Context(), ContextKeyUserState, userState))
 			next.ServeHTTP(w, r)
 		}
