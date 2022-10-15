@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/text/cases"
@@ -204,6 +206,14 @@ func ContextGetLogger(ctx context.Context) logger.AppLogger {
 
 	return v.(logger.AppLogger)
 }
+
+type s struct {
+	Code    connect.Code `json:"code"`
+	Message string       `json:"message"`
+	Details []any        `json:"details,omitempty"`
+	Stack   string       `json:"stack"`
+}
+
 func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -211,14 +221,16 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 			defer func() {
 
 				if panickedErr := recover(); panickedErr != nil {
+					var parsedErr error
+					if err, ok := panickedErr.(error); ok {
+						parsedErr = err
+					} else if err, ok := panickedErr.(string); ok {
+						parsedErr = errors.New(err)
+					} else {
+						parsedErr = fmt.Errorf("panic(%T): %#v", panickedErr, panickedErr)
+					}
 					span := trace.SpanFromContext(r.Context())
 					w.WriteHeader(http.StatusBadGateway)
-					type s struct {
-						Code    connect.Code `json:"code"`
-						Message string       `json:"message"`
-						Details []any        `json:"details,omitempty"`
-						Stack   string       `json:"stack"`
-					}
 					// l := ContextGetLogger()
 					cess := s{
 						Code:    connect.CodeInternal,
@@ -229,14 +241,19 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 						stack := make([]byte, 4096)
 						j := runtime.Stack(stack, false)
 						cess.Stack = string(stack[:j])
-						span.SetAttributes(
-							attribute.String("panic.stack", cess.Stack),
-						)
+						span.SetStatus(codes.Error, "panic")
+						span.RecordError(parsedErr, trace.WithStackTrace(true))
+						if logger.IsInteractiveTTY() {
+							// Just to simplify reading the stacktrace while developing
+							println(cess.Stack)
+						}
+
 					}
 
 					l.Error().
+						Err(parsedErr).
 						Interface("panickedErr", panickedErr).
-						Interface("error", cess).
+						Interface("errorC", cess).
 						Msg("panic")
 
 					if panickedErr != nil {
@@ -350,6 +367,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					userState = &us
 
 					payload := types.CreateUserSessionPayload{
+						UserID:       userState.UserID,
 						SessionID:    sessionID,
 						InvalidAfter: now.Add(options.SessionLifeTime),
 						Username:     userState.UserName,
@@ -357,7 +375,9 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					}
 					createdUserSession, err := store.CreateUserSession(r.Context(), payload)
 					if err != nil {
-						l.Error().Err(err).Msg("failed in CreateUserSession")
+						l.Error().Err(err).
+							Interface("payload", payload).
+							Msg("failed in CreateUserSession")
 						w.WriteHeader(500)
 						return
 					}

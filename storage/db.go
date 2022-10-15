@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/XSAM/otelsql"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -17,12 +16,13 @@ import (
 )
 
 func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, error) {
-	if dsn == "" {
-		dsn = os.Getenv("DSN")
-	}
+	// if dsn == "" {
+	// 	dsn = os.Getenv("DSN")
+	// }
 	if dsn == "" {
 		// database for local development, don't worry, this is not the password I use for everything, I swear!
-		dsn = "my://root:secret@localhost/tallyboard"
+		// dsn = "my://root:secret@localhost/tallyboard"
+		dsn = "sqlite:./data/db.sqlite"
 	}
 
 	models.SetErrorLogger(log.Logger)
@@ -35,6 +35,7 @@ func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, err
 	if l.HasDebug() {
 		l.Debug().
 			Str("host", u.Host).
+			Str("path", u.Path).
 			Str("user", u.User.Username()).
 			Str("scheme", u.Scheme).
 			Str("driver", u.Driver).
@@ -46,6 +47,8 @@ func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, err
 	switch u.Driver {
 	case "mysql":
 		attr = semconv.DBSystemMySQL
+	case "sqlite3":
+		attr = semconv.DBSystemSqlite
 	default:
 		l.Warn().Str("driver", u.Driver).Msg("unmapped driver-attribute for opentelemetry")
 	}
@@ -65,7 +68,7 @@ func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, err
 		OmitConnectorConnect: false,
 	}))
 	if err != nil {
-		return nil, fmt.Errorf("failed during passfile.OpenUrl: %w", err)
+		return nil, fmt.Errorf("failed in open db from url: %w", err)
 	}
 	if l.HasDebug() {
 		l.Debug().
@@ -92,12 +95,16 @@ func sqlOk(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, sql.ErrNoRows) {
+	if errIsSqlNoRows(err) {
 		return nil
 	}
 	return err
 }
+func errIsSqlNoRows(err error) bool {
+	return errors.Is(err, sql.ErrNoRows)
+}
 
 var (
-	tracer = otel.Tracer("database")
+	tracerMysql  = otel.Tracer("database")
+	tracerSqlite = otel.Tracer("sqlite")
 )

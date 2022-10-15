@@ -16,6 +16,8 @@ func (s *TallyServer) GetSession(
 	session := ContextGetUserState(ctx)
 	response := &model.GetSessionResponse{
 		Session: &model.Session{
+			SessionId: session.SessionID,
+			Username:  session.UserName,
 			Game: &model.Game{
 				Board:       toModalBoard(&session.Game),
 				Score:       session.Game.Score(),

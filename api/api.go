@@ -144,8 +144,19 @@ type TallyServer struct {
 	l            logger.AppLogger
 }
 
-func NewTallyServer(l logger.AppLogger) TallyServer {
-	db, err := storage.NewPersistantStorage(logger.GetLogger("database"), "")
+type TallyOptions struct {
+	// Connection-string for the database
+	DatabaseDSN string
+}
+
+func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
+	opt := TallyOptions{}
+	for _, o := range options {
+		if o.DatabaseDSN != "" {
+			opt.DatabaseDSN = o.DatabaseDSN
+		}
+	}
+	db, err := storage.NewSqliteStorage(logger.GetLogger("database"), opt.DatabaseDSN)
 	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
@@ -155,7 +166,5 @@ func NewTallyServer(l logger.AppLogger) TallyServer {
 		UidGenerator: mustCreateUUidgenerator(),
 		storage:      db,
 	}
-
 	return ts
-
 }

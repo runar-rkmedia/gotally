@@ -11,11 +11,12 @@ require (
 	github.com/honeycombio/opentelemetry-go-contrib/launcher v0.0.0-20220824095536-e0b3dd3fbfe7
 	github.com/jfyne/live v0.15.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/pelletier/go-toml/v2 v2.0.5
 	github.com/prometheus/client_golang v1.13.0
 	github.com/pyroscope-io/client v0.3.0
 	github.com/rs/zerolog v1.28.0
-	github.com/runar-rkmedia/go-common v0.0.7
+	github.com/runar-rkmedia/go-common v0.0.9
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.36.1
 	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/trace v1.10.0

@@ -38,7 +38,6 @@ func modelToSession(ctx context.Context, s models.Session, activeGame *models.Ga
 		ID:           s.ID,
 		CreatedAt:    s.CreatedAt,
 		UserID:       s.UserID,
-		UpdatedAt:    nullTime(s.UpdatedAt),
 		InvalidAfter: s.InvalidAfter,
 	}
 	if activeGame != nil {

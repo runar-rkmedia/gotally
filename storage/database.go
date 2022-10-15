@@ -42,7 +42,7 @@ func NewPersistantStorage(l logger.AppLogger, dsn string) (*persistantStorage, e
 }
 
 func (p *persistantStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (*types.SessionUser, error) {
-	ctx, span := tracer.Start(ctx, "GetUserBySessionID")
+	ctx, span := tracerMysql.Start(ctx, "GetUserBySessionID")
 	defer span.End()
 	s, err := models.SessionByID(ctx, p.db, payload.ID)
 	if sqlOk(err) != nil {
@@ -92,7 +92,7 @@ func (p *persistantStorage) ensureRuleExists(ctx context.Context, db models.DB, 
 	return created, nil
 }
 func (p *persistantStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (*types.SessionUser, error) {
-	ctx, span := tracer.Start(ctx, "CreateUserSession")
+	ctx, span := tracerMysql.Start(ctx, "CreateUserSession")
 	defer span.End()
 	err := payload.Validate()
 	if err != nil {
@@ -184,30 +184,15 @@ func parse(dsn string) (*dburl.URL, error) {
 	return v, nil
 }
 func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipePayload) error {
-	ctx, span := tracer.Start(ctx, "SwipeBoard")
+	ctx, span := tracerMysql.Start(ctx, "SwipeBoard")
 	defer span.End()
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if payload.GameID == "" {
-		return fmt.Errorf("%w: GameId", ErrArgumentRequired)
-	}
-	if payload.Moves <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentRequired)
-	}
-	if payload.State <= 0 {
-		return fmt.Errorf("%w: Seed", ErrArgumentRequired)
-	}
-	if payload.Seed <= 0 {
-		return fmt.Errorf("%w: Seed", ErrArgumentRequired)
-	}
-	if payload.SwipeDirection == "" {
-		return fmt.Errorf("%w: SwipeDirection", ErrArgumentRequired)
-	}
-	if len(payload.Cells) == 0 {
-		return fmt.Errorf("%w: Cells", ErrArgumentRequired)
+	if err := payload.Validate(); err != nil {
+		return err
 	}
 	h := models.GameHistory{
 		CreatedAt: time.Now(),
@@ -263,30 +248,15 @@ func (p *persistantStorage) SwipeBoard(ctx context.Context, payload types.SwipeP
 	return err
 }
 func (p *persistantStorage) CombinePath(ctx context.Context, payload types.CombinePathPayload) error {
-	ctx, span := tracer.Start(ctx, "CombinePath")
+	ctx, span := tracerMysql.Start(ctx, "CombinePath")
 	defer span.End()
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if payload.GameID == "" {
-		return fmt.Errorf("%w: GameId", ErrArgumentRequired)
-	}
-	if payload.Moves <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentRequired)
-	}
-	if payload.Points == 0 {
-		return fmt.Errorf("%w: Points", ErrArgumentRequired)
-	}
-	if payload.Score == 0 {
-		return fmt.Errorf("%w: Score", ErrArgumentRequired)
-	}
-	if payload.State == 0 {
-		return fmt.Errorf("%w: State", ErrArgumentRequired)
-	}
-	if len(payload.Cells) == 0 {
-		return fmt.Errorf("%w: Cells", ErrArgumentRequired)
+	if err := payload.Validate(); err != nil {
+		return err
 	}
 	instr := tallyv1.Instruction{
 		InstructionOneof: &tallyv1.Instruction_Combine{
@@ -336,7 +306,7 @@ func (p *persistantStorage) CombinePath(ctx context.Context, payload types.Combi
 }
 
 func (p *persistantStorage) fetchRules(ctx context.Context) error {
-	ctx, span := tracer.Start(ctx, "fetchRules")
+	ctx, span := tracerMysql.Start(ctx, "fetchRules")
 	defer span.End()
 	rules, err := models.GetAllRules(ctx, p.db)
 	if err != nil {
@@ -346,7 +316,7 @@ func (p *persistantStorage) fetchRules(ctx context.Context) error {
 	return nil
 }
 func (p *persistantStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error) {
-	ctx, span := tracer.Start(ctx, "NewGameForUser")
+	ctx, span := tracerMysql.Start(ctx, "NewGameForUser")
 	defer span.End()
 	tg := types.Game{}
 	tx, err := p.db.BeginTx(ctx, nil)

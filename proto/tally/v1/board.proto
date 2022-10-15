@@ -67,6 +67,7 @@ message Instruction {
   oneof instruction_oneof {
     SwipeDirection swipe = 1;
     Indexes combine = 2;
+    bytes bytes = 3;
   }
 }
 

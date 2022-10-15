@@ -21,6 +21,9 @@ deps:
 	@cd frontend && npm install
 generate:
 	buf generate
+sqlc:
+	sqlc generate
+	cp ./schema-sqlite.sql ./sqlite/schema.sql
 model:
 	@echo "Attempting to generate model with xo from local development-schema"
 	@echo xo schema $$\{DSN\}
