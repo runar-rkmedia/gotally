@@ -28,17 +28,20 @@ func (s *TallyServer) SwipeBoard(
 	}
 	if response.DidChange {
 		seed, state := session.Game.Seed()
-		err := s.storage.SwipeBoard(ctx, types.SwipePayload{
+		payload := types.SwipePayload{
+
 			GameID:         session.Game.ID,
 			SwipeDirection: types.SwipeDirection(dir),
 			Moves:          session.Game.Moves(),
 			State:          state,
 			Seed:           seed,
 			Cells:          session.Cells(),
-		})
+		}
+		err := s.storage.SwipeBoard(ctx, payload)
 		if err != nil {
 			s.l.Error().
 				Err(err).
+				Interface("payload", payload).
 				Msg("failed to save the board to storage during swipe-operation")
 			// rollback the game in memory
 			session.Game = gameCopy

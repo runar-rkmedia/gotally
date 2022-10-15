@@ -1,9 +1,9 @@
 package api
 
 import (
-	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/carlmjohnson/versioninfo"
 	_ "github.com/honeycombio/honeycomb-opentelemetry-go"
@@ -28,12 +28,12 @@ func initializeOpenTelemetry(l logger.AppLogger) func() {
 	if v := os.Getenv("OTEL_VALUE_DEPLOYMENT_ENVIRONMENT"); v != "" {
 		env = v
 	}
-	fmt.Println("version", version)
 	version = strings.TrimPrefix(version, "v")
 	// os.en
 	attr := []attribute.KeyValue{
 		semconv.ServiceVersionKey.String(version),
 		semconv.DeploymentEnvironmentKey.String(env),
+		attribute.String("service.started_at", time.Now().String()),
 	}
 	if versioninfo.Revision != "unknown" && versioninfo.Revision != "" {
 		attr = append(attr, attribute.String("vcs.revision", versioninfo.Revision))

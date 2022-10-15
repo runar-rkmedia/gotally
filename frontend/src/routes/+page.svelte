@@ -242,6 +242,11 @@
 				<div class="score">
 					Score: {$store.session.game.score}
 				</div>
+				{#if $store.session.username}
+					<div class="username" style="float: right;padding-inline-end: var(--size-4);">
+						Username: {$store.session.username}
+					</div>
+				{/if}
 				<small class="boardName" title={$store.session.game.board.id}
 					>{$store.session.game.board.name}</small
 				>

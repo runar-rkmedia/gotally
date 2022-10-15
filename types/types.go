@@ -19,11 +19,11 @@ type Vote struct {
 type Session struct {
 	ID        string
 	CreatedAt time.Time
-	UpdatedAt *time.Time
 
 	UserID       string
 	InvalidAfter time.Time
-	ActiveGame   *Game
+	// TODO: move this to the user to keep things logical
+	ActiveGame *Game
 }
 
 type SessionUser struct {

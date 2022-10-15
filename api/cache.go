@@ -51,6 +51,7 @@ func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, s
 	m := UserState{
 		SessionID: sessionID,
 		UserName:  GenerateNameForUser(),
+		UserID:    gonanoid.Must(),
 	}
 	if m.SessionID == "" {
 		return m, fmt.Errorf("SessionID not set")

@@ -60,13 +60,15 @@ func (s *TallyServer) CombineCells(
 		}
 		return nil, cerr
 	}
-	_, state := session.Game.Seed()
+	seed, state := session.Game.Seed()
 	err := s.storage.CombinePath(ctx, types.CombinePathPayload{
 		GameID: session.Game.ID,
 		Moves:  session.Game.Moves(),
 		Points: int(session.Game.Score() - gameCopy.Score()),
 		Score:  uint64(session.Game.Score()),
 		State:  state,
+		Seed:   seed,
+		Path:   req.Msg.GetIndexes().Index,
 		Cells:  session.Game.Cells(),
 	})
 	if err != nil {

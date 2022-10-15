@@ -55,7 +55,7 @@ const retrier: Interceptor =
 			if (err instanceof Error) {
 				httpErrorStore.update((e) => ({
 					...e,
-					errors: [...e.errors, { time: new Date(), error: err }]
+					errors: [{ time: new Date(), error: err }]
 				}))
 				if (err.message.includes('NetworkError')) {
 					const waitPeriod = Math.min(100 * retries, 3000)

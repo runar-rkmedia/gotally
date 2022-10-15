@@ -14,6 +14,7 @@ type GetUserPayload struct {
 type CreateUserSessionPayload struct {
 	InvalidAfter time.Time
 	SessionID    string
+	UserID       string
 	Username     string
 	Game         Game
 }
@@ -21,6 +22,9 @@ type CreateUserSessionPayload struct {
 func (p CreateUserSessionPayload) Validate() error {
 	if p.Game.ID == "" {
 		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
+	}
+	if p.UserID == "" {
+		return fmt.Errorf("%w: User.ID", ErrArgumentMissing)
 	}
 	if p.Username == "" {
 		return fmt.Errorf("%w: Username", ErrArgumentMissing)
@@ -48,6 +52,30 @@ type SwipePayload struct {
 	Seed  uint64
 	Cells []cell.Cell
 }
+
+func (p SwipePayload) Validate() error {
+
+	if p.GameID == "" {
+		return fmt.Errorf("%w: GameId", ErrArgumentMissing)
+	}
+	if p.Moves <= 0 {
+		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
+	}
+	if p.State <= 0 {
+		return fmt.Errorf("%w: Seed", ErrArgumentMissing)
+	}
+	if p.Seed <= 0 {
+		return fmt.Errorf("%w: Seed", ErrArgumentMissing)
+	}
+	if p.SwipeDirection == "" {
+		return fmt.Errorf("%w: SwipeDirection", ErrArgumentMissing)
+	}
+	if len(p.Cells) == 0 {
+		return fmt.Errorf("%w: Cells", ErrArgumentMissing)
+	}
+	return nil
+}
+
 type CombinePathPayload struct {
 	GameID string
 	// Index for this move.
@@ -63,6 +91,35 @@ type CombinePathPayload struct {
 	Path  []uint32
 	Cells []cell.Cell
 }
+
+func (payload CombinePathPayload) Validate() error {
+	if payload.GameID == "" {
+		return fmt.Errorf("%w: GameId", ErrArgumentMissing)
+	}
+	if payload.Moves <= 0 {
+		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
+	}
+	if payload.Points == 0 {
+		return fmt.Errorf("%w: Points", ErrArgumentMissing)
+	}
+	if payload.Score == 0 {
+		return fmt.Errorf("%w: Score", ErrArgumentMissing)
+	}
+	if payload.State == 0 {
+		return fmt.Errorf("%w: State", ErrArgumentMissing)
+	}
+	if payload.Seed == 0 {
+		return fmt.Errorf("%w: Seed", ErrArgumentMissing)
+	}
+	if len(payload.Cells) == 0 {
+		return fmt.Errorf("%w: Cells", ErrArgumentMissing)
+	}
+	if len(payload.Path) == 0 {
+		return fmt.Errorf("%w: Path", ErrArgumentMissing)
+	}
+	return nil
+}
+
 type NewGamePayload struct {
 	Game Game
 }
