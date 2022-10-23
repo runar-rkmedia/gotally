@@ -139,20 +139,21 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 	}
 	rule, err := p.ensureRuleExists(ctx, q, payload.Game.Rules)
 	if err != nil {
-		return nil, fmt.Errorf("failed in ensureRuleExists")
+		return nil, fmt.Errorf("failed in ensureRuleExists: %w", err)
 	} else if rule.ID == "" {
 		return nil, fmt.Errorf("failed to ensure the rule-set exists, the ID was not set")
 	}
 	insertGameParams := sqlite.InsertGameParams{
-		ID:        modelGame.ID,
-		CreatedAt: modelGame.CreatedAt,
-		UpdatedAt: modelGame.UpdatedAt,
-		UserID:    createdUser.ID,
-		RuleID:    rule.ID,
-		Score:     int64(modelGame.Score),
-		Moves:     int64(modelGame.Moves),
-		PlayState: playState,
-		Data:      modelGame.Data,
+		ID:          modelGame.ID,
+		CreatedAt:   modelGame.CreatedAt,
+		UpdatedAt:   modelGame.UpdatedAt,
+		UserID:      createdUser.ID,
+		RuleID:      rule.ID,
+		Score:       int64(modelGame.Score),
+		Moves:       int64(modelGame.Moves),
+		Description: sqlString(payload.Game.Description),
+		PlayState:   playState,
+		Data:        modelGame.Data,
 	}
 	createdGame, err := q.InsertGame(ctx, insertGameParams)
 	if err != nil {
@@ -177,7 +178,7 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 			ID:              rule.ID,
 			CreatedAt:       rule.CreatedAt,
 			UpdatedAt:       &rule.UpdatedAt.Time,
-			Description:     rule.Description,
+			Description:     rule.Description.String,
 			Mode:            mode,
 			Rows:            uint8(rule.SizeY),
 			Columns:         uint8(rule.SizeX),
@@ -190,6 +191,13 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 
 	err = tx.Commit()
 	return &sessionUser, err
+}
+
+func sqlString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
 func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries, r types.Rules) (sqlite.Rule, error) {
 	slug := r.Hash()
@@ -217,7 +225,7 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		ID:              r.ID,
 		Slug:            slug,
 		CreatedAt:       time.Now(),
-		Description:     r.Description,
+		Description:     sqlString(r.Description),
 		Mode:            mode,
 		SizeX:           int64(r.Columns),
 		SizeY:           int64(r.Rows),
@@ -313,11 +321,12 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		span.End()
 	}()
 	sess, err := p.queries.GetUserBySessionID(ctx, payload.ID)
+
 	if err != nil {
 		if errIsSqlNoRows(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failure in lookup user by session-id: %w", err)
 	}
 
 	rule := p.ruleCache.getCachedRule(sess.RuleID)
@@ -326,7 +335,7 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 			ID: sess.RuleID,
 		})
 		if err != nil {
-			return su, err
+			return su, fmt.Errorf("failure in retrieving rule: %w", err)
 		}
 		if r.ID != "" {
 			rule = &r
@@ -334,7 +343,7 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		}
 	}
 	if rule == nil {
-		return nil, fmt.Errorf("the rule %s from the user-session was not found", sess.RuleID)
+		return nil, fmt.Errorf("the rule '%s' from the user-session was not found", sess.RuleID)
 	}
 	playState, err := toPlayState(sess.PlayState)
 	mode, err := toMode(rule.Mode)
@@ -357,7 +366,7 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		ID:              rule.ID,
 		CreatedAt:       rule.CreatedAt,
 		UpdatedAt:       &rule.UpdatedAt.Time,
-		Description:     rule.Description,
+		Description:     rule.Description.String,
 		Mode:            mode,
 		Rows:            uint8(rule.SizeX),
 		Columns:         uint8(rule.SizeY),
@@ -371,15 +380,16 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		ID:        sess.ID_3,
 		CreatedAt: sess.CreatedAt_3,
 		// session does not have an UpdatedAt-field, so the suffix-count is off by one
-		UpdatedAt: &sess.UpdatedAt_2.Time,
-		UserID:    tUser.ID,
-		Seed:      seed,
-		State:     state,
-		Score:     uint64(sess.Score),
-		Moves:     uint(sess.Moves),
-		Cells:     cells,
-		PlayState: playState,
-		Rules:     tRule,
+		UpdatedAt:   &sess.UpdatedAt_2.Time,
+		Description: sess.Description.String,
+		UserID:      tUser.ID,
+		Seed:        seed,
+		State:       state,
+		Score:       uint64(sess.Score),
+		Moves:       uint(sess.Moves),
+		Cells:       cells,
+		PlayState:   playState,
+		Rules:       tRule,
 	}
 	su = &types.SessionUser{
 		Session: types.Session{
@@ -590,14 +600,15 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 		return tg, fmt.Errorf("failed to convert playstate: %w", err)
 	}
 	gameParams := sqlite.InsertGameParams{
-		ID:        payload.Game.ID,
-		CreatedAt: createdAt(payload.Game.CreatedAt),
-		UserID:    u.ID,
-		RuleID:    r.ID,
-		Score:     int64(payload.Game.Score),
-		Moves:     int64(payload.Game.Moves),
-		PlayState: playState,
-		Data:      modelGame.Data,
+		ID:          payload.Game.ID,
+		CreatedAt:   createdAt(payload.Game.CreatedAt),
+		UserID:      u.ID,
+		RuleID:      r.ID,
+		Score:       int64(payload.Game.Score),
+		Moves:       int64(payload.Game.Moves),
+		Description: sqlString(payload.Game.Description),
+		PlayState:   playState,
+		Data:        modelGame.Data,
 	}
 	mode, err := toMode(r.Mode)
 	if err != nil {
@@ -625,8 +636,9 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 		return tg, err
 	}
 	tg = types.Game{
-		ID:        createdGame.ID,
-		CreatedAt: createdGame.CreatedAt,
+		ID:          createdGame.ID,
+		CreatedAt:   createdGame.CreatedAt,
+		Description: createdGame.Description.String,
 		// session does not have an UpdatedAt-field, so the suffix-count is off by one
 		UpdatedAt: &createdGame.UpdatedAt.Time,
 		UserID:    updatedUser.ID,
@@ -640,7 +652,7 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 			ID:              r.ID,
 			CreatedAt:       r.CreatedAt,
 			UpdatedAt:       &r.UpdatedAt.Time,
-			Description:     r.Description,
+			Description:     r.Description.String,
 			Mode:            mode,
 			Rows:            uint8(r.SizeY),
 			Columns:         uint8(r.SizeX),
@@ -650,6 +662,7 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 			NoAddition:      r.NoAddition,
 		},
 	}
+
 	return tg, err
 }
 

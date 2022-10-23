@@ -44,6 +44,7 @@ type Game struct {
 	CreatedAt   time.Time
 	UpdatedAt   *time.Time
 	UserID      string
+	Description string
 	Seed, State uint64
 	Score       uint64
 	Moves       uint

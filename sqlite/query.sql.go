@@ -12,7 +12,7 @@ import (
 )
 
 const getAllRules = `-- name: GetAllRules :many
-SELECT id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
+SELECT id, slug, created_at, updated_at, mode, description, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 `
 
 func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
@@ -29,8 +29,8 @@ func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
 			&i.Slug,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.Description,
 			&i.Mode,
+			&i.Description,
 			&i.SizeX,
 			&i.SizeY,
 			&i.RecreateOnSwipe,
@@ -52,7 +52,7 @@ func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
 }
 
 const getGame = `-- name: GetGame :one
-select id, created_at, updated_at, user_id, rule_id, score, moves, play_state, data from game
+select id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data from game
 where id == ?
 `
 
@@ -63,6 +63,7 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 		&i.UserID,
 		&i.RuleID,
 		&i.Score,
@@ -74,7 +75,7 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 }
 
 const getRule = `-- name: GetRule :one
-select id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
+select id, slug, created_at, updated_at, mode, description, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 where id == ? or slug == ?
 `
 
@@ -91,8 +92,8 @@ func (q *Queries) GetRule(ctx context.Context, arg GetRuleParams) (Rule, error) 
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 		&i.Mode,
+		&i.Description,
 		&i.SizeX,
 		&i.SizeY,
 		&i.RecreateOnSwipe,
@@ -135,6 +136,7 @@ SELECT
        game.id game_id,
        game.created_at game_created_at,
        game.updated_at game_updated_at,
+       game.description game_description,
        game.data game_data,
        game.play_state game_play_state,
        game.score game_score,
@@ -158,6 +160,7 @@ type GetUserBySessionIDRow struct {
 	ID_3         string
 	CreatedAt_3  time.Time
 	UpdatedAt_2  sql.NullTime
+	Description  sql.NullString
 	Data         []byte
 	PlayState    int64
 	Score        int64
@@ -179,6 +182,7 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 		&i.ID_3,
 		&i.CreatedAt_3,
 		&i.UpdatedAt_2,
+		&i.Description,
 		&i.Data,
 		&i.PlayState,
 		&i.Score,
@@ -190,21 +194,22 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 
 const insertGame = `-- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, user_id, rule_id, score, moves, play_state, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, updated_at, user_id, rule_id, score, moves, play_state, data
+(id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data
 `
 
 type InsertGameParams struct {
-	ID        string
-	CreatedAt time.Time
-	UpdatedAt sql.NullTime
-	UserID    string
-	RuleID    string
-	Score     int64
-	Moves     int64
-	PlayState int64
-	Data      []byte
+	ID          string
+	CreatedAt   time.Time
+	UpdatedAt   sql.NullTime
+	Description sql.NullString
+	UserID      string
+	RuleID      string
+	Score       int64
+	Moves       int64
+	PlayState   int64
+	Data        []byte
 }
 
 func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, error) {
@@ -212,6 +217,7 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		arg.ID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.Description,
 		arg.UserID,
 		arg.RuleID,
 		arg.Score,
@@ -224,6 +230,7 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 		&i.UserID,
 		&i.RuleID,
 		&i.Score,
@@ -276,7 +283,7 @@ const insertRule = `-- name: InsertRule :one
 INSERT INTO rule
 (id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition
+RETURNING id, slug, created_at, updated_at, mode, description, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition
 `
 
 type InsertRuleParams struct {
@@ -284,7 +291,7 @@ type InsertRuleParams struct {
 	Slug            string
 	CreatedAt       time.Time
 	UpdatedAt       sql.NullTime
-	Description     string
+	Description     sql.NullString
 	Mode            int64
 	SizeX           int64
 	SizeY           int64
@@ -315,8 +322,8 @@ func (q *Queries) InsertRule(ctx context.Context, arg InsertRuleParams) (Rule, e
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 		&i.Mode,
+		&i.Description,
 		&i.SizeX,
 		&i.SizeY,
 		&i.RecreateOnSwipe,
@@ -405,7 +412,7 @@ SET updated_at = ?,
     play_state = ?,
     data       = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, user_id, rule_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data
 `
 
 type UpdateGameParams struct {
@@ -435,6 +442,7 @@ func (q *Queries) UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, e
 		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 		&i.UserID,
 		&i.RuleID,
 		&i.Score,

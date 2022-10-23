@@ -208,7 +208,6 @@ func MarshalInternalDataHistory(ctx context.Context, state uint64, cells []cell.
 
 		}
 		span.SetAttributes(attribute.Int("arg.cells.length", len(cells)))
-		fmt.Println(cells, p, instruction)
 		b, err := packPath(len(cells), p)
 		if err != nil {
 			return nil, err

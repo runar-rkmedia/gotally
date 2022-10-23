@@ -10,8 +10,8 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, user_id, rule_id, score, moves, play_state, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertRule :one
 INSERT INTO rule
@@ -48,6 +48,7 @@ SELECT
        game.id game_id,
        game.created_at game_created_at,
        game.updated_at game_updated_at,
+       game.description game_description,
        game.data game_data,
        game.play_state game_play_state,
        game.score game_score,

@@ -22,7 +22,7 @@ func (s *TallyServer) GetSession(
 				Board:       toModalBoard(&session.Game),
 				Score:       session.Game.Score(),
 				Moves:       int64(session.Game.Moves()),
-				Description: session.Game.Name,
+				Description: session.Game.Description,
 			},
 		},
 	}
