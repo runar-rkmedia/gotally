@@ -64,15 +64,16 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 
 	seed, state := Game.Seed()
 	g := types.Game{
-		ID:        Game.ID,
-		CreatedAt: time.Now(),
-		UserID:    userId,
-		Seed:      seed,
-		State:     state,
-		Score:     uint64(Game.Score()),
-		Moves:     uint(Game.Moves()),
-		Cells:     Game.Cells(),
-		PlayState: types.PlayStateCurrent,
+		ID:          Game.ID,
+		CreatedAt:   time.Now(),
+		UserID:      userId,
+		Description: Game.Description,
+		Seed:        seed,
+		State:       state,
+		Score:       uint64(Game.Score()),
+		Moves:       uint(Game.Moves()),
+		Cells:       Game.Cells(),
+		PlayState:   types.PlayStateCurrent,
 		Rules: types.Rules{
 			ID:              Game.Rules.ID,
 			CreatedAt:       time.Now(),

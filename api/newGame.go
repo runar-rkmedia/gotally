@@ -70,9 +70,13 @@ func (s *TallyServer) NewGame(
 	session.GameSnapshotAtStart = game.Copy()
 	Store.SetUserState(session)
 	response := &model.NewGameResponse{
-		Board: toModalBoard(&session.Game),
-		Score: session.Game.Score(),
-		Moves: int64(session.Game.Moves()),
+		Description: session.Game.Description,
+		Board:       toModalBoard(&session.Game),
+		Score:       session.Game.Score(),
+		Moves:       int64(session.Game.Moves()),
+	}
+	if response.Description == "" {
+		response.Description = session.Game.Name
 	}
 	res := connect.NewResponse(response)
 	return res, nil

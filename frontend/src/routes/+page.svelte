@@ -1,13 +1,7 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import {
-		GameMode,
-		GetHintRequest,
-		httpErrorStore,
-		NewGameRequest,
-		SwipeDirection
-	} from '../connect-web'
+	import { GameMode, GetHintRequest, httpErrorStore, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
 	import { animateSwipe } from '../logic'
@@ -15,21 +9,17 @@
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
 	import GameWon from '../components/GameWon.svelte'
+	import GameMenu from '../components/GameMenu.svelte'
 	import Dialog from '../components/Dialog.svelte'
 	import CellComp from '../components/board/Cell.svelte'
 	import { cellValue } from '../components/board/cell'
 	import Counter from '../components/Counter.svelte'
 
 	let boardDiv: HTMLDivElement
+	let showGameMenu = false
 
-	const restartGame = () => {
-		return storeHandler.commit(storeHandler.restartGame())
-	}
 	const getHint = async (options?: PartialMessage<GetHintRequest>) => {
 		return storeHandler.commit(storeHandler.getHint(options))
-	}
-	const newGame = async (options: PartialMessage<NewGameRequest>) => {
-		return storeHandler.commit(storeHandler.newGame(options))
 	}
 
 	onMount(async () => {
@@ -50,6 +40,9 @@
 					return
 				}
 				switch (e.key) {
+					case 'Escape':
+						showGameMenu = false
+						break
 					case 'ArrowLeft':
 					case 'a':
 						swipe(SwipeDirection.LEFT)
@@ -232,11 +225,16 @@
 	<!-- content here -->
 {/if}
 
+{#if $store?.session?.game?.board}
+	<Dialog bind:open={$store.didWin} let:open>
+		<GameWon {open} />
+	</Dialog>
+	<Dialog bind:open={showGameMenu} let:open>
+		<GameMenu bind:open={showGameMenu} />
+	</Dialog>
+{/if}
 <div class="gameView">
 	{#if $store?.session?.game?.board}
-		<Dialog open={$store.didWin} let:open>
-			<GameWon {open} />
-		</Dialog>
 		<div class="headControls">
 			<div>
 				<div class="score">
@@ -304,22 +302,21 @@
 				/>
 			</div>
 		{/if}
+		<p>
+			{$store.session.game.description}
+		</p>
 		<div class="bottom-controls">
 			<button on:click={() => getHint()}>Hint </button>
-
-			<div>
-				<button disabled on:click={() => restartGame()}>Restart </button>
-				<button on:click={() => newGame({ mode: GameMode.RANDOM })}>New Random game</button>
-				<button disabled on:click={() => newGame({ mode: GameMode.TUTORIAL })}>New Tutorial</button>
-				<button disabled on:click={() => newGame({ mode: GameMode.RANDOM_CHALLENGE })}
-					>New Challenge</button
-				>
-			</div>
+			<button on:click={() => (showGameMenu = true)}>Menu </button>
 		</div>
 	{/if}
 </div>
 
 <style>
+	p {
+		padding-inline: var(--size-4);
+		padding-block-end: var(--size-2);
+	}
 	.gameView {
 		height: 100%;
 		max-height: 100%;

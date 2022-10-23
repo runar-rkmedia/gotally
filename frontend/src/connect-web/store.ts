@@ -165,7 +165,8 @@ class ApiStore implements ApiType {
 		const res = {
 			board,
 			moves: Number(result.moves),
-			score: Number(result.score)
+			score: Number(result.score),
+			description: result.description
 		}
 		const commit = async () => {
 			store.update((s) => ({

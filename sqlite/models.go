@@ -10,15 +10,16 @@ import (
 )
 
 type Game struct {
-	ID        string
-	CreatedAt time.Time
-	UpdatedAt sql.NullTime
-	UserID    string
-	RuleID    string
-	Score     int64
-	Moves     int64
-	PlayState int64
-	Data      []byte
+	ID          string
+	CreatedAt   time.Time
+	UpdatedAt   sql.NullTime
+	Description sql.NullString
+	UserID      string
+	RuleID      string
+	Score       int64
+	Moves       int64
+	PlayState   int64
+	Data        []byte
 }
 
 type GameHistory struct {
@@ -35,8 +36,8 @@ type Rule struct {
 	Slug            string
 	CreatedAt       time.Time
 	UpdatedAt       sql.NullTime
-	Description     string
 	Mode            int64
+	Description     sql.NullString
 	SizeX           int64
 	SizeY           int64
 	RecreateOnSwipe bool
