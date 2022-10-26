@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/models"
+	"github.com/xo/dburl"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -108,3 +109,23 @@ var (
 	tracerMysql  = otel.Tracer("database")
 	tracerSqlite = otel.Tracer("sqlite")
 )
+
+func parse(dsn string) (*dburl.URL, error) {
+	v, err := dburl.Parse(dsn)
+	if err != nil {
+		return nil, err
+	}
+	switch v.Driver {
+	case "mysql":
+		q := v.Query()
+		q.Set("parseTime", "true")
+		v.RawQuery = q.Encode()
+		return dburl.Parse(v.String())
+	case "sqlite3":
+		q := v.Query()
+		q.Set("_loc", "auto")
+		v.RawQuery = q.Encode()
+		return dburl.Parse(v.String())
+	}
+	return v, nil
+}
