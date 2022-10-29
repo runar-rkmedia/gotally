@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -68,6 +69,96 @@ func (p *sqliteStorage) beginTx(ctx context.Context) (*sqlite.Queries, *sql.Tx, 
 		return nil, nil, err
 	}
 	return p.queries.WithTx(tx), tx, nil
+}
+func (p *sqliteStorage) Stats(ctx context.Context) (sess *types.Statistics, err error) {
+
+	ctx, span := tracerSqlite.Start(ctx, "Stats")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	stats, err := p.queries.Stats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s := types.Statistics{
+		Users:          stats.Users,
+		Session:        stats.Session,
+		Games:          stats.Games,
+		GamesWon:       stats.GamesWon,
+		GamesLost:      stats.GamesLost,
+		GamesAbandoned: stats.GamesAbandoned,
+		GamesCurrent:   stats.GamesCurrent,
+		// LongestGame:    stats.LongestGame.(uint64),
+		// HighestScore:   stats.HighestScore.(uint64),
+		// HistoryDataStdDev: math.Sqrt(float64(stats.HistoryDataStdDev)),
+		// CombineDataAvg: stats.CombineDataAvg.Float64,
+		// CombineDataMax: stats.CombineDataMax.(uint64),
+		// CombineDataMin: stats.CombineDataMin.(uint64),
+	}
+	if v, err := toUint64(stats.LongestGame); err != nil {
+		return nil, fmt.Errorf("failure for type LongestGame: %w", err)
+	} else {
+		s.LongestGame = v
+	}
+	if v, err := toUint64(stats.HighestScore); err != nil {
+		return nil, fmt.Errorf("failure for type HighestScore: %w", err)
+	} else {
+		s.HighestScore = v
+	}
+	if v, err := toFloat64(stats.HistoryDataVariance); err != nil {
+		return nil, fmt.Errorf("failure for type HistoryDataStdDev: %w", err)
+	} else {
+		s.CombineDataStdDev = math.Sqrt(v)
+	}
+	if v, err := toFloat64(stats.CombineDataAvg.Float64); err != nil {
+		return nil, fmt.Errorf("failure for type CombineDataAvg: %w", err)
+	} else {
+		s.CombineDataAvg = v
+	}
+	if v, err := toUint64(stats.CombineDataMin); err != nil {
+		return nil, fmt.Errorf("failure for type CombineDataMin: %w", err)
+	} else {
+		s.CombineDataMin = v
+	}
+	if v, err := toUint64(stats.CombineDataMax); err != nil {
+		return nil, fmt.Errorf("failure for type CombineDataMax: %w", err)
+	} else {
+		s.CombineDataMax = v
+	}
+	if v, err := toUint64(stats.CombineDataTotal); err != nil {
+		return nil, fmt.Errorf("failure for type CombineDataMax: %w", err)
+	} else {
+		s.CombineDataTotal = v
+	}
+	return &s, err
+}
+
+func toUint64(v any) (uint64, error) {
+	if v == nil {
+		return 0, nil
+	}
+	switch n := v.(type) {
+	case int64:
+		return uint64(n), nil
+	case uint64:
+		return n, nil
+	default:
+		return 0, fmt.Errorf("unhandled toUint64-cast for type %T", v)
+	}
+}
+func toFloat64(v any) (float64, error) {
+	if v == nil {
+		return 0, nil
+	}
+	switch n := v.(type) {
+	case float64:
+		return n, nil
+	case float32:
+		return float64(n), nil
+	default:
+		return 0, fmt.Errorf("unhandled toFloat64 for type %T", v)
+	}
 }
 
 // Creates a user, session, game and makes sure the rule exists.

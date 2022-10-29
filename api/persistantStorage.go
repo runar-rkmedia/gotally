@@ -21,4 +21,5 @@ type SessionStore interface {
 	CombinePath(ctx context.Context, payload types.CombinePathPayload) error
 	SwipeBoard(ctx context.Context, payload types.SwipePayload) error
 	NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error)
+	Stats(ctx context.Context) (sess *types.Statistics, err error)
 }

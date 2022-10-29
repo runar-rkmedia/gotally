@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"time"
 
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -166,5 +167,6 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		UidGenerator: mustCreateUUidgenerator(),
 		storage:      db,
 	}
+	go ts.collectStatsAtInterval(time.Second * 15)
 	return ts
 }

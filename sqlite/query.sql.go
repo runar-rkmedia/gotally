@@ -402,6 +402,62 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 	return i, err
 }
 
+const stats = `-- name: Stats :one
+SELECT (SELECT COUNT(*) FROM user) AS users
+     , (SELECT COUNT(*) FROM session) AS session
+     , (SELECT COUNT(*) FROM game) AS games
+     , (SELECT COUNT(*) FROM game where game.play_state = 1) AS games_won
+     , (SELECT COUNT(*) FROM game where game.play_state = 2) AS games_lost
+     , (SELECT COUNT(*) FROM game where game.play_state = 3) AS games_abandoned
+     , (SELECT COUNT(*) FROM game where game.play_state = 4) AS games_current
+     , (SELECT max(game.moves) FROM game where game.play_state = 4) AS longest_game
+     , (SELECT max(game.score) FROM game where game.play_state = 4) AS highest_score
+     , (SELECT CAST(AVG(length(data)*length(data)) - AVG(length(data))*AVG(length(data)) as FLOAT) from game_history where kind = 2) as history_data_variance
+     , (SELECT avg(length(data)) from game_history where kind = 2) as combine_data_avg
+     , (SELECT max(length(data)) from game_history where kind = 2) as combine_data_max
+     , (SELECT min(length(data)) from game_history where kind = 2) as combine_data_min
+     , (SELECT CAST(total(length(data)) as INT) from game_history where kind = 2) as combine_data_total
+`
+
+type StatsRow struct {
+	Users               int64
+	Session             int64
+	Games               int64
+	GamesWon            int64
+	GamesLost           int64
+	GamesAbandoned      int64
+	GamesCurrent        int64
+	LongestGame         interface{}
+	HighestScore        interface{}
+	HistoryDataVariance interface{}
+	CombineDataAvg      sql.NullFloat64
+	CombineDataMax      interface{}
+	CombineDataMin      interface{}
+	CombineDataTotal    interface{}
+}
+
+func (q *Queries) Stats(ctx context.Context) (StatsRow, error) {
+	row := q.db.QueryRowContext(ctx, stats)
+	var i StatsRow
+	err := row.Scan(
+		&i.Users,
+		&i.Session,
+		&i.Games,
+		&i.GamesWon,
+		&i.GamesLost,
+		&i.GamesAbandoned,
+		&i.GamesCurrent,
+		&i.LongestGame,
+		&i.HighestScore,
+		&i.HistoryDataVariance,
+		&i.CombineDataAvg,
+		&i.CombineDataMax,
+		&i.CombineDataMin,
+		&i.CombineDataTotal,
+	)
+	return i, err
+}
+
 const updateGame = `-- name: UpdateGame :one
 UPDATE game
 SET updated_at = ?,

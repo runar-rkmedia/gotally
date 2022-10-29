@@ -80,4 +80,18 @@ SET updated_at = ?,
     active_game_id = ?
 WHERE id = ?
 RETURNING *;
-
+-- name: Stats :one
+SELECT (SELECT COUNT(*) FROM user) AS users
+     , (SELECT COUNT(*) FROM session) AS session
+     , (SELECT COUNT(*) FROM game) AS games
+     , (SELECT COUNT(*) FROM game where game.play_state = 1) AS games_won
+     , (SELECT COUNT(*) FROM game where game.play_state = 2) AS games_lost
+     , (SELECT COUNT(*) FROM game where game.play_state = 3) AS games_abandoned
+     , (SELECT COUNT(*) FROM game where game.play_state = 4) AS games_current
+     , (SELECT max(game.moves) FROM game where game.play_state = 4) AS longest_game
+     , (SELECT max(game.score) FROM game where game.play_state = 4) AS highest_score
+     , (SELECT CAST(AVG(length(data)*length(data)) - AVG(length(data))*AVG(length(data)) as FLOAT) from game_history where kind = 2) as history_data_variance
+     , (SELECT avg(length(data)) from game_history where kind = 2) as combine_data_avg
+     , (SELECT max(length(data)) from game_history where kind = 2) as combine_data_max
+     , (SELECT min(length(data)) from game_history where kind = 2) as combine_data_min
+     , (SELECT CAST(total(length(data)) as INT) from game_history where kind = 2) as combine_data_total

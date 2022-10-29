@@ -101,3 +101,34 @@ const (
 	RuleModeChallenge      RuleMode = "challenge"
 	RuleModeTutorial       RuleMode = "tutorial"
 )
+
+type Statistics struct {
+	// Totaly number of users
+	Users int64
+	// Totaly number of sessions
+	Session int64
+	// Totaly number of games
+	Games int64
+	// Totaly number of games marked as won
+	GamesWon int64
+	// Totaly number of games marked as lost
+	GamesLost int64
+	// Totaly number of games marked as abandoned
+	GamesAbandoned int64
+	// Totaly number of games marked as current
+	GamesCurrent int64
+	// Most moves recorded for a game
+	LongestGame uint64
+	// Highest score recorded for a game
+	HighestScore uint64
+	// Size of the data-column in the history (counting only combines), represented as a standard-deviation
+	CombineDataStdDev float64
+	// Size of the data-column in the history (counting only combines), represented as average
+	CombineDataAvg float64
+	// Size of the data-column in the history (counting only combines), represented as max
+	CombineDataMax uint64
+	// Size of the data-column in the history (counting only combines), represented as min
+	CombineDataMin uint64
+	// Size of the data-column in the history (counting only combines), represented as total
+	CombineDataTotal uint64
+}
