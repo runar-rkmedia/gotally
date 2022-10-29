@@ -1,10 +1,10 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GameMode, GetHintRequest, httpErrorStore, SwipeDirection } from '../connect-web'
+	import { GetHintRequest, httpErrorStore, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
-	import { animateSwipe } from '../logic'
+	import { animateSwipe, coordToIndex } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
@@ -21,6 +21,30 @@
 	const getHint = async (options?: PartialMessage<GetHintRequest>) => {
 		return storeHandler.commit(storeHandler.getHint(options))
 	}
+	let lastNumberKey: number | null = null
+
+	const selectByNumber = (n: number) => {
+		// Threat as if the coordinate-system starts at 1
+		n = n - 1
+		if (n < 0) {
+			lastNumberKey = null
+			return
+		}
+		if (lastNumberKey !== null) {
+			const index = coordToIndex(
+				lastNumberKey,
+				n,
+				$store.session.game.board.columns,
+				$store.session.game.board.rows
+			)
+			if (index !== null) {
+				select(index)
+			}
+			lastNumberKey = null
+			return
+		}
+		lastNumberKey = n
+	}
 
 	onMount(async () => {
 		await storeHandler.commit(storeHandler.getSession())
@@ -35,38 +59,107 @@
 					e.preventDefault()
 					return
 				}
-				if (selection.length) {
-					e.preventDefault()
-					return
-				}
+				const hasSelection = selection.length
+				const lastSelection = selection[selection.length - 1]
 				switch (e.key) {
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+					case '0':
+						selectByNumber(Number(e.key))
+						return
 					case 'Escape':
-						showGameMenu = false
+						if (showGameMenu) {
+							showGameMenu = false
+							return
+						}
+						if (hasSelection) {
+							selection = []
+							selectionMap = {}
+						}
 						break
 					case 'ArrowLeft':
 					case 'a':
+						if (hasSelection) {
+							const next = lastSelection - 1
+							if (lastSelection % $store.session.game.board.columns === 0) {
+								return
+							}
+							if (selection.includes(next)) {
+								return
+							}
+							select(next)
+							return
+						}
 						swipe(SwipeDirection.LEFT)
 						break
 					case 'ArrowRight':
 					case 'd':
+						if (hasSelection) {
+							const next = lastSelection + 1
+							if (next % $store.session.game.board.columns === 0) {
+								return
+							}
+							if (selection.includes(next)) {
+								return
+							}
+							select(lastSelection + 1)
+							return
+						}
 						swipe(SwipeDirection.RIGHT)
 						break
 					case 'ArrowDown':
 					case 's':
+						if (hasSelection) {
+							const next = lastSelection + $store.session.game.board.rows
+							if (next > $store.session.game.board.rows * $store.session.game.board.columns) {
+								return
+							}
+							if (selection.includes(next)) {
+								return
+							}
+							select(next)
+							return
+						}
 						swipe(SwipeDirection.DOWN)
 						break
 					case 'ArrowUp':
 					case 'w':
+						if (hasSelection) {
+							const next = lastSelection - $store.session.game.board.rows
+							if (next < 0) {
+								return
+							}
+							if (selection.includes(next)) {
+								return
+							}
+							select(next)
+							return
+						}
 						swipe(SwipeDirection.UP)
 						break
 					case 'h':
 						getHint()
 						break
+					// Combine path
+					case 'Space':
+					case ' ':
+						if (!hasSelection) {
+							return
+						}
+						select(lastSelection)
+						break
 					case 'c':
-						restartGame()
+						storeHandler.commit(storeHandler.restartGame())
 						break
 					case 'n':
-						newGame({ mode: GameMode.RANDOM_CHALLENGE })
+						storeHandler.commit(storeHandler.newGame({}))
 						break
 
 					default:

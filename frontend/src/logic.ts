@@ -116,3 +116,20 @@ export const animateSwipe = async ({
 		return res(didAnimate)
 	})
 }
+
+export const coordToIndex = (x: number, y: number, maxColumns: number, maxRows: number) => {
+	if (x < 0) {
+		return null
+	}
+	if (y < 0) {
+		return null
+	}
+	if (y > maxRows) {
+		return null
+	}
+	if (x > maxColumns) {
+		return null
+	}
+
+	return y * maxColumns + x
+}
