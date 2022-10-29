@@ -10,12 +10,14 @@ import (
 	"io"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/bufbuild/connect-go"
 	"github.com/cip8/autoname"
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/runar-rkmedia/go-common/logger"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
@@ -156,8 +158,16 @@ func Logger(l logger.AppLogger) MiddleWare {
 			if debug {
 				l.Debug().Msg("Incoming request")
 			}
+			if lw.statusCode == 0 {
+				lw.statusCode = 200
+			}
 
 			next.ServeHTTP(w, r)
+			metricHttpCalls.With(prometheus.Labels{
+				"code":   strconv.FormatInt(int64(lw.statusCode), 10),
+				"method": r.Method,
+				"path":   r.URL.Path,
+			}).Inc()
 			if lw.statusCode >= 500 {
 				span := trace.SpanFromContext(r.Context())
 				if lw.collectsBody && len(lw.responseBody) > 0 {
