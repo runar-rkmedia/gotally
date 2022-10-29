@@ -18,6 +18,10 @@ OTEL_ENVIRONMENT_NAME = "production"
 allowed_public_ports = []
 auto_rollback = true
 
+[metrics]
+port = 8080       # default for most prometheus clients
+path = "/metrics" # default for most prometheus clients
+
 [[services]]
 http_checks = []
 internal_port = 8080
