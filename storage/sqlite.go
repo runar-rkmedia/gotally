@@ -304,12 +304,15 @@ const (
 	PlayStateLost
 	PlayStateAbandoned
 	PlayStateCurrent
-
+)
+const (
 	RuleModeInfiniteEasy RuleMode = iota + 1
 	RuleModeInfiniteNormal
 	RuleModeInfiniteHard
 	RuleModeChallenge
 	RuleModeTutorial
+)
+const (
 	InstructionKindSwipe InstructionKind = iota + 1
 	InstructionKindCombine
 )
