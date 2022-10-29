@@ -91,4 +91,9 @@ var (
 		Name: "gotally_game_history_size_total",
 		Help: "Size of data in game-history, represented as a total",
 	})
+
+	metricHttpCalls = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "gotally_http_calls",
+		Help: "Size of data in game-history, represented as a total",
+	}, []string{"method", "path", "code"})
 )
