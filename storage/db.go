@@ -92,15 +92,6 @@ func createID() string {
 	return gonanoid.Must()
 }
 
-func sqlOk(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errIsSqlNoRows(err) {
-		return nil
-	}
-	return err
-}
 func errIsSqlNoRows(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }
