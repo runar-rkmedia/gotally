@@ -47,7 +47,7 @@ type UserState struct {
 	GameSnapshotAtStart tallylogic.Game
 }
 
-func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, sessionID string) (UserState, error) {
+func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, sessionID string, options ...tallylogic.NewGameOptions) (UserState, error) {
 	m := UserState{
 		SessionID: sessionID,
 		UserName:  GenerateNameForUser(),
@@ -56,7 +56,7 @@ func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, s
 	if m.SessionID == "" {
 		return m, fmt.Errorf("SessionID not set")
 	}
-	game, err := tallylogic.NewGame(mode, template)
+	game, err := tallylogic.NewGame(mode, template, options...)
 	if err != nil {
 		return m, err
 	}

@@ -14,6 +14,7 @@
 	import CellComp from '../components/board/Cell.svelte'
 	import { cellValue } from '../components/board/cell'
 	import Counter from '../components/Counter.svelte'
+	import userSettings from '../userSettings'
 
 	let boardDiv: HTMLDivElement
 	let showGameMenu = false
@@ -203,7 +204,7 @@
 			return
 		}
 		const swipeOptions = {
-			swipeAnimationTime: 480,
+			swipeAnimationTime: $userSettings.swipeAnimationTime,
 			positive: direction === SwipeDirection.DOWN || direction === SwipeDirection.RIGHT,
 			vertical: direction === SwipeDirection.UP || direction === SwipeDirection.DOWN,
 			boardEl: boardDiv,
@@ -322,7 +323,7 @@
 	<Dialog bind:open={$store.didWin} let:open>
 		<GameWon {open} />
 	</Dialog>
-	<Dialog bind:open={showGameMenu} let:open>
+	<Dialog bind:open={showGameMenu}>
 		<GameMenu bind:open={showGameMenu} />
 	</Dialog>
 {/if}
@@ -330,7 +331,7 @@
 	{#if $store?.session?.game?.board}
 		<div class="headControls">
 			<div>
-				<div class="score">
+				<div class="score" data-score={$store.session.game.score}>
 					Score: {$store.session.game.score}
 				</div>
 				{#if $store.session.username}
@@ -341,7 +342,7 @@
 				<small class="boardName" title={$store.session.game.board.id}
 					>{$store.session.game.board.name}</small
 				>
-				<div class="moves">
+				<div class="moves" data-moves={$store.session.game.moves}>
 					Moves: {$store.session.game.moves}
 				</div>
 			</div>

@@ -6,11 +6,11 @@ import {
 } from '@bufbuild/connect-web'
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
-import { browser } from '$app/env'
+import * as appEnv from '$app/env'
 import { writable } from 'svelte/store'
 
 const state = {
-	authHeader: browser && localStorage.getItem('sessionID')
+	authHeader: appEnv.browser && localStorage.getItem('sessionID')
 }
 
 type ErrorStore = {
@@ -30,7 +30,7 @@ const retrier: Interceptor =
 				req.header.set('Authorization', state.authHeader)
 			}
 			const res = await next(req)
-			if (browser) {
+			if (appEnv.browser) {
 				const authHeader = res.header.get('Authorization')
 				if (authHeader) {
 					localStorage.setItem('sessionID', authHeader)
@@ -68,15 +68,20 @@ const retrier: Interceptor =
 		}
 	}
 
-const isHttps = browser && document.location.protocol.includes('https')
+const isHttps = appEnv.browser && document.location.protocol.includes('https')
+const isTest = (appEnv as any).mode === 'test'
 const transportOptions: ConnectTransportOptions = {
 	baseUrl:
-		import.meta.env.VITE_API ||
-		(isHttps ? '/' : import.meta.env.VITE_DEV_API || 'http://localhost:8080/'),
+		import.meta.env?.VITE_API ||
+		(isHttps ? '/' : import.meta.env?.VITE_DEV_API || 'http://localhost:8080/'),
 	interceptors: [retrier],
-	useBinaryFormat: browser ? !window.location.search.includes('json=1') : true
+	useBinaryFormat: isTest
+		? false
+		: appEnv.browser
+		? !window.location.search.includes('json=1')
+		: true
 }
-console.log({ transportOptions })
+console.log({ transportOptions, meta: import.meta, appEnv })
 
 const transport = createConnectTransport(transportOptions)
 
