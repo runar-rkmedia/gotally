@@ -49,7 +49,15 @@ go-cover:
 go-test:
 	@ echo Using $(gotester) as tester
 	$(gotester) -race ./...
-
+e2e-test:
+	@echo "The development-api-server must be running prior to running e2e-test"
+	@cd frontend && npm run test
+web-unit-test:
+	@echo "The development-api-server must be running prior to running e2e-test"
+	@cd frontend && npm run test:unit -- --run
+_test: go-test e2e-test web-unit-test
+test:
+	$(MAKE) -j3 go-test e2e-test web-unit-test
 test-watch:
 	fd '.go' | entr -r gotest ./... 
 
