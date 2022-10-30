@@ -534,13 +534,12 @@ func (p *sqliteStorage) CombinePath(ctx context.Context, payload types.CombinePa
 	if g.Score+int64(payload.Points) != int64(payload.Score) {
 		return fmt.Errorf("mismatch between score and points")
 	}
-	g.Score = int64(payload.Points)
 	g.UpdatedAt = toNullTimeNonNullable(time.Now())
 	updateGameArgs := sqlite.UpdateGameParams{
 		UpdatedAt: sql.NullTime{},
 		UserID:    g.UserID,
 		RuleID:    g.RuleID,
-		Score:     g.Score + int64(payload.Points),
+		Score:     int64(payload.Score),
 		Moves:     g.Moves + 1,
 		PlayState: g.PlayState,
 		Data:      dataGame,

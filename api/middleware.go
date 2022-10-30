@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,7 +36,7 @@ func CORSHandler() MiddleWare {
 			isSecure, _ := isSecureRequest(r)
 			// CORS
 			w.Header().Set("Access-Control-Expose-Headers", "Date, X-Request-ID"+c(!isSecure, ", "+tokenHeader, ""))
-			w.Header().Set("Access-Control-Allow-Headers", "content-type, "+tokenHeader)
+			w.Header().Set("Access-Control-Allow-Headers", "DEV_GAME_OPTIONS, DEV_USERNAME,  content-type, "+tokenHeader)
 			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
 			w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 			w.Header().Set("Access-Control-Max-Age", "60")
@@ -296,8 +297,9 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 }
 
 type AuthorizationOptions struct {
-	Debug           bool
-	SessionLifeTime time.Duration
+	Debug                 bool
+	SessionLifeTime       time.Duration
+	AllowDevelopmentFlags bool
 }
 
 var caser = cases.Title(language.English)
@@ -324,9 +326,16 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 
 			sessionID := getSessionIDFromRequest(r)
 			now := time.Now()
-			if sessionID == "" || len(sessionID) != tokenLength {
+			if sessionID == "" {
 				sessionID = gonanoid.Must()
-
+			}
+			if len(sessionID) != tokenLength {
+				l.Warn().
+					Str("sessionID", sessionID).
+					Int("wantedLength", tokenLength).
+					Int("gotLength", len(sessionID)).
+					Msg("user-provided session was ignored becuase of wrong length")
+				sessionID = gonanoid.Must()
 			}
 
 			// Get the session-state for the user
@@ -371,10 +380,34 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 
 			if userState == nil {
 				// sessionID = idgenerator()
-				if us, err := NewUserState(tallylogic.GameModeDefault, &tallylogic.ChallengeGames[0], sessionID); err != nil {
+				var gameOptions tallylogic.NewGameOptions
+				// Undocumented cusomization of game. This is only available in development-mode, and used for internal testing.
+				// It may change at any time.
+				if options.AllowDevelopmentFlags {
+					if o := r.Header.Get("DEV_GAME_OPTIONS"); o != "" {
+						b, err := base64.StdEncoding.DecodeString(o)
+						if err != nil {
+							l.Warn().Err(err).Str("base64-header", o).Msg("user attempted to set game-options via headers, but the base64-decoding failed")
+						} else {
+							err := json.Unmarshal(b, &gameOptions)
+							if err != nil {
+								l.Warn().Err(err).Str("base64-header", o).Msg("user attempted to set game-options via headers, but the unmarshalling failed")
+							} else {
+								l.Debug().Err(err).Interface("options", gameOptions).Msg("game-options set via headers")
+							}
+						}
+					}
+				}
+				if us, err := NewUserState(tallylogic.GameModeDefault, &tallylogic.ChallengeGames[0], sessionID, gameOptions); err != nil {
 					l.Fatal().Err(err).Msg("Failed in NewUserState")
 				} else {
 					userState = &us
+					if options.AllowDevelopmentFlags {
+						if u := r.Header.Get("DEV_USERNAME"); u != "" {
+							// l.Warn().Msg("got username")
+							userState.UserName = u
+						}
+					}
 
 					payload := types.CreateUserSessionPayload{
 						UserID:       userState.UserID,

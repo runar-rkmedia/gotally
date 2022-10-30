@@ -4,9 +4,17 @@
 	$: {
 		if (el) {
 			if (open) {
-				el.showModal()
+				if (!('showModal' in el)) {
+					console.error('element does not support method "showModal"', el)
+				} else {
+					el.showModal()
+				}
 			} else {
-				el.close()
+				if (!('close' in el)) {
+					console.error('element does not support method "close"', el)
+				} else {
+					el.close()
+				}
 			}
 		}
 	}

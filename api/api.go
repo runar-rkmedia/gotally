@@ -102,7 +102,9 @@ func StartServer() {
 		CORSHandler(),
 		RequestIDHandler(mustCreateUUidgenerator()),
 		Logger(logger.GetLogger("request")),
-		Authorization(tally.storage, AuthorizationOptions{}),
+		Authorization(tally.storage, AuthorizationOptions{
+			// TODO: disable in production
+			AllowDevelopmentFlags: true}),
 	}
 	// Register metrics
 	mux.Handle("/metrics", promhttp.Handler())

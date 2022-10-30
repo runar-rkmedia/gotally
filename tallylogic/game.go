@@ -508,7 +508,7 @@ func (g *Game) EvaluateForPath(path []int) bool {
 	if err != nil {
 		return false
 	}
-	g.increaseScore(points * int64(len(path)))
+	g.increaseScore(points * 2)
 	g.inceaseMoveCount()
 	g.History.AddPath(path)
 	return true
@@ -541,6 +541,17 @@ func (g Game) SelectedCells() []int {
 }
 func (g Game) Cells() []cell.Cell {
 	return g.board.Cells()
+}
+
+// PathValues returns the values for the given path.
+// Mostly used for diagnostics
+func (g Game) PathValues(path []int) []int64 {
+	cells := g.Cells()
+	pathValues := make([]int64, len(path))
+	for i, index := range path {
+		pathValues[i] = cells[index].Value()
+	}
+	return pathValues
 }
 func (g Game) NeighboursForCellIndex(index int) ([]int, bool) {
 	return g.board.NeighboursForCellIndex(index)

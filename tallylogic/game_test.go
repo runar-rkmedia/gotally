@@ -117,7 +117,7 @@ func TestGame_Play(t *testing.T) {
 					}
 				}
 			},
-			1568,
+			960,
 		},
 		{
 			"Game.History should reliably replay the game with the seeded randomizer",
@@ -175,7 +175,7 @@ func TestGame_Play(t *testing.T) {
 					}
 				}
 			},
-			24,
+			16,
 		},
 	}
 	for _, tt := range tests {

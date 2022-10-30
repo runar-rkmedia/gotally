@@ -23,8 +23,8 @@ func (s *TallyServer) CombineCells(
 		for i := 0; i < length; i++ {
 			path[i] = int(t.Indexes.Index[i])
 		}
-	case *model.CombineCellsRequest_Coordinate:
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("Not implemented: coordinate"))
+	default:
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("Not implemented (selection-type): %T %v", req.Msg.Selection, req.Msg.Selection))
 	}
 
 	if length < 2 {

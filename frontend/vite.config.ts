@@ -1,40 +1,32 @@
 import { sveltekit } from '@sveltejs/kit/vite'
 import type { UserConfig } from 'vite'
-import { networkInterfaces } from 'os'
-
-if (!process.env.VITE_DEV_API) {
-	const ip = getIP()
-	if (ip) {
-		process.env.VITE_DEV_API = 'http://' + ip + ':8080'
-	}
-}
-
-console.log('ips', getIP())
+import { configDefaults } from 'vitest/config'
 
 const config: UserConfig = {
-	plugins: [sveltekit()]
-}
-
-function getIP() {
-	const nets = networkInterfaces()
-
-	if (!nets) {
-		return ''
-	}
-
-	for (const name of Object.keys(nets)) {
-		const n = nets[name]
-		if (!n) {
-			continue
-		}
-		for (const net of n) {
-			// Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-			// 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
-			const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4
-			if (net.family === familyV4Value && !net.internal) {
-				return net.address
-			}
-		}
+	plugins: [sveltekit()],
+	define: {
+		// Eliminate in-source test code
+		'import.meta.vitest': 'undefined',
+		'import.meta.env': '{ SSR: true }'
+	},
+	test: {
+		// jest like globals
+		globals: true,
+		environment: 'jsdom',
+		// in-source testing
+		includeSource: ['src/**/*.{js,ts,svelte}'],
+		// Add @testing-library/jest-dom matchers & setup MSW
+		setupFiles: ['./setupTest.js'],
+		// Exclude files in c8
+		coverage: {
+			exclude: ['setupTest.js', 'src/mocks']
+		},
+		deps: {
+			// Put Svelte component here, e.g., inline: [/svelte-multiselect/, /msw/]
+			inline: [/msw/]
+		},
+		// Exclude playwright tests folder
+		exclude: [...configDefaults.exclude, 'tests']
 	}
 }
 
