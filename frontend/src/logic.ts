@@ -1,3 +1,6 @@
+import { cellValue } from './components/board/cell'
+import type { Cell } from './connect-web'
+
 const getRows = (boardEl: HTMLElement, nRows: number) => {
 	const cells = [...boardEl.children] as HTMLElement[]
 	const rows = new Array(nRows).fill(null).map((_, i) => cells.slice(i * nRows, i * nRows + nRows))
@@ -132,4 +135,89 @@ export const coordToIndex = (x: number, y: number, maxColumns: number, maxRows: 
 	}
 
 	return y * maxColumns + x
+}
+
+type invalidPathError = {
+	message: string
+	invalidIndex: number
+}
+
+const newInvalidPathError = (message: string, invalidIndex: number): invalidPathError => ({
+	message,
+	invalidIndex
+})
+
+type cellLike = Cell | { base: number; twopow: number }
+
+export const ValidatePath = (
+	indexes: number[],
+	rows: number,
+	columns: number,
+	cells: cellLike[]
+) => {
+	const nIndexes = indexes.length
+	if (nIndexes <= 1) {
+		return newInvalidPathError('path is too short', 0)
+	}
+	const nCells = cells.length
+	if (nIndexes > nCells) {
+		return newInvalidPathError('path is too long', 0)
+	}
+	const seen: Record<number, number> = {}
+	let prevIndex = -1
+	for (const [i, index] of indexes.entries()) {
+		if (seen[index] !== undefined) {
+			return newInvalidPathError(
+				`duplicate entry for index at position ${index} /${seen[index]}`,
+				i
+			)
+		}
+		if (index > nCells) {
+			return newInvalidPathError(`ErrPathIndexOutsideBounds for index ${index} at position ${i}`, i)
+		}
+		if (index < 0) {
+			return newInvalidPathError(`ErrPathIndexOutsideBounds for index ${index} at position ${i}`, i)
+		}
+		const cell = cells[index]
+		const cellV = cellValue(cell)
+		if (!cellV) {
+			return newInvalidPathError(`ErrPathIndexEmptyCell for index ${index} at position ${i}`, i)
+		}
+		if (prevIndex >= 0 && !AreNeighboursByIndex(index, prevIndex, columns, rows)) {
+			return newInvalidPathError(`Not a neighbour ${index} ${prevIndex}`, i)
+		}
+		seen[index] = i
+		prevIndex = index
+	}
+	return null
+}
+
+const AreNeighboursByIndex = (a: number, b: number, columns: number, rows: number): boolean => {
+	if (a < 0 || b < 0) {
+		return false
+	}
+	const max = columns * rows
+	if (a >= max || b >= max) {
+		return false
+	}
+	const [ac, ar] = IndexToCord(a, columns)
+	const [bc, br] = IndexToCord(b, columns)
+	console.log('neighbours', { a, b, columns, rows, ac, ar, bc, br })
+
+	const diff = ac - bc + (ar - br)
+
+	if (diff != 1 && diff != -1) {
+		return false
+	}
+	return true
+}
+
+function cellRow(i: number, columns: number) {
+	return Math.floor(i / columns)
+}
+function cellColumn(i: number, columns: number) {
+	return i % columns
+}
+function IndexToCord(i: number, columns: number) {
+	return [cellColumn(i, columns), cellRow(i, columns)] as const
 }

@@ -18,6 +18,7 @@
 	export let selected: boolean | undefined
 	export let hinted: boolean | undefined
 	export let selectedLast: boolean | undefined
+	export let evaluatesTo: boolean | undefined
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
 	$: angle = 100 / factors.length
@@ -31,6 +32,7 @@
 	class:no-eval={noEval}
 	class:selected
 	class:hinted
+	class:evaluatesTo
 	class:selectedLast
 	class:blank={Number(cell.base) === 0}
 	data-base={cell.base}
@@ -230,24 +232,25 @@
 	}
 
 	.cell.selected {
-		background-color: var(--color-green);
+		background-color: var(--color-green-300);
 		transform: scale(0.9);
 	}
 	.cell.selected .cellValue {
 		transform: scale(1.2);
 	}
 
-	.cell.selectedLast {
-		background-color: var(--color-green-300);
+	.cell.selectedLast:not(.evaluatesTo) {
+		background-color: var(--color-green-500);
 	}
-	.cell.no-eval {
-		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear;
+	.cell.evaluatesTo.selected {
+		background-color: var(--color-green-700);
+	}
+	.cell.no-eval:not(.evaluatesTo) {
+		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear,
+			sepia 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 		transform: translate3d(0, 0, 0);
 		backface-visibility: hidden;
 		perspective: 1000px;
-	}
-	.cell.no-eval {
-		animation: sepia 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 	}
 	@keyframes grow-to-normal {
 		0% {
