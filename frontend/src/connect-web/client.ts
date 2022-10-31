@@ -2,7 +2,8 @@ import {
 	createPromiseClient,
 	createConnectTransport,
 	type Interceptor,
-	type ConnectTransportOptions
+	type ConnectTransportOptions,
+	Code
 } from '@bufbuild/connect-web'
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
@@ -61,6 +62,19 @@ const retrier: Interceptor =
 					const waitPeriod = Math.min(100 * retries, 3000)
 					await new Promise((r) => setTimeout(r, waitPeriod))
 					return (retrier as any)(next, ++retries)(req)
+				} else if (err instanceof ConnectError) {
+					switch (err.code) {
+						case Code.Unauthenticated: {
+							if (appEnv.browser) {
+								localStorage.removeItem('sessionID')
+								state.authHeader = ''
+								req.header.delete('Authorization')
+								if (retries < 5) {
+									return (retrier as any)(next, ++retries)(req)
+								}
+							}
+						}
+					}
 				}
 			}
 
@@ -73,7 +87,10 @@ const isTest = (appEnv as any).mode === 'test'
 const transportOptions: ConnectTransportOptions = {
 	baseUrl:
 		import.meta.env?.VITE_API ||
-		(isHttps ? '/' : import.meta.env?.VITE_DEV_API || 'http://localhost:8080/'),
+		(isHttps
+			? '/'
+			: import.meta.env?.VITE_DEV_API ||
+			  `http://${appEnv.browser ? window.location.hostname : 'localhost'}:8080/`),
 	interceptors: [retrier],
 	useBinaryFormat: isTest
 		? false
@@ -81,7 +98,7 @@ const transportOptions: ConnectTransportOptions = {
 		? !window.location.search.includes('json=1')
 		: true
 }
-console.log({ transportOptions, meta: import.meta, appEnv })
+console.debug({ transportOptions, meta: import.meta, appEnv })
 
 const transport = createConnectTransport(transportOptions)
 

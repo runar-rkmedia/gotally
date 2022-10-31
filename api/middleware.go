@@ -314,7 +314,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 	if options.SessionLifeTime == 0 {
 		// Its a game, I don't see a reason to use short lifetimes
 		// There is no sensitive information.
-		options.SessionLifeTime = time.Hour * 24 * 30 * 24
+		options.SessionLifeTime = time.Duration(sessionMaxTime) * time.Second
 
 	}
 	return func(next http.Handler) http.HandlerFunc {
@@ -324,19 +324,8 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 			ctx := r.Context()
 			span := trace.SpanFromContext(ctx)
 
-			sessionID := getSessionIDFromRequest(r)
+			sessionID, tokenSource := getSessionIDFromRequest(r)
 			now := time.Now()
-			if sessionID == "" {
-				sessionID = gonanoid.Must()
-			}
-			if len(sessionID) != tokenLength {
-				l.Warn().
-					Str("sessionID", sessionID).
-					Int("wantedLength", tokenLength).
-					Int("gotLength", len(sessionID)).
-					Msg("user-provided session was ignored becuase of wrong length")
-				sessionID = gonanoid.Must()
-			}
 
 			// Get the session-state for the user
 			var userState *UserState
@@ -344,7 +333,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 			// if len(sessionID) == tokenLength {
 			// 	userState = Store.GetUserState(sessionID)
 			// }
-			if userState == nil {
+			if sessionID != "" {
 				us, err := store.GetUserBySessionID(ctx, types.GetUserPayload{ID: sessionID})
 				if err != nil {
 					l.Error().Str("sessionID", sessionID).Err(err).Msg("failed to lookup user by session-id")
@@ -354,6 +343,18 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					}
 					w.WriteHeader(500)
 					return
+				}
+				if us != nil {
+					if time.Now().After(us.InvalidAfter) {
+						l.Warn().
+							Time("InvalidAfter", us.InvalidAfter).
+							Time("now", time.Now()).
+							Msg("session is invalid")
+						us = nil
+						// TODO: handle this case
+						w.WriteHeader(http.StatusUnauthorized)
+						return
+					}
 				}
 				if us != nil {
 
@@ -379,6 +380,19 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 			}
 
 			if userState == nil {
+				if sessionID == "" {
+					tokenSource = "generated_empty"
+					sessionID = gonanoid.Must()
+				}
+				if len(sessionID) != tokenLength {
+					l.Warn().
+						Str("sessionID", sessionID).
+						Int("wantedLength", tokenLength).
+						Int("gotLength", len(sessionID)).
+						Msg("user-provided session was ignored becuase of wrong length")
+					sessionID = gonanoid.Must()
+					tokenSource += "_generated_invalid_length"
+				}
 				// sessionID = idgenerator()
 				var gameOptions tallylogic.NewGameOptions
 				// Undocumented cusomization of game. This is only available in development-mode, and used for internal testing.
@@ -424,6 +438,9 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						w.WriteHeader(500)
 						return
 					}
+					l.Info().
+						Str("tokenSource", string(tokenSource)).
+						Str("userID", createdUserSession.UserID).Msg("A new user was created")
 					{
 						// sanity-checks. All of these null-checks should have ben handled in store.CreateUserSession
 						// This is just a loud alert to help development
@@ -458,7 +475,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					// path, and we probably need to get it from the config
 					Path:   "/",
 					Value:  sessionID,
-					MaxAge: cookieMaxTime,
+					MaxAge: sessionMaxTime,
 					Secure: r.TLS != nil,
 					// SameSite: http.SameSiteNoneMode,
 					HttpOnly: true,

@@ -42,18 +42,24 @@ const (
 	// the context-key for UserState
 	ContextKeyUserState ContextKey = "USER_STATE"
 	ContextKeyLogger    ContextKey = "LOGGER"
-	cookieMaxTime       int        = 60000
+	sessionMaxTime      int        = 60 * 60 * 24 * 365 * 10
 	setHttpAuthHeader   bool       = true
 	setHttpsAuthHeader  bool       = false
+	TokenSourceCookie              = "cookie"
+	TokenSourceHeader              = "header"
 )
 
+type TokenSource string
 type ContextKey string
 
-func getSessionIDFromRequest(req *http.Request) string {
+func getSessionIDFromRequest(req *http.Request) (string, TokenSource) {
 	if cookieValue, err := getCookieWithValidation(req, tokenHeader); err == nil {
-		return cookieValue
+		return cookieValue, TokenSourceCookie
 	}
-	return req.Header.Get(tokenHeader)
+	if headerValue := req.Header.Get(tokenHeader); headerValue != "" {
+		return headerValue, TokenSourceHeader
+	}
+	return "", ""
 }
 
 func c(condition bool, iftrue, iffalse string) string {
