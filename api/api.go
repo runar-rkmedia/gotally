@@ -42,11 +42,12 @@ const (
 	// the context-key for UserState
 	ContextKeyUserState ContextKey = "USER_STATE"
 	ContextKeyLogger    ContextKey = "LOGGER"
-	sessionMaxTime      int        = 60 * 60 * 24 * 365 * 10
-	setHttpAuthHeader   bool       = true
-	setHttpsAuthHeader  bool       = false
-	TokenSourceCookie              = "cookie"
-	TokenSourceHeader              = "header"
+	// 400 days see https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute
+	sessionMaxTime     int  = 60 * 60 * 24 * 400
+	setHttpAuthHeader  bool = true
+	setHttpsAuthHeader bool = false
+	TokenSourceCookie       = "cookie"
+	TokenSourceHeader       = "header"
 )
 
 type TokenSource string
