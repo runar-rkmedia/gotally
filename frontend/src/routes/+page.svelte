@@ -4,7 +4,7 @@
 	import { GetHintRequest, httpErrorStore, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
-	import { animateSwipe, coordToIndex } from '../logic'
+	import { animateSwipe, coordToIndex, ValidatePath } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
@@ -15,6 +15,7 @@
 	import { cellValue } from '../components/board/cell'
 	import Counter from '../components/Counter.svelte'
 	import userSettings from '../userSettings'
+	import PrimeFactors from '../components/PrimeFactors.svelte'
 
 	let boardDiv: HTMLDivElement
 	let showGameMenu = false
@@ -269,6 +270,7 @@
 	let lastSelectionValue = 0
 	let selectionMap: Record<number, boolean | undefined> = {}
 	let invalidSelectionMap: Record<number, boolean | undefined> = {}
+	let pathInvalidErr: any
 	const showSelectionInfo = true
 	const select = async (i: number) => {
 		invalidSelectionMap = {}
@@ -281,7 +283,21 @@
 			return
 		}
 		const isSelected = !!selectionMap[i]
+		pathInvalidErr = ValidatePath(
+			isSelected ? selection : [...selection, i],
+			$store.session.game.board.rows,
+			$store.session.game.board.columns,
+			$store.session.game.board.cells
+		)
+		console.log('pathinv', pathInvalidErr)
 		if (isSelected) {
+			if (pathInvalidErr) {
+				invalidSelectionMap = { [i]: true }
+				selection = []
+				lastSelectionValue = 0
+				selectionMap = {}
+				return
+			}
 			const [_, commit, err] = await storeHandler.combineCells(selection)
 			if (err) {
 				invalidSelectionMap = { [i]: true }
@@ -304,20 +320,21 @@
 	$: selectionSum = !showSelectionInfo
 		? 0
 		: selection.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
+	$: selectionEvaluatedSum = !showSelectionInfo
+		? 0
+		: selection.slice(0, 1).reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
 	$: selectionProduct = !showSelectionInfo
 		? 0
 		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
-</script>
+	$: selectionEvaluatedProduct = !showSelectionInfo
+		? 0
+		: selection.slice(0, -1).reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
 
-{#if $httpErrorStore.errors.length}
-	<div>
-		{#each $httpErrorStore.errors as err}
-			{err.error}
-			<!-- content here -->
-		{/each}
-	</div>
-	<!-- content here -->
-{/if}
+	$: pathEvaluatesToLast =
+		selection.length >= 2 &&
+		(lastSelectionValue === selectionEvaluatedSum ||
+			lastSelectionValue === selectionEvaluatedProduct)
+</script>
 
 {#if $store?.session?.game?.board}
 	<Dialog bind:open={$store.didWin} let:open>
@@ -366,6 +383,7 @@
 						hinted={nextHint?.instructionOneof.case === 'combine' &&
 							nextHint.instructionOneof.value.index.includes(i)}
 						selectedLast={!!selection.length && selection[selection.length - 1] === i}
+						evaluatesTo={pathEvaluatesToLast}
 						cell={c}
 						on:click={() => select(i)}
 					/>
@@ -394,6 +412,7 @@
 						? 'success'
 						: 'normal'}
 				/>
+				<PrimeFactors n={selectionProduct} />
 			</div>
 		{/if}
 		<p>
@@ -438,8 +457,8 @@
 		float: right;
 	}
 	.selectionCounter {
-		display: flex;
-		justify-content: center;
+		display: grid;
+		grid-template-columns: 5fr 5fr 2fr;
 		gap: 10px;
 	}
 	.bottom-controls {
