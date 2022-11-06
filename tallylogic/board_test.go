@@ -397,3 +397,52 @@ func Benchmark_TableBoardSwipeHorizontal(b *testing.B) {
 		}
 	})
 }
+
+func TestTableBoard_AreNeighboursByIndex(t *testing.T) {
+	type fields struct {
+		cells             []cell.Cell
+		rows              int
+		columns           int
+		id                string
+		TableBoardOptions TableBoardOptions
+	}
+	tests := []struct {
+		name          string
+		columns, rows int
+		indexes       [][2]int
+
+		want bool
+	}{
+		{
+			"Not neighbours 5x5",
+			5, 5,
+			[][2]int{
+				{8, 17},
+			},
+			false,
+		},
+		{
+			"Are neighbours 5x5",
+			5, 5,
+			[][2]int{
+				{0, 5},
+				{5, 10},
+				{10, 5},
+				{2, 3},
+				{3, 2},
+				{24, 19},
+			},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tb := NewTableBoard(tt.columns, tt.rows)
+			for _, pair := range tt.indexes {
+				if got := tb.AreNeighboursByIndex(pair[0], pair[1]); got != tt.want {
+					t.Errorf("TableBoard.AreNeighboursByIndex(%d, %d) = %v, want %v", pair[0], pair[1], got, tt.want)
+				}
+			}
+		})
+	}
+}

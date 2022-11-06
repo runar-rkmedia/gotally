@@ -192,7 +192,15 @@ export const ValidatePath = (
 	return null
 }
 
-const AreNeighboursByIndex = (a: number, b: number, columns: number, rows: number): boolean => {
+export const AreNeighboursByIndex = (
+	a: number,
+	b: number,
+	columns: number,
+	rows: number
+): boolean => {
+	if (a === b) {
+		return false
+	}
 	if (a < 0 || b < 0) {
 		return false
 	}
@@ -202,14 +210,27 @@ const AreNeighboursByIndex = (a: number, b: number, columns: number, rows: numbe
 	}
 	const [ac, ar] = IndexToCord(a, columns)
 	const [bc, br] = IndexToCord(b, columns)
-	console.log('neighbours', { a, b, columns, rows, ac, ar, bc, br })
 
-	const diff = ac - bc + (ar - br)
+	const diffc = ac - bc
+	const diffr = ar - br
 
-	if (diff != 1 && diff != -1) {
-		return false
+	switch (true) {
+		// The cells cannot both be on different columns and rows and still be neighbours
+		case diffc !== 0 && diffr !== 0:
+			return false
+		// The cells cannot be the same
+		case diffc === 0 && diffr === 0:
+			return false
+		case diffc == 1:
+			return true
+		case diffc == -1:
+			return true
+		case diffr == 1:
+			return true
+		case diffr == -1:
+			return true
 	}
-	return true
+	return false
 }
 
 function cellRow(i: number, columns: number) {
