@@ -20,7 +20,9 @@
 	export let noAnimation: boolean | undefined = undefined
 	export let selected: boolean | undefined
 	export let hinted: boolean | undefined
+	export let hasHint: boolean | undefined
 	export let selectedLast: boolean | undefined
+	export let selectedFirst: boolean | undefined
 	export let evaluatesTo: boolean | undefined
 	export let pathDir: pathDirection | undefined = undefined
 	export let cell: Cell
@@ -32,6 +34,7 @@
 </script>
 
 <div
+	title={pathDir}
 	class="cell"
 	class:no-eval={noEval}
 	class:noAnimation
@@ -50,8 +53,10 @@
 	class:pathDownLeft={pathDir === 'leftdown'}
 	class:pathLeftDown={pathDir === 'downleft'}
 	class:hinted
+	class:hasHint
 	class:evaluatesTo
 	class:selectedLast
+	class:selectedFirst
 	class:blank={Number(cell.base) === 0}
 	data-base={cell.base}
 	on:mousedown
@@ -87,7 +92,7 @@
 	</div>
 </div>
 
-<style>
+<style lang="scss">
 	.cell {
 		--max-font-size: 1.8rem;
 		--min-font-size: 1rem;
@@ -109,8 +114,8 @@
 		background-color: var(--color-grey-700);
 		position: relative;
 		color: var(--ctc);
-		transition-property: border-radius;
-		transition-duration: 400ms;
+		transition-property: border-radius, background, background-color, filter;
+		transition-duration: 800ms;
 		transition-timing-function: var(--easing-standard);
 	}
 	.cell:empty,
@@ -120,9 +125,6 @@
 	}
 	.cell.hinted:not(.selected) {
 		background-color: var(--color-blue-500);
-		outline-color: var(--color-purple-700);
-		outline-width: 5px;
-		outline-style: dotted;
 	}
 	.cell::before {
 		position: absolute;
@@ -259,18 +261,117 @@
 	}
 
 	.cell.selected {
+		background-color: var(--color-green-500);
+	}
+	.cell {
 		background-color: var(--color-grey-300);
 		/* transform: scale(0.9); */
+		--selection-direction: 45deg;
+		--bgxx: var(--color-grey-600);
+		--bgx1: var(--bgxx);
+		--bgx2: var(--bgxx);
+		--bgx3: var(--bgxx);
+		--bgx4: var(--bgxx);
+		--bgx5: var(--bgxx);
+		--bgx6: var(--bgxx);
+		--bgx7: var(--bgxx);
+		background: linear-gradient(27deg, var(--bgx1) 5px, transparent 5px) 0 5px,
+			linear-gradient(207deg, var(--bgx1) 5px, transparent 5px) 10px 0px,
+			linear-gradient(27deg, var(--bgx2) 5px, transparent 5px) 0px 10px,
+			linear-gradient(207deg, var(--bgx2) 5px, transparent 5px) 10px 5px,
+			linear-gradient(90deg, var(--bgx3) 10px, transparent 10px),
+			linear-gradient(
+				var(--bgx4) 25%,
+				var(--bgx5) 25%,
+				var(--bgx6) 50%,
+				transparent 50%,
+				transparent 75%,
+				var(--bgx7) 75%,
+				var(--bgx7)
+			);
+		/* background-color: #131313; */
+		background-size: 20px 20px;
+		animation-duration: 400ms;
+		animation-timing-function: linear;
+		animation-iteration-count: infinite;
+	}
+	@keyframes bg-left {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: -40px 0px;
+		}
+	}
+	@keyframes bg-leftup {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: -20px -20px;
+		}
+	}
+	@keyframes bg-rightup {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: 20px -20px;
+		}
+	}
+	@keyframes bg-rightdown {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: 20px 20px;
+		}
+	}
+	@keyframes bg-leftdown {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: -20px 20px;
+		}
+	}
+	@keyframes bg-right {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: 40px 0px;
+		}
+	}
+	@keyframes bg-up {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: 0px -40px;
+		}
+	}
+	@keyframes bg-down {
+		0% {
+			background-position: 0px 0px;
+		}
+		100% {
+			background-position: 0px 40px;
+		}
 	}
 	.cell.selected .cellValue {
 		transform: scale(1.2);
 	}
 
 	.cell.selectedLast:not(.evaluatesTo) {
-		background-color: var(--color-yellow-700);
+		background-color: var(--color-yellow-500);
 	}
 	.cell.evaluatesTo.selected {
 		background-color: var(--color-green-700);
+		--bgxx: var(--color-green-500);
+	}
+	.cell:not(.hinted).hasHint {
+		filter: brightness(0.6);
 	}
 	.cell.no-eval:not(.evaluatesTo):not(.noAnimation) {
 		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear,
@@ -333,10 +434,6 @@
 	.selected.path {
 		--br: 40%;
 	}
-	.selected.pathUp {
-		border-bottom-right-radius: var(--br);
-		border-bottom-left-radius: var(--br);
-	}
 	@keyframes animateHeart {
 		0% {
 			transform: scale(0.8);
@@ -365,34 +462,72 @@
 		animation-name: animateHeart;
 		animation-duration: 2s;
 		animation-iteration-count: infinite;
+		/* background: var(--bgxx); */
 	}
-	.selected.pathRight {
-		border-bottom-left-radius: var(--br);
-		border-top-left-radius: var(--br);
-	}
-	.selected.pathDown {
-		border-top-left-radius: var(--br);
-		border-top-left-radius: var(--br);
-	}
-	.selected.pathLeft {
-		border-bottom-right-radius: var(--br);
-		border-bottom-right-radius: var(--br);
-	}
-	/* corners */
-	.selected.pathUpRight {
-		border-top-left-radius: var(--br);
-	}
-	.selected.pathRightUp {
-		border-bottom-right-radius: var(--br);
-	}
-	.selected.pathRightDown {
-		border-top-right-radius: var(--br);
-	}
-	.selected.pathLeftUp {
-		border-top-right-radius: var(--br);
-	}
-	.selected.pathUpLeft {
-		border-bottom-left-radius: var(--br);
+	.selected {
+		&.selectedFirst {
+			&.pathRight {
+				border-bottom-left-radius: var(--br);
+				border-top-left-radius: var(--br);
+			}
+			&.pathDown {
+				border-top-left-radius: var(--br);
+				border-top-right-radius: var(--br);
+			}
+			&.pathLeft {
+				border-top-right-radius: var(--br);
+				border-bottom-right-radius: var(--br);
+			}
+			&.pathUp {
+				border-bottom-left-radius: var(--br);
+				border-bottom-right-radius: var(--br);
+			}
+		}
+		&.pathRight {
+			animation-name: bg-right;
+		}
+		&.pathDown {
+			animation-name: bg-down;
+		}
+		&.pathLeft {
+			animation-name: bg-left;
+		}
+		&.pathUp {
+			animation-name: bg-up;
+		}
+		/* corners */
+		&.pathUpRight {
+			animation-name: bg-rightup;
+			border-top-left-radius: var(--br);
+		}
+		&.pathRightUp {
+			animation-name: bg-rightup;
+			border-bottom-right-radius: var(--br);
+		}
+		&.pathRightDown {
+			animation-name: bg-rightdown;
+			border-top-right-radius: var(--br);
+		}
+		&.pathDownLeft {
+			animation-name: bg-leftdown;
+			border-top-left-radius: var(--br);
+		}
+		&.pathLeftDown {
+			animation-name: bg-leftdown;
+			border-bottom-right-radius: var(--br);
+		}
+		&.pathLeftUp {
+			animation-name: bg-leftup;
+			border-top-right-radius: var(--br);
+		}
+		&.pathUpLeft {
+			animation-name: bg-leftup;
+			border-bottom-left-radius: var(--br);
+		}
+		&.pathDownRight {
+			animation-name: bg-rightdown;
+			border-bottom-left-radius: var(--br);
+		}
 	}
 	.cell.noAnimation * {
 		transition: none !important;
