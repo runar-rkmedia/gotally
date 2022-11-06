@@ -526,10 +526,12 @@
 						pathDir={selectionDirectionMap[i]}
 						noEval={invalidSelectionMap[i]}
 						selected={selectionMap[i]}
+						hasHint={nextHint?.instructionOneof.case === 'combine'}
 						hinted={nextHint?.instructionOneof.case === 'combine' &&
 							nextHint.instructionOneof.value.index.includes(i)}
 						selectedLast={!!selection.length && selection[selection.length - 1] === i}
-						evaluatesTo={selection.length > 2 && pathEvaluatesToLast}
+						selectedFirst={!!selection.length && selection[0] === i}
+						evaluatesTo={selection.length >= 2 && pathEvaluatesToLast}
 						cell={c}
 						on:mouseup={() => {
 							console.log('mouseup', mouseDown)
