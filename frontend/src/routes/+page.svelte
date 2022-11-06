@@ -1,10 +1,16 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GetHintRequest, httpErrorStore, SwipeDirection } from '../connect-web'
+	import { GetHintRequest, Indexes, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
-	import { animateSwipe, coordToIndex, ValidatePath } from '../logic'
+	import {
+		animateSwipe,
+		coordToIndex,
+		createSelectionDirectionMap,
+		ValidatePath,
+		type pathDirection
+	} from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
@@ -16,6 +22,7 @@
 	import Counter from '../components/Counter.svelte'
 	import userSettings from '../userSettings'
 	import PrimeFactors from '../components/PrimeFactors.svelte'
+	import { findCellFromTouch } from '../utils/touchHandlers'
 
 	let boardDiv: HTMLDivElement
 	let showGameMenu = false
@@ -47,12 +54,25 @@
 		}
 		lastNumberKey = n
 	}
+	let mouseDown = false
 
 	onMount(async () => {
 		await storeHandler.commit(storeHandler.getSession())
 
 		// Set up swipes
 		if (browser) {
+			document.onmousedown = () => (mouseDown = true)
+			document.onmouseup = () => {
+				if (didDrag) {
+					setTimeout(() => {
+						if (!didDrag) {
+							return
+						}
+						resetSelection()
+					}, 200)
+				}
+				mouseDown = false
+			}
 			document.onkeydown = async (e) => {
 				if ($store.didWin) {
 					return
@@ -175,9 +195,32 @@
 		console.error('Not implemented', 'animateInvalidSwipe', direction)
 	}
 	let swipeLock = false
+	let isSwiping = false
 	let _swipeQueueHandling = false
+	const swipeLockedForDragging = () => {
+		if (!didDrag) {
+			return false
+		}
+		// block swiping if dragging across cells
+		const diff = new Date().getTime() - didDrag.getTime()
+		if (diff > 200) {
+			console.log('drag reset', diff)
+			return true
+		}
+		console.log('drag reset NOT', diff)
+		return false
+	}
 	const swipeQueue: SwipeDirection[] = []
 	const swipe = async (direction: SwipeDirection) => {
+		if (selection.length) {
+			if (!didDrag) {
+				return
+			}
+			if (swipeLockedForDragging()) {
+				resetSelection()
+				return
+			}
+		}
 		swipeQueue.push(direction)
 		if (_swipeQueueHandling) {
 			return
@@ -199,7 +242,14 @@
 			return
 		}
 		if (selection.length) {
-			return
+			if (!didDrag) {
+				return
+			}
+			// block swiping if dragging across cells
+			if (swipeLockedForDragging()) {
+				resetSelection()
+				return
+			}
 		}
 		if (swipeLock) {
 			return
@@ -217,6 +267,8 @@
 			return
 		}
 		// swipeLock = true
+		isSwiping = true
+		resetSelection()
 		const r = storeHandler.swipe(direction)
 		await animateSwipe(swipeOptions)
 		// In case the server responds slower than the animation,
@@ -225,6 +277,7 @@
 		boardDiv.style.opacity = '0.8'
 		const [_, commit, err] = await r
 		swipeLock = false
+		isSwiping = false
 		for (const cell of [...boardDiv.children] as HTMLElement[]) {
 			cell.style.transform = ''
 			cell.style.transition = 'none'
@@ -270,16 +323,27 @@
 	let lastSelectionValue = 0
 	let selectionMap: Record<number, boolean | undefined> = {}
 	let invalidSelectionMap: Record<number, boolean | undefined> = {}
+	// let selectionDirectionMap: Record<number, pathDirection> = {
+	// 	11: 'up',
+	// 	6: 'continue',
+	// 	1: 'upright',
+	// 	2: 'right'
+	// }
+	$: selectionDirectionMap = createSelectionDirectionMap(selection)
 	let pathInvalidErr: any
 	const showSelectionInfo = true
+	const resetSelection = () => {
+		invalidSelectionMap = {}
+		selection = []
+		lastSelectionValue = 0
+		selectionMap = {}
+	}
 	const select = async (i: number) => {
+		console.error('select', i)
 		invalidSelectionMap = {}
 		const cell = $store.session.game.board.cells[i]
 		if (!cell?.base) {
-			invalidSelectionMap = {}
-			selection = []
-			lastSelectionValue = 0
-			selectionMap = {}
+			resetSelection()
 			return
 		}
 		const isSelected = !!selectionMap[i]
@@ -289,27 +353,20 @@
 			$store.session.game.board.columns,
 			$store.session.game.board.cells
 		)
-		console.log('pathinv', pathInvalidErr)
-		if (isSelected) {
+		if (isSelected || (!canSelectNonNeighbours && pathInvalidErr?.code === 'non-neighbours')) {
 			if (pathInvalidErr) {
+				resetSelection()
 				invalidSelectionMap = { [i]: true }
-				selection = []
-				lastSelectionValue = 0
-				selectionMap = {}
 				return
 			}
 			const [_, commit, err] = await storeHandler.combineCells(selection)
 			if (err) {
+				resetSelection()
 				invalidSelectionMap = { [i]: true }
-				selection = []
-				lastSelectionValue = 0
-				selectionMap = {}
 				return
 			}
 			commit()
-			selection = []
-			selectionMap = {}
-			lastSelectionValue = 0
+			resetSelection()
 			return
 		}
 		selection = [...selection, i]
@@ -322,7 +379,7 @@
 		: selection.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
 	$: selectionEvaluatedSum = !showSelectionInfo
 		? 0
-		: selection.slice(0, 1).reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
+		: selection.slice(0, -1).reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
 	$: selectionProduct = !showSelectionInfo
 		? 0
 		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
@@ -334,6 +391,16 @@
 		selection.length >= 2 &&
 		(lastSelectionValue === selectionEvaluatedSum ||
 			lastSelectionValue === selectionEvaluatedProduct)
+	$: {
+		console.log('eval', lastSelectionValue, selectionEvaluatedSum, selectionSum, selection)
+	}
+	$: {
+		console.log('mouseDown state', mouseDown)
+	}
+	let didDrag: Date | null = null
+	let canDragToSelect = true
+	let canSelectNonNeighbours = false
+	let resetSelectionOnSwipe = true
 </script>
 
 {#if $store?.session?.game?.board}
@@ -373,19 +440,134 @@
 			<div
 				bind:this={boardDiv}
 				use:createSwiper
+				on:touchend|preventDefault={(e) => {
+					if (isSwiping) {
+						return
+					}
+					console.log('touchend')
+					if (!canDragToSelect) {
+						console.log('touchend no-can-drag')
+						return
+					}
+					if (!didDrag) {
+						console.log('touchend no-drag')
+						return
+					}
+					didDrag = null
+					const [findings, err] = findCellFromTouch(e)
+					if (err) {
+						console.log('touchend err', err)
+						console.error(err.message, err.details)
+						resetSelection()
+						return
+					}
+					// if (selection[selection.length - 1] === findings.index) {
+					// 	console.log('touchend last')
+					// 	return
+					// }
+					if (selection.length === 1 && selection[0] === findings.index) {
+						return
+					}
+					console.log('touchend-select')
+					select(findings.index)
+				}}
+				on:touchmove|preventDefault={(e) => {
+					if (!canDragToSelect) {
+						return
+					}
+					if (isSwiping) {
+						return
+					}
+					const [findings, err] = findCellFromTouch(e)
+					if (err) {
+						console.error(err.message, err.details)
+						return
+					}
+					if (selectionMap[findings.index]) {
+						return
+					}
+					console.log('touchmove-selectoooo')
+					select(findings.index)
+					didDrag = new Date()
+				}}
+				on:touchstart|preventDefault={(e) => {
+					if (isSwiping) {
+						return
+					}
+					if (!canDragToSelect) {
+						return
+					}
+					const [findings, err] = findCellFromTouch(e)
+					if (err) {
+						resetSelection()
+						return
+					}
+					if (selectionMap[findings.index]) {
+						if (selection.length === 1) {
+							resetSelection()
+							return
+						}
+						if (selection[selection.length - 1] !== findings.index) {
+							resetSelection()
+							return
+						}
+						// combine
+						select(findings.index)
+						return
+					}
+					console.log('touchstart-select')
+					select(findings.index)
+				}}
 				class="board"
 				style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
 			>
 				{#each $store.session.game.board.cells as c, i}
 					<CellComp
+						pathDir={selectionDirectionMap[i]}
 						noEval={invalidSelectionMap[i]}
 						selected={selectionMap[i]}
 						hinted={nextHint?.instructionOneof.case === 'combine' &&
 							nextHint.instructionOneof.value.index.includes(i)}
 						selectedLast={!!selection.length && selection[selection.length - 1] === i}
-						evaluatesTo={pathEvaluatesToLast}
+						evaluatesTo={selection.length > 2 && pathEvaluatesToLast}
 						cell={c}
-						on:click={() => select(i)}
+						on:mouseup={() => {
+							console.log('mouseup', mouseDown)
+							if (!didDrag) {
+								return
+							}
+							if (invalidSelectionMap[i]) {
+								didDrag = null
+								return
+							}
+							if (!selectionMap[i]) {
+								didDrag = null
+								return
+							}
+							select(i)
+							didDrag = null
+						}}
+						on:mouseenter={(e) => {
+							console.log('mousover', i, mouseDown)
+							if (!mouseDown) {
+								return
+							}
+							if (isSwiping) {
+								return
+							}
+							if (selectionMap[i]) {
+								return
+							}
+							if (!didDrag) {
+								didDrag = new Date()
+							}
+							select(i)
+						}}
+						on:mousedown={() => {
+							console.log('mouse click')
+							select(i)
+							didDrag = null
+						}}
 					/>
 				{/each}
 			</div>
@@ -394,6 +576,7 @@
 			<div class="selectionCounter">
 				<Counter
 					show={!!selectionSum}
+					asCell={false}
 					value={selectionSum}
 					label="Sum"
 					variant={lastSelectionValue * 2 < selectionSum
@@ -404,6 +587,7 @@
 				/>
 				<Counter
 					show={selectionProduct > 1}
+					asCell={true}
 					value={selectionProduct}
 					label="Product"
 					variant={lastSelectionValue < selectionProduct / lastSelectionValue

@@ -467,6 +467,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					Store.SetUserState(userState)
 				}
 				// Set the cookie /user-session
+				// TODO: also recreate a session with a new cookie if it expires soon (like in the next 200 days)
 
 				cookie := &http.Cookie{
 					Name: tokenHeader,
