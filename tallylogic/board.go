@@ -474,6 +474,9 @@ func (pp NegCellRange) Len() int           { return len(pp) }
 func (pp NegCellRange) Swap(i, j int)      { pp[i], pp[j] = pp[j], pp[i] }
 
 func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
+	if a == b {
+		return false
+	}
 	if a < 0 || b < 0 {
 		return false
 	}
@@ -484,12 +487,26 @@ func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
 	ac, ar := tb.IndexToCord(a)
 	bc, br := tb.IndexToCord(b)
 
-	diff := (ac - bc) + (ar - br)
+	diffc := ac - bc
+	diffr := ar - br
 
-	if diff != 1 && diff != -1 {
+	switch {
+	// The cells cannot both be on different columns and rows and still be neighbours
+	case diffc != 0 && diffr != 0:
 		return false
+	// The cells cannot be the same
+	case diffc == 0 && diffr == 0:
+		return false
+	case diffc == 1:
+		return true
+	case diffc == -1:
+		return true
+	case diffr == 1:
+		return true
+	case diffr == -1:
+		return true
 	}
-	return true
+	return false
 }
 
 func (tb *TableBoard) precalculateNeighboursForCellIndex() {
