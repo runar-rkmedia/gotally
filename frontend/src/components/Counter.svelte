@@ -7,6 +7,7 @@
 	export let value = 0
 	export let variant: 'normal' | 'error' | 'success' = 'normal'
 	export let show = true
+	export let asCell = true
 	export let label = ''
 </script>
 
@@ -21,7 +22,11 @@
 	</div>
 	<!-- {numberFormatter(value)} -->
 	<div class="cellContainer" transition:fade>
-		<Cell cell={{ base: value, twopow: 0 }} />
+		{#if asCell}
+			<Cell cell={{ base: value, twopow: 0 }} />
+		{:else}
+			{numberFormatter(value)}
+		{/if}
 	</div>
 </div>
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+	type pathDirection = any
+
 	import { numberFormatter } from '../formatNumber'
 
 	import { cellValue, primeFactors } from './cell'
@@ -15,10 +17,12 @@
 	}
 
 	export let noEval: boolean | undefined
+	export let noAnimation: boolean | undefined = undefined
 	export let selected: boolean | undefined
 	export let hinted: boolean | undefined
 	export let selectedLast: boolean | undefined
 	export let evaluatesTo: boolean | undefined
+	export let pathDir: pathDirection | undefined = undefined
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
 	$: angle = 100 / factors.length
@@ -30,13 +34,31 @@
 <div
 	class="cell"
 	class:no-eval={noEval}
+	class:noAnimation
 	class:selected
+	class:path={pathDir}
+	class:pathUp={pathDir === 'up'}
+	class:pathRight={pathDir === 'right'}
+	class:pathDown={pathDir === 'down'}
+	class:pathLeft={pathDir === 'left'}
+	class:pathUpRight={pathDir === 'upright'}
+	class:pathRightUp={pathDir === 'rightup'}
+	class:pathUpLeft={pathDir === 'leftup'}
+	class:pathLeftUp={pathDir === 'upleft'}
+	class:pathDownRight={pathDir === 'downright'}
+	class:pathRightDown={pathDir === 'rightdown'}
+	class:pathDownLeft={pathDir === 'leftdown'}
+	class:pathLeftDown={pathDir === 'downleft'}
 	class:hinted
 	class:evaluatesTo
 	class:selectedLast
 	class:blank={Number(cell.base) === 0}
 	data-base={cell.base}
-	on:click
+	on:mousedown
+	on:touchstart
+	on:touchend
+	on:mouseenter
+	on:focus
 	bind:clientHeight={h}
 	bind:clientWidth={w}
 	style={`--cell-width: ${w}px; --cell-height: ${h}px; --value-length: ${
@@ -87,6 +109,9 @@
 		background-color: var(--color-grey-700);
 		position: relative;
 		color: var(--ctc);
+		transition-property: border-radius;
+		transition-duration: 400ms;
+		transition-timing-function: var(--easing-standard);
 	}
 	.cell:empty,
 	.cell.blank {
@@ -140,6 +165,8 @@
 		font-weight: bold;
 		font-family: sans-serif;
 		transform: rotate(var(--o));
+	}
+	:not(.cell.noAnimation) .sector {
 		animation: p 1s 0.5s both;
 	}
 	.sector:before,
@@ -232,20 +259,20 @@
 	}
 
 	.cell.selected {
-		background-color: var(--color-green-300);
-		transform: scale(0.9);
+		background-color: var(--color-grey-300);
+		/* transform: scale(0.9); */
 	}
 	.cell.selected .cellValue {
 		transform: scale(1.2);
 	}
 
 	.cell.selectedLast:not(.evaluatesTo) {
-		background-color: var(--color-green-500);
+		background-color: var(--color-yellow-700);
 	}
 	.cell.evaluatesTo.selected {
 		background-color: var(--color-green-700);
 	}
-	.cell.no-eval:not(.evaluatesTo) {
+	.cell.no-eval:not(.evaluatesTo):not(.noAnimation) {
 		animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, grow-to-normal 0.82s linear,
 			sepia 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 		transform: translate3d(0, 0, 0);
@@ -294,5 +321,81 @@
 		60% {
 			transform: translate3d(4px, 0, 0);
 		}
+	}
+	@keyframes path {
+		0% {
+			border-width: 2px;
+		}
+		100% {
+			border-width: 4px;
+		}
+	}
+	.selected.path {
+		--br: 40%;
+	}
+	.selected.pathUp {
+		border-bottom-right-radius: var(--br);
+		border-bottom-left-radius: var(--br);
+	}
+	@keyframes animateHeart {
+		0% {
+			transform: scale(0.8);
+		}
+		20% {
+			transform: scale(0.9);
+		}
+		30% {
+			transform: scale(0.8);
+		}
+		40% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(0.8);
+		}
+		100% {
+			transform: scale(0.8);
+		}
+	}
+
+	.cell.evaluatesTo.selected {
+		filter: brightness(1.2);
+	}
+	.cell.evaluatesTo.selectedLast:not(.noAnimation) {
+		animation-name: animateHeart;
+		animation-duration: 2s;
+		animation-iteration-count: infinite;
+	}
+	.selected.pathRight {
+		border-bottom-left-radius: var(--br);
+		border-top-left-radius: var(--br);
+	}
+	.selected.pathDown {
+		border-top-left-radius: var(--br);
+		border-top-left-radius: var(--br);
+	}
+	.selected.pathLeft {
+		border-bottom-right-radius: var(--br);
+		border-bottom-right-radius: var(--br);
+	}
+	/* corners */
+	.selected.pathUpRight {
+		border-top-left-radius: var(--br);
+	}
+	.selected.pathRightUp {
+		border-bottom-right-radius: var(--br);
+	}
+	.selected.pathRightDown {
+		border-top-right-radius: var(--br);
+	}
+	.selected.pathLeftUp {
+		border-top-right-radius: var(--br);
+	}
+	.selected.pathUpLeft {
+		border-bottom-left-radius: var(--br);
+	}
+	.cell.noAnimation * {
+		transition: none !important;
+		animation: none !important;
 	}
 </style>

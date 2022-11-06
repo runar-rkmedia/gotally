@@ -139,11 +139,17 @@ export const coordToIndex = (x: number, y: number, maxColumns: number, maxRows: 
 
 type invalidPathError = {
 	message: string
+	code: 'too-short' | 'outside-bounds' | 'too-long' | 'duplicate' | 'empty' | 'non-neighbours'
 	invalidIndex: number
 }
 
-const newInvalidPathError = (message: string, invalidIndex: number): invalidPathError => ({
+const newInvalidPathError = (
+	message: string,
+	code: invalidPathError['code'],
+	invalidIndex: number
+): invalidPathError => ({
 	message,
+	code,
 	invalidIndex
 })
 
@@ -157,11 +163,11 @@ export const ValidatePath = (
 ) => {
 	const nIndexes = indexes.length
 	if (nIndexes <= 1) {
-		return newInvalidPathError('path is too short', 0)
+		return newInvalidPathError('path is too short', 'too-short', 0)
 	}
 	const nCells = cells.length
 	if (nIndexes > nCells) {
-		return newInvalidPathError('path is too long', 0)
+		return newInvalidPathError('path is too long', 'too-long', 0)
 	}
 	const seen: Record<number, number> = {}
 	let prevIndex = -1
@@ -169,22 +175,35 @@ export const ValidatePath = (
 		if (seen[index] !== undefined) {
 			return newInvalidPathError(
 				`duplicate entry for index at position ${index} /${seen[index]}`,
+				'duplicate',
 				i
 			)
 		}
 		if (index > nCells) {
-			return newInvalidPathError(`ErrPathIndexOutsideBounds for index ${index} at position ${i}`, i)
+			return newInvalidPathError(
+				`ErrPathIndexOutsideBounds for index ${index} at position ${i}`,
+				'outside-bounds',
+				i
+			)
 		}
 		if (index < 0) {
-			return newInvalidPathError(`ErrPathIndexOutsideBounds for index ${index} at position ${i}`, i)
+			return newInvalidPathError(
+				`ErrPathIndexOutsideBounds for index ${index} at position ${i}`,
+				'outside-bounds',
+				i
+			)
 		}
 		const cell = cells[index]
 		const cellV = cellValue(cell)
 		if (!cellV) {
-			return newInvalidPathError(`ErrPathIndexEmptyCell for index ${index} at position ${i}`, i)
+			return newInvalidPathError(
+				`ErrPathIndexEmptyCell for index ${index} at position ${i}`,
+				'empty',
+				i
+			)
 		}
 		if (prevIndex >= 0 && !AreNeighboursByIndex(index, prevIndex, columns, rows)) {
-			return newInvalidPathError(`Not a neighbour ${index} ${prevIndex}`, i)
+			return newInvalidPathError(`Not a neighbour ${index} ${prevIndex}`, 'non-neighbours', i)
 		}
 		seen[index] = i
 		prevIndex = index
@@ -241,4 +260,83 @@ function cellColumn(i: number, columns: number) {
 }
 function IndexToCord(i: number, columns: number) {
 	return [cellColumn(i, columns), cellRow(i, columns)] as const
+}
+export type pathDirection =
+	| 'up'
+	| 'right'
+	| 'down'
+	| 'left'
+	| 'upright'
+	| 'rightup'
+	| 'rightdown'
+	| 'downright'
+	| 'downleft'
+	| 'leftdown'
+	| 'leftup'
+	| 'upleft'
+	| 'stop'
+	// TODO: calculate these
+	| 'continuetop'
+	| 'continueright'
+	| 'continuerbottom'
+	| 'continuerleft'
+
+export const createSelectionDirectionMap = (selection: number[]): Record<number, pathDirection> => {
+	if (!selection || !selection.length) {
+		return {}
+	}
+	if (selection.length === 1) {
+		return {
+			[selection[0]]: 'stop'
+		}
+	}
+	let prev = selection[0]
+	let prevDirection: pathDirection | null = null
+	let prevDir: pathDirection | null = null
+	const result: Record<number, pathDirection> = {}
+	for (let i = 1; i < selection.length; i++) {
+		const index = selection[i]
+		// if (i === selection.length - 1) {
+		// 	result[prev] = 'stop'
+		// 	continue
+		// }
+		const dir = getDirection(prev, index)
+		let direction: pathDirection = dir
+		if (prevDirection) {
+			switch (true) {
+				// change of direction
+				case prevDir === 'left' && dir === 'up':
+				case prevDir === 'up' && dir === 'left':
+				case prevDir === 'up' && dir === 'right':
+				case prevDir === 'right' && dir === 'up':
+				case prevDir === 'left' && dir === 'down':
+				case prevDir === 'down' && dir === 'left':
+				case prevDir === 'down' && dir === 'right':
+				case prevDir === 'right' && dir === 'down':
+					direction = (prevDir + dir) as any
+					break
+				default:
+			}
+		}
+		result[prev] = direction
+		prev = index
+		prevDirection = direction
+		prevDir = dir
+	}
+
+	return result
+}
+
+const getDirection = (a: number, b: number): pathDirection => {
+	switch (true) {
+		case a === b - 1:
+			return 'right'
+		case a === b + 1:
+			return 'left'
+		case a < b:
+			return 'down'
+		case a > b:
+			return 'up'
+	}
+	return 'stop'
 }

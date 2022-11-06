@@ -21,10 +21,7 @@
 		{#each primes as [prime, primecount]}
 			<!-- content here -->
 			<div class="factor" data-factor={prime} transition:fade>
-				<span class="prime" title={prime}>
-					{prime}
-				</span>
-				<sup>{primecount}</sup>
+				<span>x{primecount}</span>
 			</div>
 		{/each}
 	</div>
