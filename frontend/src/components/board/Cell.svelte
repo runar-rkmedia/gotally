@@ -265,7 +265,7 @@
 		background-color: var(--color-green-500);
 	}
 	.cell {
-		background-color: var(--color-grey-300);
+		background-color: var(--color-grey-700);
 		/* transform: scale(0.9); */
 		--selection-direction: 45deg;
 		--bgxx: var(--color-grey-600);
@@ -276,20 +276,6 @@
 		--bgx5: var(--bgxx);
 		--bgx6: var(--bgxx);
 		--bgx7: var(--bgxx);
-		background: linear-gradient(27deg, var(--bgx1) 5px, transparent 5px) 0 5px,
-			linear-gradient(207deg, var(--bgx1) 5px, transparent 5px) 10px 0px,
-			linear-gradient(27deg, var(--bgx2) 5px, transparent 5px) 0px 10px,
-			linear-gradient(207deg, var(--bgx2) 5px, transparent 5px) 10px 5px,
-			linear-gradient(90deg, var(--bgx3) 10px, transparent 10px),
-			linear-gradient(
-				var(--bgx4) 25%,
-				var(--bgx5) 25%,
-				var(--bgx6) 50%,
-				transparent 50%,
-				transparent 75%,
-				var(--bgx7) 75%,
-				var(--bgx7)
-			);
 		/* background-color: #131313; */
 		background-size: 20px 20px;
 		animation-duration: 400ms;
