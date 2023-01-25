@@ -454,7 +454,6 @@
 					didDrag = null
 					const [findings, err] = findCellFromTouch(e)
 					if (err) {
-						console.log('touchend err', err)
 						console.error(err.message, err.details)
 						resetSelection()
 						return
@@ -478,7 +477,7 @@
 					}
 					const [findings, err] = findCellFromTouch(e)
 					if (err) {
-						console.error(err.message, err.details)
+						// console.error(err.message, err.details)
 						return
 					}
 					if (selectionMap[findings.index]) {
