@@ -38,6 +38,7 @@
 
 <style>
 	dialog {
+		width: 100%;
 		background-color: transparent;
 		border: none;
 		margin: auto;
@@ -47,7 +48,7 @@
 	}
 	.wrapper {
 		height: min-content;
-		width: min-content;
+		width: 100%;
 		background-color: #00000088;
 		color: var(--color-grey-50);
 		box-shadow: var(--elevation-4);
