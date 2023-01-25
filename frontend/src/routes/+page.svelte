@@ -339,7 +339,6 @@
 		selectionMap = {}
 	}
 	const select = async (i: number) => {
-		console.error('select', i)
 		invalidSelectionMap = {}
 		const cell = $store.session.game.board.cells[i]
 		if (!cell?.base) {
@@ -444,7 +443,6 @@
 					if (isSwiping) {
 						return
 					}
-					console.log('touchend')
 					if (!canDragToSelect) {
 						console.log('touchend no-can-drag')
 						return
@@ -486,7 +484,6 @@
 					if (selectionMap[findings.index]) {
 						return
 					}
-					console.log('touchmove-selectoooo')
 					select(findings.index)
 					didDrag = new Date()
 				}}
@@ -515,7 +512,6 @@
 						select(findings.index)
 						return
 					}
-					console.log('touchstart-select')
 					select(findings.index)
 				}}
 				class="board"
@@ -533,8 +529,8 @@
 						selectedFirst={!!selection.length && selection[0] === i}
 						evaluatesTo={selection.length >= 2 && pathEvaluatesToLast}
 						cell={c}
-						on:mouseup={() => {
-							console.log('mouseup', mouseDown)
+						on:mouseup={(e) => {
+							e.preventDefault()
 							if (!didDrag) {
 								return
 							}
@@ -550,7 +546,6 @@
 							didDrag = null
 						}}
 						on:mouseenter={(e) => {
-							console.log('mousover', i, mouseDown)
 							if (!mouseDown) {
 								return
 							}
@@ -566,7 +561,6 @@
 							select(i)
 						}}
 						on:mousedown={() => {
-							console.log('mouse click')
 							select(i)
 							didDrag = null
 						}}
