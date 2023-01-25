@@ -45,7 +45,6 @@
 <style>
 	div {
 		padding: var(--size-8);
-		width: min(400px, 100vw);
 		display: flex;
 		flex-direction: column;
 		gap: var(--size-8);
