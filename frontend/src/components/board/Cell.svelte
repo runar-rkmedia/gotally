@@ -60,6 +60,7 @@
 	class:blank={Number(cell.base) === 0}
 	data-base={cell.base}
 	on:mousedown
+	on:mouseup
 	on:touchstart
 	on:touchend
 	on:mouseenter
@@ -295,70 +296,6 @@
 		animation-timing-function: linear;
 		animation-iteration-count: infinite;
 	}
-	@keyframes bg-left {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: -40px 0px;
-		}
-	}
-	@keyframes bg-leftup {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: -20px -20px;
-		}
-	}
-	@keyframes bg-rightup {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: 20px -20px;
-		}
-	}
-	@keyframes bg-rightdown {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: 20px 20px;
-		}
-	}
-	@keyframes bg-leftdown {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: -20px 20px;
-		}
-	}
-	@keyframes bg-right {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: 40px 0px;
-		}
-	}
-	@keyframes bg-up {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: 0px -40px;
-		}
-	}
-	@keyframes bg-down {
-		0% {
-			background-position: 0px 0px;
-		}
-		100% {
-			background-position: 0px 40px;
-		}
-	}
 	.cell.selected .cellValue {
 		transform: scale(1.2);
 	}
@@ -483,49 +420,29 @@
 				border-bottom-right-radius: var(--br);
 			}
 		}
-		&.pathRight {
-			animation-name: bg-right;
-		}
-		&.pathDown {
-			animation-name: bg-down;
-		}
-		&.pathLeft {
-			animation-name: bg-left;
-		}
-		&.pathUp {
-			animation-name: bg-up;
-		}
 		/* corners */
 		&.pathUpRight {
-			animation-name: bg-rightup;
 			border-top-left-radius: var(--br);
 		}
 		&.pathRightUp {
-			animation-name: bg-rightup;
 			border-bottom-right-radius: var(--br);
 		}
 		&.pathRightDown {
-			animation-name: bg-rightdown;
 			border-top-right-radius: var(--br);
 		}
 		&.pathDownLeft {
-			animation-name: bg-leftdown;
 			border-top-left-radius: var(--br);
 		}
 		&.pathLeftDown {
-			animation-name: bg-leftdown;
 			border-bottom-right-radius: var(--br);
 		}
 		&.pathLeftUp {
-			animation-name: bg-leftup;
 			border-top-right-radius: var(--br);
 		}
 		&.pathUpLeft {
-			animation-name: bg-leftup;
 			border-bottom-left-radius: var(--br);
 		}
 		&.pathDownRight {
-			animation-name: bg-rightdown;
 			border-bottom-left-radius: var(--br);
 		}
 	}
