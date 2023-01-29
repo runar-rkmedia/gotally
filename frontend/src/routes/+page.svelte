@@ -1,7 +1,7 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GetHintRequest, Indexes, SwipeDirection } from '../connect-web'
+	import { GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/env'
 	import {
@@ -402,6 +402,26 @@
 	let resetSelectionOnSwipe = true
 </script>
 
+<div class="errors">
+	{#each $httpErrorStore.errors as err}
+		<div
+			class="error"
+			on:click={() =>
+				httpErrorStore.update((e) => ({
+					...e,
+					errors: e.errors.filter((error) => error.time !== err.time && error.url !== err.url)
+				}))}
+		>
+			<!-- content here -->
+			<p>Sorry, an error occured:</p>
+			<p>
+				{err.error.message}
+			</p>
+
+			<p>Sorry for the inconvinience</p>
+		</div>
+	{/each}
+</div>
 {#if $store?.session?.game?.board}
 	<Dialog bind:open={$store.didWin} let:open>
 		<GameWon {open} />
@@ -414,7 +434,7 @@
 	{#if $store?.session?.game?.board}
 		<div class="headControls">
 			<div>
-				<div class="score" data-score={$store.session.game.score}>
+				<div class="score" data-score={$store.session.game.score} data-testid="score">
 					Score: {$store.session.game.score}
 				</div>
 				{#if $store.session.username}
@@ -598,8 +618,8 @@
 			{$store.session.game.description}
 		</p>
 		<div class="bottom-controls">
-			<button on:click={() => getHint()}>Hint </button>
-			<button on:click={() => (showGameMenu = true)}>Menu </button>
+			<button data-testid="hint" on:click={() => getHint()}>Hint </button>
+			<button data-testid="menu" on:click={() => (showGameMenu = true)}>Menu </button>
 		</div>
 	{/if}
 </div>
@@ -614,6 +634,11 @@
 		max-height: 100%;
 		display: flex;
 		flex-direction: column;
+	}
+	.errors {
+		position: fixed;
+		z-index: 1;
+		background: var(--color-red);
 	}
 
 	.boardContainer {

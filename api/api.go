@@ -81,6 +81,25 @@ func isSecureRequest(r *http.Request) (bool, string) {
 
 }
 
+func createApiHandler(withDebug bool, options ...TallyOptions) (path string, handler http.Handler) {
+	tally := NewTallyServer(logger.GetLogger("tally-server"), options...)
+	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
+	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
+	// han := CORSHandler()(
+	// 	RequestIDHandler(mustCreateUUidgenerator())(mainHandler),
+	// )
+	pipe := []MiddleWare{
+		Recovery(withDebug, logger.GetLogger("recovery")),
+		CORSHandler(),
+		RequestIDHandler(mustCreateUUidgenerator()),
+		Logger(logger.GetLogger("request")),
+		Authorization(tally.storage, AuthorizationOptions{
+			// TODO: disable in production
+			AllowDevelopmentFlags: true}),
+	}
+	return path, pipeline(connectHandler, pipe...)
+}
+
 func StartServer() {
 	logger.InitLogger(logger.LogConfig{
 		Level:      "debug",
@@ -97,22 +116,9 @@ func StartServer() {
 		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
 
-	tally := NewTallyServer(logger.GetLogger("tally-server"))
+	path, han := createApiHandler(debug)
+	// tally := NewTallyServer(logger.GetLogger("tally-server"))
 	mux := http.NewServeMux()
-	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
-	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
-	// han := CORSHandler()(
-	// 	RequestIDHandler(mustCreateUUidgenerator())(mainHandler),
-	// )
-	pipe := []MiddleWare{
-		Recovery(debug, logger.GetLogger("recovery")),
-		CORSHandler(),
-		RequestIDHandler(mustCreateUUidgenerator()),
-		Logger(logger.GetLogger("request")),
-		Authorization(tally.storage, AuthorizationOptions{
-			// TODO: disable in production
-			AllowDevelopmentFlags: true}),
-	}
 	// Register metrics
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.Handle("/metrics/", promhttp.Handler())
@@ -126,7 +132,6 @@ func StartServer() {
 	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
 	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
-	han := pipeline(connectHandler, pipe...)
 	han = otelhttp.NewHandler(han, "gotally-api")
 	mux.Handle(path, han)
 	mux.Handle("/", http.StripPrefix("/", web.StaticWebHandler()))
@@ -156,7 +161,8 @@ type TallyServer struct {
 
 type TallyOptions struct {
 	// Connection-string for the database
-	DatabaseDSN string
+	DatabaseDSN         string
+	SkipStatsCollection bool
 }
 
 func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
@@ -167,6 +173,7 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		}
 	}
 	db, err := storage.NewSqliteStorage(logger.GetLogger("database"), opt.DatabaseDSN)
+	fmt.Println("\n\nb initialized yayw w", db, err, opt)
 	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
@@ -176,6 +183,8 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		UidGenerator: mustCreateUUidgenerator(),
 		storage:      db,
 	}
-	go ts.collectStatsAtInterval(time.Second * 15)
+	if !opt.SkipStatsCollection {
+		go ts.collectStatsAtInterval(time.Second * 15)
+	}
 	return ts
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -147,7 +148,7 @@ func Logger(l logger.AppLogger) MiddleWare {
 			if reqID == "" {
 				l.Warn().Msg("No request-id. Is the ordering of middleware correct?")
 			}
-			l := logger.With(baseLogger.With().
+			l := logger.With(l.With().
 				Str("reqId", reqID).
 				Str("method", r.Method).
 				Str("content-type", r.Header.Get("Content-Type")).
@@ -185,6 +186,8 @@ func Logger(l logger.AppLogger) MiddleWare {
 						Str("responseBody", string(lw.responseBody)).
 						Msg("Outgoing response")
 				}
+				fmt.Println("loogogogogog!!!", lw.statusCode)
+
 			} else if lw.statusCode >= 400 {
 				// var result []byte
 				// var resultJson map[string]any
@@ -219,12 +222,74 @@ func ContextGetLogger(ctx context.Context) logger.AppLogger {
 }
 
 type s struct {
-	Code    connect.Code `json:"code"`
-	Message string       `json:"message"`
-	Details []any        `json:"details,omitempty"`
-	Stack   string       `json:"stack"`
+	Code     connect.Code `json:"code"`
+	Message  string       `json:"message"`
+	Details  []any        `json:"details,omitempty"`
+	Stack    string       `json:"stack"`
+	File     string       `json:"file,omitempty"`
+	Line     int          `json:"line,omitempty"`
+	Function string       `json:"function,omitempty"`
 }
 
+func (cess *s) createStack() {
+
+	stack := make([]byte, 4096)
+	j := runtime.Stack(stack, false)
+
+	rewinds, s := cleanStackTrace(string(stack[:j]))
+	cess.Stack = s
+	cess.Message += "file"
+	pc, file, line, ok := runtime.Caller(rewinds + 2)
+	if ok {
+		cess.File = file
+		cess.Line = line
+		f := runtime.FuncForPC(pc)
+		if f != nil {
+			cess.Function = shortFuncName(f)
+		}
+	}
+	if logger.IsInteractiveTTY() {
+		// Just to simplify reading the stacktrace while developing
+		println(fmt.Sprintf("Error in %s %s:%d\n%s", cess.Function, cess.File, cess.Line, cess.Stack))
+	}
+}
+
+var (
+	stackRegex = regexp.MustCompile(`[^\s]*(\/gotally\/)`)
+)
+
+func cleanStackTrace(stack string) (rewinds int, clean string) {
+	stack = strings.ReplaceAll(stack, "github.com/runar-rkmedia/", "./")
+	stack = stackRegex.ReplaceAllString(stack, ".$1")
+	split := strings.Split(stack, "\n")
+	for i := 0; i < len(split); i++ {
+		if strings.Contains(split[i], "runtime/panic.go") {
+			i++
+			return rewinds / 2, strings.Join(split[i:], "\n")
+		}
+		rewinds++
+	}
+	return 0, clean
+}
+
+/* "FuncName" or "Receiver.MethodName" */
+func shortFuncName(f *runtime.Func) string {
+	// f.Name() is like one of these:
+	// - "github.com/palantir/shield/package.FuncName"
+	// - "github.com/palantir/shield/package.Receiver.MethodName"
+	// - "github.com/palantir/shield/package.(*PtrReceiver).MethodName"
+	longName := f.Name()
+
+	withoutPath := longName[strings.LastIndex(longName, "/")+1:]
+	withoutPackage := withoutPath[strings.Index(withoutPath, ".")+1:]
+
+	shortName := withoutPackage
+	shortName = strings.Replace(shortName, "(", "", 1)
+	shortName = strings.Replace(shortName, "*", "", 1)
+	shortName = strings.Replace(shortName, ")", "", 1)
+
+	return shortName
+}
 func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -249,16 +314,9 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 						Details: []any{},
 					}
 					if withStackTrace {
-						stack := make([]byte, 4096)
-						j := runtime.Stack(stack, false)
-						cess.Stack = string(stack[:j])
+						cess.createStack()
 						span.SetStatus(codes.Error, "panic")
 						span.RecordError(parsedErr, trace.WithStackTrace(true))
-						if logger.IsInteractiveTTY() {
-							// Just to simplify reading the stacktrace while developing
-							println(cess.Stack)
-						}
-
 					}
 
 					l.Error().

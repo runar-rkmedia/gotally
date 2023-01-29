@@ -1,4 +1,4 @@
-import { ConnectError, type CallOptions } from '@bufbuild/connect-web'
+import type { ConnectError, CallOptions } from '@bufbuild/connect-web'
 import type Buf from '@bufbuild/protobuf'
 import { writable } from 'svelte/store'
 import { client, go, handleError } from './client'
@@ -93,7 +93,7 @@ export const store = writable<Store>({
 	usersVotes: {}
 })
 
-interface ApiType {
+export interface ApiType {
 	swipe: (
 		direction: SwipeDirection
 	) => CommitableGoResult<{ board: Board; moves: number; didChange: boolean }>
@@ -120,6 +120,8 @@ export const ErrNoChange = new Error('no change')
 // Result of a failed null-check
 export const ErrNoResult = new Error('no result')
 
+type ApiMethodKeys = keyof Omit<Record<keyof ApiType, null>, 'commit'>
+
 class ApiStore implements ApiType {
 	commit: ApiType['commit'] = async (promise) => {
 		const [result, commit, error] = await promise
@@ -132,7 +134,7 @@ class ApiStore implements ApiType {
 	getHint: ApiType['getHint'] = async (options = {}) => {
 		const [result, err] = await go(client.getHint(options))
 		if (err) {
-			handleError(err)
+			handleError('getHint', err)
 			return [null, null, err]
 		}
 		const { instructions } = result
@@ -154,7 +156,7 @@ class ApiStore implements ApiType {
 	newGame: ApiType['newGame'] = async (options) => {
 		const [result, err] = await go(client.newGame(options))
 		if (err) {
-			handleError(err)
+			handleError('newGame', err)
 			return [null, null, err]
 		}
 		const { board: _board } = result
@@ -188,7 +190,7 @@ class ApiStore implements ApiType {
 	restartGame: ApiType['restartGame'] = async () => {
 		const [result, err] = await go(client.restartGame({}))
 		if (err) {
-			handleError(err)
+			handleError('restartGame', err)
 			return [null, null, err]
 		}
 		const { board: _board } = result
@@ -229,7 +231,7 @@ class ApiStore implements ApiType {
 			})
 		)
 		if (err) {
-			handleError(err)
+			handleError('combineCells', err)
 			return [null, null, err]
 		}
 		const { board: _board } = result
@@ -295,7 +297,7 @@ class ApiStore implements ApiType {
 		}
 		const [res, err] = await go(client.getSession({}, options))
 		if (err) {
-			handleError(err)
+			handleError('getSession', err)
 			return [null, null, err]
 		}
 		const { session: _session } = res
@@ -311,7 +313,7 @@ class ApiStore implements ApiType {
 	vote: ApiType['vote'] = async (options) => {
 		const [result, err] = await go(client.voteBoard(options))
 		if (err) {
-			handleError(err)
+			handleError('vote', err)
 			return [null, null, err]
 		}
 		const vote = strip<Vote>(result)
@@ -327,7 +329,7 @@ class ApiStore implements ApiType {
 	swipe: ApiType['swipe'] = async (direction) => {
 		const [result, err] = await go(client.swipeBoard({ direction }))
 		if (err) {
-			handleError(err)
+			handleError('swipe', err)
 			return [null, null, err]
 		}
 		if (!result.didChange) {
@@ -377,8 +379,22 @@ class ApiStore implements ApiType {
 		return [res, commit, err]
 	}
 }
+export type HttpStateStore = {
+	loading: Record<ApiMethodKeys, number>
+	errors: Record<ApiMethodKeys, null | Error | ConnectError>
+}
 
 export const storeHandler: ApiType = new ApiStore()
+export const httpStateStore = writable<HttpStateStore>({
+	loading: objectKeys(storeHandler).reduce(
+		(r, k) => ({ ...r, [k]: 0 }),
+		{} as HttpStateStore['loading']
+	),
+	errors: objectKeys(storeHandler).reduce(
+		(r, k) => ({ ...r, [k]: null }),
+		{} as HttpStateStore['errors']
+	)
+})
 
 type GoFunc<Params, Result> = (params: Params) => GoResult<Result>
 type GoResult<Result> = Promise<[Result, null] | [null, Result]>
