@@ -49,7 +49,7 @@
 	.wrapper {
 		height: min-content;
 		width: 100%;
-		background-color: #00000088;
+		background-color: #000038dd;
 		color: var(--color-grey-50);
 		box-shadow: var(--elevation-4);
 		border-radius: var(--radius-md);
