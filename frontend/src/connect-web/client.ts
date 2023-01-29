@@ -9,6 +9,7 @@ import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
 import * as appEnv from '$app/env'
 import { writable } from 'svelte/store'
+import type { ApiType } from './store'
 
 const state = {
 	authHeader: appEnv.browser && localStorage.getItem('sessionID')
@@ -16,8 +17,9 @@ const state = {
 
 type ErrorStore = {
 	errors: Array<{
-		error: unknown
+		error: Error | ConnectError
 		time: Date
+		url: string
 	}>
 }
 
@@ -51,13 +53,24 @@ const retrier: Interceptor =
 					}
 				}
 			}
+			httpErrorStore.update((e) => ({
+				...e,
+				errors: e.errors.filter((err) => err.url === req.url)
+			}))
 			return res
-		} catch (err) {
+		} catch (err: unknown) {
 			if (err instanceof Error) {
 				httpErrorStore.update((e) => ({
 					...e,
-					errors: [{ time: new Date(), error: err }]
+					errors: [{ time: new Date(), error: err as any, url: req.url }]
 				}))
+				setTimeout(() => {
+					const cutoff = new Date().getTime() - 10000
+					httpErrorStore.update((e) => ({
+						...e,
+						errors: e.errors.filter((err) => err.time.getTime() > cutoff)
+					}))
+				}, 10500)
 				if (err.message.includes('NetworkError')) {
 					const waitPeriod = Math.min(100 * retries, 3000)
 					await new Promise((r) => setTimeout(r, waitPeriod))
@@ -104,7 +117,7 @@ const transport = createConnectTransport(transportOptions)
 
 export const client = createPromiseClient(BoardService, transport)
 
-export const handleError = (err: ConnectError | Error) => {
+export const handleError = (key: keyof ApiType, err: ConnectError | Error) => {
 	// TODO: handle error
 	if (err instanceof ConnectError) {
 		const { metadata, ...all } = err
