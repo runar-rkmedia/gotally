@@ -158,7 +158,9 @@ func Logger(l logger.AppLogger) MiddleWare {
 			w = lw
 			r = r.WithContext(context.WithValue(r.Context(), ContextKeyLogger, l))
 			if debug {
-				l.Debug().Msg("Incoming request")
+				l.Debug().
+					Interface("headers", r.Header).
+					Msg("Incoming request")
 			}
 			if lw.statusCode == 0 {
 				lw.statusCode = 200
@@ -186,7 +188,6 @@ func Logger(l logger.AppLogger) MiddleWare {
 						Str("responseBody", string(lw.responseBody)).
 						Msg("Outgoing response")
 				}
-				fmt.Println("loogogogogog!!!", lw.statusCode)
 
 			} else if lw.statusCode >= 400 {
 				// var result []byte

@@ -81,8 +81,8 @@ func isSecureRequest(r *http.Request) (bool, string) {
 
 }
 
-func createApiHandler(withDebug bool, options ...TallyOptions) (path string, handler http.Handler) {
-	tally := NewTallyServer(logger.GetLogger("tally-server"), options...)
+func createApiHandler(withDebug bool, options ...TallyOptions) (tally TallyServer, path string, handler http.Handler) {
+	tally = NewTallyServer(logger.GetLogger("tally-server"), options...)
 	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
 	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
 	// han := CORSHandler()(
@@ -97,7 +97,7 @@ func createApiHandler(withDebug bool, options ...TallyOptions) (path string, han
 			// TODO: disable in production
 			AllowDevelopmentFlags: true}),
 	}
-	return path, pipeline(connectHandler, pipe...)
+	return tally, path, pipeline(connectHandler, pipe...)
 }
 
 func StartServer() {
@@ -116,7 +116,7 @@ func StartServer() {
 		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
 
-	path, han := createApiHandler(debug)
+	_, path, han := createApiHandler(debug)
 	// tally := NewTallyServer(logger.GetLogger("tally-server"))
 	mux := http.NewServeMux()
 	// Register metrics
@@ -162,7 +162,7 @@ type TallyServer struct {
 type TallyOptions struct {
 	// Connection-string for the database
 	DatabaseDSN         string
-	SkipStatsCollection bool
+	SkipStatsCollection *bool
 }
 
 func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
@@ -171,9 +171,11 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		if o.DatabaseDSN != "" {
 			opt.DatabaseDSN = o.DatabaseDSN
 		}
+		if o.SkipStatsCollection != nil {
+			opt.SkipStatsCollection = o.SkipStatsCollection
+		}
 	}
 	db, err := storage.NewSqliteStorage(logger.GetLogger("database"), opt.DatabaseDSN)
-	fmt.Println("\n\nb initialized yayw w", db, err, opt)
 	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
 	if err != nil {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
@@ -183,7 +185,7 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		UidGenerator: mustCreateUUidgenerator(),
 		storage:      db,
 	}
-	if !opt.SkipStatsCollection {
+	if opt.SkipStatsCollection != nil && !*opt.SkipStatsCollection {
 		go ts.collectStatsAtInterval(time.Second * 15)
 	}
 	return ts
