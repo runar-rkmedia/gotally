@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".", // This must be specified if "paths" is.
+    "paths": {
+      "utils": [
+        "./utils.ts"
+      ] // This mapping is relative to "baseUrl".
+    },
+    "module": "nodenext"
+  }
+}
