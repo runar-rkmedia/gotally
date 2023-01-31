@@ -117,6 +117,7 @@ func RestoreGame(g *types.Game) (Game, error) {
 		selectedCells: []int{},
 		cellGenerator: nil,
 		Rules: GameRules{
+			ID:              g.Rules.ID,
 			GameMode:        mode,
 			SizeX:           int(g.Rules.Columns),
 			SizeY:           int(g.Rules.Rows),

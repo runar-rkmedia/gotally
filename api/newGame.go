@@ -12,12 +12,18 @@ import (
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
+	"gopkg.in/yaml.v2"
 )
 
 var (
 	ErrSliceUnderflow = errors.New("Slice index underflow")
 	ErrSliceOverFlow  = errors.New("Slice index overflow")
 )
+
+func devpretty(j any) string {
+	b, _ := yaml.Marshal(j)
+	return string(b)
+}
 
 func (s *TallyServer) NewGame(
 	ctx context.Context,
@@ -66,8 +72,8 @@ func (s *TallyServer) NewGame(
 	if err != nil {
 		return nil, fmt.Errorf("failed to restore game: %w", err)
 	}
+
 	session.Game = game
-	session.GameSnapshotAtStart = game.Copy()
 	Store.SetUserState(session)
 	response := &model.NewGameResponse{
 		Description: session.Game.Description,

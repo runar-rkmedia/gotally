@@ -102,3 +102,6 @@ models/*.xo.go
 main
 gotallly
 data/*
+dump.yml
+dump.yaml
+dump.toml
