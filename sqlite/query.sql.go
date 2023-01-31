@@ -11,6 +11,78 @@ import (
 	"time"
 )
 
+const getAllGameHistory = `-- name: GetAllGameHistory :many
+SELECT created_at, game_id, move, kind, points, data from game_history
+`
+
+func (q *Queries) GetAllGameHistory(ctx context.Context) ([]GameHistory, error) {
+	rows, err := q.db.QueryContext(ctx, getAllGameHistory)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GameHistory
+	for rows.Next() {
+		var i GameHistory
+		if err := rows.Scan(
+			&i.CreatedAt,
+			&i.GameID,
+			&i.Move,
+			&i.Kind,
+			&i.Points,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllGames = `-- name: GetAllGames :many
+SELECT id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data from game
+`
+
+func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
+	rows, err := q.db.QueryContext(ctx, getAllGames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Game
+	for rows.Next() {
+		var i Game
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Description,
+			&i.UserID,
+			&i.RuleID,
+			&i.Score,
+			&i.Moves,
+			&i.PlayState,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllRules = `-- name: GetAllRules :many
 SELECT id, slug, created_at, updated_at, mode, description, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 `
@@ -37,6 +109,72 @@ func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
 			&i.NoReswipe,
 			&i.NoMultiply,
 			&i.NoAddition,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllSessions = `-- name: GetAllSessions :many
+SELECT id, created_at, updated_at, invalid_after, user_id from session
+`
+
+func (q *Queries) GetAllSessions(ctx context.Context) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, getAllSessions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Session
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.InvalidAfter,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT id, created_at, updated_at, username, active_game_id from user
+`
+
+func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Username,
+			&i.ActiveGameID,
 		); err != nil {
 			return nil, err
 		}

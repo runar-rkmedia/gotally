@@ -42,9 +42,6 @@ type UserState struct {
 	UserID    string
 	// Current game being played
 	tallylogic.Game
-	// The current game that is being played, but as a snapshot for the start of the game
-	// This is to be able to reset the game
-	GameSnapshotAtStart tallylogic.Game
 }
 
 func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, sessionID string, options ...tallylogic.NewGameOptions) (UserState, error) {
@@ -62,6 +59,5 @@ func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, s
 	}
 	game.Rules.ID = gonanoid.Must()
 	m.Game = game
-	m.GameSnapshotAtStart = game.Copy()
 	return m, nil
 }

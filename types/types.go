@@ -39,6 +39,14 @@ type User struct {
 	UserName string
 }
 
+type Dump struct {
+	Games         any //[]Game
+	GameHistories any //[]any
+	Rules         any //[]Rules
+	Sessions      any //[]Session
+	Users         any //[]User
+}
+
 type Game struct {
 	ID          string
 	CreatedAt   time.Time

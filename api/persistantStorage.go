@@ -22,4 +22,6 @@ type SessionStore interface {
 	SwipeBoard(ctx context.Context, payload types.SwipePayload) error
 	NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error)
 	Stats(ctx context.Context) (sess *types.Statistics, err error)
+	// TGD, Subject to change
+	Dump(ctx context.Context) (types.Dump, error)
 }

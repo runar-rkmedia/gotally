@@ -60,8 +60,16 @@ FROM session session
          INNER JOIN game game on user.active_game_id = game.id
 WHERE session.id = ? LIMIT 1;
 
+-- name: GetAllGames :many
+SELECT * from game;
+-- name: GetAllGameHistory :many
+SELECT * from game_history;
 -- name: GetAllRules :many
 SELECT * from rule;
+-- name: GetAllSessions :many
+SELECT * from session;
+-- name: GetAllUsers :many
+SELECT * from user;
 -- name: UpdateGame :one
 UPDATE game
 SET updated_at = ?,

@@ -312,6 +312,11 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 	if err != nil {
 		return sqlite.Rule{}, err
 	}
+	if r.ID == "" {
+		// TODO: is it valid at this point to have a rule-id?
+		// return sqlite.Rule{}, fmt.Errorf("The id of the rule cannot be empty")
+		r.ID = createID()
+	}
 	insertParams := sqlite.InsertRuleParams{
 		ID:              r.ID,
 		Slug:            slug,
@@ -625,6 +630,48 @@ func (p *sqliteStorage) SwipeBoard(ctx context.Context, payload types.SwipePaylo
 	}
 	err = tx.Commit()
 	return err
+}
+func (p *sqliteStorage) Dump(ctx context.Context) (tg types.Dump, err error) {
+	ctx, span := tracerSqlite.Start(ctx, "Dump")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	q, tx, err := p.beginTx(ctx)
+	if err != nil {
+		return tg, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	games, err := q.GetAllGames(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all games")
+	}
+	tg.Games = games
+	gameHistory, err := q.GetAllGameHistory(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all gameHistory")
+	}
+	tg.GameHistories = gameHistory
+	rules, err := q.GetAllRules(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all rules")
+	}
+	tg.Rules = rules
+	sessions, err := q.GetAllSessions(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all sessions")
+	}
+	tg.Sessions = sessions
+	users, err := q.GetAllUsers(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all users")
+	}
+	tg.Users = users
+
+	return
 }
 func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (tg types.Game, err error) {
 	ctx, span := tracerSqlite.Start(ctx, "NewGameForUser")
