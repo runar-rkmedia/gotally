@@ -21,6 +21,7 @@ test('play a short game', async ({ page }) => {
 	await setup(page)
 	await page.locator('.board').click()
 	expect(await getScore(page)).toBe('0')
+	const initialBoard = await page.locator('.board').first().innerText()
 	await swipe(page, 'Right')
 	await swipe(page, 'Up')
 	// Combine 8 and 8
@@ -34,7 +35,6 @@ test('play a short game', async ({ page }) => {
 	await swipe(page, 'Down')
 	// await page.locator('button', { hasText: 'Hint' }).click()
 	await getHint(page)
-	await page.pause()
 	// There should now be a single hint
 	await page.waitForSelector('.hinted')
 	const hintedCount = await page.locator('.hinted').count()
@@ -60,4 +60,13 @@ test('play a short game', async ({ page }) => {
 
 	expect(await getMoves(page), 'Moves should not change on page-reload').toBe('9')
 	expect(await getScore(page), 'Score should not change on page-reload').toBe('50')
+
+	// Restart the game
+	await page.locator('[data-testid="menu"]').click();
+	await page.locator('[data-test-id="restart-game"]').click();
+	await page.waitForLoadState('networkidle')
+	expect(await getScore(page)).toBe('0')
+	expect(await getMoves(page)).toBe('0')
+	const board = await page.locator('.board').first().innerText()
+	expect(board).toBe(initialBoard)
 })
