@@ -22,6 +22,7 @@ type Session struct {
 
 	UserID       string
 	InvalidAfter time.Time
+	// Deprecated: TBD. May be moved to Game
 	// TODO: move this to the user to keep things logical
 	ActiveGame *Game
 }

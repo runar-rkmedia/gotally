@@ -212,6 +212,30 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 	return i, err
 }
 
+const getGameHistoryByMoveNumber = `-- name: GetGameHistoryByMoveNumber :one
+select created_at, game_id, move, kind, points, data from game_history
+where game_id = ? and move == ?
+`
+
+type GetGameHistoryByMoveNumberParams struct {
+	GameID string
+	Move   int64
+}
+
+func (q *Queries) GetGameHistoryByMoveNumber(ctx context.Context, arg GetGameHistoryByMoveNumberParams) (GameHistory, error) {
+	row := q.db.QueryRowContext(ctx, getGameHistoryByMoveNumber, arg.GameID, arg.Move)
+	var i GameHistory
+	err := row.Scan(
+		&i.CreatedAt,
+		&i.GameID,
+		&i.Move,
+		&i.Kind,
+		&i.Points,
+		&i.Data,
+	)
+	return i, err
+}
+
 const getRule = `-- name: GetRule :one
 select id, slug, created_at, updated_at, mode, description, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 where id == ? or slug == ?
@@ -536,6 +560,65 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Username,
 		&i.ActiveGameID,
+	)
+	return i, err
+}
+
+const setActiveGameFormUser = `-- name: SetActiveGameFormUser :one
+UPDATE user
+SET updated_at = ?,
+    active_game_id = ?
+WHERE id = ?
+RETURNING id, created_at, updated_at, username, active_game_id
+`
+
+type SetActiveGameFormUserParams struct {
+	UpdatedAt    sql.NullTime
+	ActiveGameID string
+	ID           string
+}
+
+func (q *Queries) SetActiveGameFormUser(ctx context.Context, arg SetActiveGameFormUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, setActiveGameFormUser, arg.UpdatedAt, arg.ActiveGameID, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+		&i.ActiveGameID,
+	)
+	return i, err
+}
+
+const setPlayStateForGame = `-- name: SetPlayStateForGame :one
+UPDATE game
+SET updated_at = ?,
+    play_state = ?
+WHERE id = ?
+RETURNING id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data
+`
+
+type SetPlayStateForGameParams struct {
+	UpdatedAt sql.NullTime
+	PlayState int64
+	ID        string
+}
+
+func (q *Queries) SetPlayStateForGame(ctx context.Context, arg SetPlayStateForGameParams) (Game, error) {
+	row := q.db.QueryRowContext(ctx, setPlayStateForGame, arg.UpdatedAt, arg.PlayState, arg.ID)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Description,
+		&i.UserID,
+		&i.RuleID,
+		&i.Score,
+		&i.Moves,
+		&i.PlayState,
+		&i.Data,
 	)
 	return i, err
 }

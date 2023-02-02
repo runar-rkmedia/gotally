@@ -25,6 +25,9 @@ insert into game_history
 values 
 (?, ?, ?, ?, ?, ?)
 RETURNING *;
+-- name: GetGameHistoryByMoveNumber :one
+select * from game_history
+where game_id = ? and move == ?;
 -- name: GetRule :one
 select * from rule
 where id == ? or slug == ?;
@@ -81,10 +84,22 @@ SET updated_at = ?,
     data       = ?
 WHERE id = ?
 RETURNING *;
+-- name: SetPlayStateForGame :one
+UPDATE game
+SET updated_at = ?,
+    play_state = ?
+WHERE id = ?
+RETURNING *;
 -- name: UpdateUser :one
 UPDATE user
 SET updated_at = ?,
     username = ?,
+    active_game_id = ?
+WHERE id = ?
+RETURNING *;
+-- name: SetActiveGameFormUser :one
+UPDATE user
+SET updated_at = ?,
     active_game_id = ?
 WHERE id = ?
 RETURNING *;

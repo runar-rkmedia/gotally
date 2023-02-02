@@ -4,3 +4,4 @@ journaling
 **/node_modules
 # The frontend should have been built prior, and moved to the static-folder
 frontend
+dump_*

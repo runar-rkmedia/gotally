@@ -102,6 +102,5 @@ models/*.xo.go
 main
 gotallly
 data/*
-dump.yml
-dump.yaml
-dump.toml
+# When some tests fail, they dump the inmemory-database to a file starting with 'dump_'
+dump_*

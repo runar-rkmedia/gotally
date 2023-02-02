@@ -250,6 +250,22 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert game: %w", err)
 	}
+	dataHistory, err := MarshalInternalDataHistory(ctx, payload.Game.State, payload.Game.Cells, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %w: dataHistory", err, ErrArgumentInvalid)
+	}
+	insertGameHistoryParams := sqlite.InsertGameHistoryParams{
+		CreatedAt: time.Now(),
+		GameID:    createdGame.ID,
+		Move:      createdGame.Moves,
+		Kind:      InstructionKindInit,
+		Points:    0,
+		Data:      dataHistory,
+	}
+	_, err = q.InsertGameHistory(ctx, insertGameHistoryParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert gameHistory: %w", err)
+	}
 	mode, err := toMode(rule.Mode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map rule: %w", err)
@@ -297,7 +313,7 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		return *existing, nil
 	}
 	x, err := q.GetRule(ctx, sqlite.GetRuleParams{
-		// ID:   r.ID,
+		ID:   r.ID,
 		Slug: slug,
 	})
 	if err == nil {
@@ -306,11 +322,11 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 	}
 
 	if !errIsSqlNoRows(err) {
-		return sqlite.Rule{}, err
+		return sqlite.Rule{}, fmt.Errorf("failed to retrive rule %#v: %w", r, err)
 	}
 	mode, err := fromMode(r.Mode)
 	if err != nil {
-		return sqlite.Rule{}, err
+		return sqlite.Rule{}, fmt.Errorf("failed to convert rule.Mode from rule %#v: %w", r, err)
 	}
 	if r.ID == "" {
 		// TODO: is it valid at this point to have a rule-id?
@@ -373,7 +389,7 @@ func toMode(p int64) (types.RuleMode, error) {
 	case RuleModeTutorial:
 		return types.RuleModeTutorial, nil
 	}
-	return "", fmt.Errorf("unknown mode: %d", p)
+	return "", fmt.Errorf("unknown mode during toMode: %d", p)
 }
 func fromMode(p types.RuleMode) (RuleMode, error) {
 	switch p {
@@ -388,7 +404,7 @@ func fromMode(p types.RuleMode) (RuleMode, error) {
 	case types.RuleModeTutorial:
 		return RuleModeTutorial, nil
 	}
-	return -1, fmt.Errorf("unknown mode: '%s'", p)
+	return -1, fmt.Errorf("unknown mode during fromMode: '%s'", p)
 }
 
 type PlayState = int64
@@ -411,6 +427,7 @@ const (
 const (
 	InstructionKindSwipe InstructionKind = iota + 1
 	InstructionKindCombine
+	InstructionKindInit
 )
 
 func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (su *types.SessionUser, err error) {
@@ -673,6 +690,160 @@ func (p *sqliteStorage) Dump(ctx context.Context) (tg types.Dump, err error) {
 
 	return
 }
+
+func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGamePayload) (tg types.Game, err error) {
+	ctx, span := tracerSqlite.Start(ctx, "RestartGame")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	if payload.GameID == "" {
+		return tg, fmt.Errorf("%w: GameID", ErrArgumentRequired)
+	}
+	if payload.UserID == "" {
+		return tg, fmt.Errorf("%w: UserID", ErrArgumentRequired)
+	}
+	q, tx, err := p.beginTx(ctx)
+	if err != nil {
+		return tg, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	g, err := q.GetGame(ctx, payload.GameID)
+	if err != nil {
+		return tg, fmt.Errorf("failed to to retrieve game (payload %#v): %w", payload, err)
+	}
+	if g.ID != payload.GameID {
+		return tg, fmt.Errorf("The game '%s' did not match supplied gameid %s", g.UserID, payload.GameID)
+	}
+	if g.UserID != payload.UserID {
+		return tg, fmt.Errorf("The game '%s' did not match supplied userid %s, expected %s", g.ID, payload.UserID, g.UserID)
+	}
+	if g.Moves == 0 {
+		return tg, fmt.Errorf("Cannot restart a game already at the start")
+	}
+	rule, err := p.ensureRuleExists(ctx, q, types.Rules{ID: g.RuleID})
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve rule with id '%s': %w", g.RuleID, err)
+	}
+	if rule.ID == "" {
+		return tg, fmt.Errorf("the returned rules was unexpectedly empty: %#v", rule)
+	}
+	//
+	gh, err := q.GetGameHistoryByMoveNumber(ctx, sqlite.GetGameHistoryByMoveNumberParams{
+		GameID: g.ID,
+		Move:   0,
+	})
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve gamehistory (payload: %#v): %w", payload, err)
+	}
+	if len(gh.Data) == 0 {
+		return tg, fmt.Errorf("the game's history contained no data for this move (payload: %#v): %#v", payload, gh.Data)
+	}
+	cells, state, err := UnmarshalInternalDataHistory(ctx, gh.Data)
+	if err != nil {
+		return tg, fmt.Errorf("failed to UnmarshalInternalDataHistory from gamehistory (payload %#v): %w", payload, err)
+	}
+	_, seed, _, err := UnmarshalInternalDataGame(ctx, g.Data)
+	newData, err := MarshalInternalDataGame(ctx, seed, state, cells)
+	if err != nil {
+		return tg, fmt.Errorf("failed to UnmarshalInternalDataHistory from gamehistory (payload %#v): %w", payload, err)
+	}
+
+	if g.PlayState == PlayStateCurrent {
+		g.PlayState = PlayStateAbandoned
+		g.UpdatedAt = toNullTimeNonNullable(time.Now())
+		params := sqlite.SetPlayStateForGameParams{
+			UpdatedAt: g.UpdatedAt,
+			PlayState: PlayStateAbandoned,
+			ID:        g.ID,
+		}
+		_, err := q.SetPlayStateForGame(ctx, params)
+		if err != nil {
+			return tg, fmt.Errorf("failed to to update activegame for user %w", err)
+		}
+	}
+	gameParams := sqlite.InsertGameParams{
+		ID:          createID(),
+		CreatedAt:   time.Now(),
+		UserID:      g.UserID,
+		RuleID:      g.RuleID,
+		Score:       0,
+		Moves:       gh.Move,
+		Description: g.Description,
+		PlayState:   PlayStateCurrent,
+		Data:        newData,
+	}
+	playstate, err := toPlayState(gameParams.PlayState)
+	if err != nil {
+		return tg, fmt.Errorf("invalid gameParams.PlayState: %w", err)
+	}
+	mode, err := toMode(rule.Mode)
+	if err != nil {
+		return tg, fmt.Errorf("invalid rule.mode: %w", err)
+	}
+
+	createdGame, err := q.InsertGame(ctx, gameParams)
+	if err != nil {
+		return tg, fmt.Errorf("failed to save the game for: %w", err)
+	}
+	updateUserParams := sqlite.SetActiveGameFormUserParams{
+		UpdatedAt:    toNullTimeNonNullable(time.Now()),
+		ActiveGameID: createdGame.ID,
+		ID:           g.UserID,
+	}
+	updatedUser, err := q.SetActiveGameFormUser(ctx, updateUserParams)
+	if err != nil {
+		return tg, fmt.Errorf("failed to update userut: %w", err)
+	}
+	insertGameHistoryParams := sqlite.InsertGameHistoryParams{
+		CreatedAt: time.Now(),
+		GameID:    createdGame.ID,
+		Move:      createdGame.Moves,
+		Kind:      InstructionKindInit,
+		Points:    0,
+		Data:      gh.Data,
+	}
+	_, err = q.InsertGameHistory(ctx, insertGameHistoryParams)
+	if err != nil {
+		return tg, fmt.Errorf("failed to insert gameHistory: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return tg, err
+	}
+	tg = types.Game{
+		ID:          createdGame.ID,
+		CreatedAt:   createdGame.CreatedAt,
+		Description: createdGame.Description.String,
+		// session does not have an UpdatedAt-field, so the suffix-count is off by one
+		UpdatedAt: &createdGame.UpdatedAt.Time,
+		UserID:    updatedUser.ID,
+		Seed:      seed,
+		State:     state,
+		Score:     uint64(createdGame.Score),
+		Moves:     uint(createdGame.Moves),
+		Cells:     cells,
+		PlayState: playstate,
+		Rules: types.Rules{
+			ID:              rule.ID,
+			CreatedAt:       rule.CreatedAt,
+			UpdatedAt:       &rule.UpdatedAt.Time,
+			Description:     rule.Description.String,
+			Mode:            mode,
+			Rows:            uint8(rule.SizeY),
+			Columns:         uint8(rule.SizeX),
+			RecreateOnSwipe: rule.RecreateOnSwipe,
+			NoReSwipe:       rule.NoReswipe,
+			NoMultiply:      rule.NoMultiply,
+			NoAddition:      rule.NoAddition,
+		},
+	}
+
+	return tg, err
+}
 func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (tg types.Game, err error) {
 	ctx, span := tracerSqlite.Start(ctx, "NewGameForUser")
 	defer func() {
@@ -686,6 +857,9 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 	defer func() {
 		_ = tx.Rollback()
 	}()
+	return p.newGameForUser(ctx, q, tx, payload)
+}
+func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, tx *sql.Tx, payload types.NewGamePayload) (tg types.Game, err error) {
 	// TODO: simplyfy with custom sql-code.
 	if payload.Game.ID == "" {
 		return tg, fmt.Errorf("%w: Game.Id", ErrArgumentRequired)
@@ -770,6 +944,22 @@ func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGam
 	updatedUser, err := q.UpdateUser(ctx, updateUserParams)
 	if err != nil {
 		return tg, fmt.Errorf("failed to update userut: %w", err)
+	}
+	dataHistory, err := MarshalInternalDataHistory(ctx, payload.Game.State, payload.Game.Cells, nil)
+	if err != nil {
+		return tg, fmt.Errorf("%s %w: dataHistory", err, ErrArgumentInvalid)
+	}
+	insertGameHistoryParams := sqlite.InsertGameHistoryParams{
+		CreatedAt: time.Now(),
+		GameID:    createdGame.ID,
+		Move:      createdGame.Moves,
+		Kind:      InstructionKindInit,
+		Points:    0,
+		Data:      dataHistory,
+	}
+	_, err = q.InsertGameHistory(ctx, insertGameHistoryParams)
+	if err != nil {
+		return tg, fmt.Errorf("failed to insert gameHistory: %w", err)
 	}
 	err = tx.Commit()
 	if err != nil {
