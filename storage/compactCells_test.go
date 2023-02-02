@@ -41,7 +41,7 @@ func TestMarshalCells(t *testing.T) {
 			false,
 		},
 		{
-			"test",
+			"test randomized",
 			[]cell.Cell{
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
@@ -70,7 +70,7 @@ func TestMarshalCells(t *testing.T) {
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 			},
-			62,
+			-1,
 			false,
 		},
 	}
@@ -83,7 +83,7 @@ func TestMarshalCells(t *testing.T) {
 				t.Errorf("MarshalInternalDataGame() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(len(got), tt.wantSize) {
+			if tt.wantSize != -1 && len(got) != tt.wantSize {
 				t.Errorf("MarshalInternalDataGame() = %v, want %v (%v)", len(got), tt.wantSize, got)
 			}
 			unmarshalled, gotseed, gotstate, err := UnmarshalInternalDataGame(context.TODO(), got)
@@ -267,7 +267,7 @@ func TestMarshalHistory(t *testing.T) {
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 				cell.NewCell(rand.Int63n(12+1), rand.Intn(10)),
 			},
-			69,
+			-1,
 			false,
 		},
 	}
@@ -285,8 +285,8 @@ func TestMarshalHistory(t *testing.T) {
 				t.Errorf("MarshalInternalDataHistory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(len(got), tt.wantSize) {
-				t.Errorf("MarshalInternalDataHistory() = %v, want %v (%v)", len(got), tt.wantSize, got)
+			if tt.wantSize != -1 && len(got) != tt.wantSize {
+				t.Errorf("MarshalInternalDataHistory() = %d, want %d (%x)", len(got), tt.wantSize, got)
 			}
 			unmarshalled, gotstate, err := UnmarshalInternalDataHistory(context.TODO(), got)
 			if err != nil {
