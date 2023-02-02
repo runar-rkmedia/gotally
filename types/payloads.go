@@ -123,6 +123,10 @@ func (payload CombinePathPayload) Validate() error {
 type NewGamePayload struct {
 	Game Game
 }
+type RestartGamePayload struct {
+	UserID string
+	GameID string
+}
 
 var (
 	ErrArgumentMissing = errors.New("missing argument")
