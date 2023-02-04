@@ -116,7 +116,7 @@ func generateGame() {
 		Rows:                op.Rows,
 		Columns:             op.Columns,
 		GoalChecker: tallylogic.GoalCheckLargestCell{
-			TargetCellValue: int64(op.TargetCellValue),
+			TargetCellValue: uint64(op.TargetCellValue),
 		},
 		TargetCellValue: uint64(op.TargetCellValue),
 		MaxBricks:       op.MaxBricks,

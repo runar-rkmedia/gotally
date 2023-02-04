@@ -35,9 +35,13 @@ func (p CreateUserSessionPayload) Validate() error {
 	if p.Game.Rules.ID == "" {
 		return fmt.Errorf("%w: Game.Rules.ID", ErrArgumentMissing)
 	}
+	if p.Game.Rules.Mode == RuleModeChallenge && p.Game.Rules.TargetCellValue == 0 {
+		return fmt.Errorf("%w: Game.Rules.TargetCellValue for Game.Rules.Mode=%v (%#v)", ErrArgumentMissing, p.Game.Rules.Mode, p.Game.Rules)
+	}
 	if p.InvalidAfter.Before(time.Now()) {
 		return fmt.Errorf("%w: InvalidAfter cannot be in the past", ErrArgumentInvalid)
 	}
+
 	return nil
 }
 
@@ -126,6 +130,17 @@ type NewGamePayload struct {
 type RestartGamePayload struct {
 	UserID string
 	GameID string
+}
+
+func (payload RestartGamePayload) Validate() error {
+	if payload.GameID == "" {
+		return fmt.Errorf("%w: GameId", ErrArgumentMissing)
+	}
+	if payload.UserID == "" {
+		return fmt.Errorf("%w: UserID", ErrArgumentMissing)
+	}
+
+	return nil
 }
 
 var (

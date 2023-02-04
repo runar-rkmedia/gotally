@@ -15,12 +15,12 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 
 		{
 			"Solve a simple game",
-			mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[0]),
+			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[0]),
 			12,
 		},
 		{
 			"Solve next game",
-			mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[1]),
+			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
 			218,
 		},
 		{
@@ -31,7 +31,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// - A mix of root-number-types makes it more complex. This has to take into account the
 			//   fraction of the composite.
 			"'Solve' an infinite game",
-			mustCreateNewGameForTest(GameModeDefault, nil, NewGameOptions{Seed: 1238}),
+			mustCreateNewGameForTest(GameModeRandom, nil, NewGameOptions{Seed: 1238}),
 			// Not sure what to make of this value
 			-1,
 		},
@@ -110,7 +110,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 }
 
 func Benchmark_Solver(b *testing.B) {
-	game := mustCreateNewGameForTest(GameModeTemplate, &ChallengeGames[1])
+	game := mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1])
 	brute := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
 	hinter := NewHintCalculator(game.board, game.board, game.board)
 	brute.hinter = &hinter

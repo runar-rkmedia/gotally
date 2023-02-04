@@ -23,7 +23,9 @@ generate:
 	buf generate
 sqlc:
 	sqlc generate
-	cp ./schema-sqlite.sql ./sqlite/schema.sql
+	echo -e "-- This file is generated\n-- Please do not edit.\n-- The file to edit should be ../schema-sqlite.sql" > ./sqlite/schema.sql
+	cat ./schema-sqlite.sql >> ./sqlite/schema.sql
+	# cp ./schema-sqlite.sql ./sqlite/schema.sql
 model:
 	@echo "Attempting to generate model with xo from local development-schema"
 	@echo xo schema $$\{DSN\}
@@ -44,8 +46,13 @@ go-lint:
 # tests
 go-bench:
 	go test -test.run=none -bench=. -benchmem ./... > ./.bench/$(buildDate)-$(gitHash).bench
-go-cover:
+cover: cover-go
+cover-html: cover-go-html
+cover-go:
 	go test ./...  -cover -json | tparse -all
+cover-go-html:
+	go test ./... -coverprofile out.cover
+	go tool cover -html=out.cover
 go-test:
 	@ echo Using $(gotester) as tester
 	$(gotester) -race ./...
@@ -105,3 +112,5 @@ container-publish:
 # Deploy to fly.io
 fly: build-web
 	fly deploy 
+fly-get-db:
+	fly sftp get /app/data/db.sqlite ./data/bk-fly-$$(date +"%F-%H%M").sqlite

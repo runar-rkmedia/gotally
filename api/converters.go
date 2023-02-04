@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
@@ -60,6 +61,17 @@ func toModalCells(cells []cell.Cell) []*model.Cell {
 	return c
 }
 
+func toModelGameMode(mode tallylogic.GameMode) model.GameMode {
+	switch mode {
+	case tallylogic.GameModeRandomChallenge:
+		return model.GameMode_GAME_MODE_RANDOM_CHALLENGE
+	case tallylogic.GameModeRandom:
+		return model.GameMode_GAME_MODE_RANDOM
+	case tallylogic.GameModeTutorial:
+		return model.GameMode_GAME_MODE_TUTORIAL
+	}
+	panic(fmt.Sprintf("Invalid game-mode %d", mode))
+}
 func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 
 	seed, state := Game.Seed()
@@ -68,12 +80,14 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 		CreatedAt:   time.Now(),
 		UserID:      userId,
 		Description: Game.Description,
-		Seed:        seed,
-		State:       state,
-		Score:       uint64(Game.Score()),
-		Moves:       uint(Game.Moves()),
-		Cells:       Game.Cells(),
-		PlayState:   types.PlayStateCurrent,
+		// The templates can have names, so why not in the database?
+		Name:      Game.Name,
+		Seed:      seed,
+		State:     state,
+		Score:     uint64(Game.Score()),
+		Moves:     uint(Game.Moves()),
+		Cells:     Game.Cells(),
+		PlayState: types.PlayStateCurrent,
 		Rules: types.Rules{
 			ID:              Game.Rules.ID,
 			CreatedAt:       time.Now(),
@@ -84,14 +98,17 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 			NoReSwipe:       Game.Rules.NoReswipe,
 			NoMultiply:      Game.Rules.Options.NoMultiply,
 			NoAddition:      Game.Rules.Options.NoAddition,
+			TargetCellValue: Game.Rules.TargetCellValue,
+			TargetScore:     Game.Rules.TargetScore,
+			MaxMoves:        Game.Rules.MaxMoves,
 		},
 	}
 	switch Game.Rules.GameMode {
-	case tallylogic.GameModeDefault:
+	case tallylogic.GameModeRandom:
 		g.Rules.Mode = types.RuleModeInfiniteNormal
 	case tallylogic.GameModeRandomChallenge:
 		g.Rules.Mode = types.RuleModeChallenge
-	case tallylogic.GameModeTemplate:
+	case tallylogic.GameModeTutorial:
 		g.Rules.Mode = types.RuleModeTutorial
 	}
 	return g

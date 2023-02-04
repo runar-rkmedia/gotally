@@ -112,6 +112,7 @@ message NewGameResponse {
   int64 score = 2;
   int64 moves = 3;
   string description = 4;
+  GameMode mode = 5;
 }
 
 message SwipeBoardRequest { SwipeDirection direction = 2; }
@@ -173,6 +174,7 @@ message Game {
   Board board = 1;
   int64 score = 2;
   int64 moves = 4;
+  GameMode mode = 5;
   string description = 6;
 }
 

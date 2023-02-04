@@ -15,12 +15,22 @@ func (s *TallyServer) RestartGame(
 	req *connect.Request[model.RestartGameRequest],
 ) (*connect.Response[model.RestartGameResponse], error) {
 	session := ContextGetUserState(ctx)
+	if session.Game.Moves() == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("The game is already at the start, and cannot be restarted"))
+	}
 
-	tg, err := s.storage.RestartGame(ctx, types.RestartGamePayload{
+	var payload = types.RestartGamePayload{
 		UserID: session.UserID,
 		GameID: session.Game.ID,
-	})
+	}
+	err := payload.Validate()
 	if err != nil {
+		s.l.Error().Err(err).Interface("payload", payload).Msg("failed to validate payload in api.RestartGame")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validation of RestartGamePayload failed"))
+	}
+	tg, err := s.storage.RestartGame(ctx, payload)
+	if err != nil {
+		s.l.Error().Err(err).Interface("payload", payload).Msg("failed to issue storage.RestartGame payload in api.RestartGame")
 		cerr := createError(connect.CodeInternal, fmt.Errorf("failed to restart the game: %w", err))
 		return nil, cerr.ToConnectError()
 	}

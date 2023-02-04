@@ -7,9 +7,7 @@ import (
 
 	"github.com/XSAM/otelsql"
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/runar-rkmedia/go-common/logger"
-	"github.com/runar-rkmedia/gotally/models"
 	"github.com/xo/dburl"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,9 +23,6 @@ func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, err
 		// dsn = "my://root:secret@localhost/tallyboard"
 		dsn = "sqlite:./data/db.sqlite"
 	}
-
-	models.SetErrorLogger(log.Logger)
-	models.SetLogger(log.Logger)
 
 	u, err := parse(dsn)
 	if err != nil {

@@ -423,8 +423,15 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						UserID:    us.UserID,
 					}
 					if us.ActiveGame != nil {
+						l.Debug().Msg("Restoring game")
 						g, err := tallylogic.RestoreGame(us.ActiveGame)
 						if err != nil {
+							l.Error().
+								Err(err).
+								Str("sessionID", us.Session.ID).
+								Str("userID", us.Session.UserID).
+								Interface("game", us.ActiveGame).
+								Msg("Failed to restore game for user in middleware")
 							w.WriteHeader(500)
 							return
 						}
@@ -432,6 +439,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					} else {
 						l.Error().Interface("userSession", us).Msg("user does not have an active game")
 
+						l.Error().Msg("User has no active game")
 						w.WriteHeader(500)
 						return
 					}
@@ -471,10 +479,15 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						}
 					}
 				}
-				if us, err := NewUserState(tallylogic.GameModeDefault, &tallylogic.ChallengeGames[0], sessionID, gameOptions); err != nil {
+				if us, err := NewUserState(tallylogic.GameModeTutorial, &tallylogic.TutorialGames[0], sessionID, gameOptions); err != nil {
 					l.Fatal().Err(err).Msg("Failed in NewUserState")
 				} else {
 					userState = &us
+					if l.HasDebug() {
+						l.Debug().
+							Interface("userstate", userState).
+							Msg("userstate created")
+					}
 					if options.AllowDevelopmentFlags {
 						if u := r.Header.Get("DEV_USERNAME"); u != "" {
 							// l.Warn().Msg("got username")
@@ -488,6 +501,14 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						InvalidAfter: now.Add(options.SessionLifeTime),
 						Username:     userState.UserName,
 						Game:         toTypeGame(userState.Game, ""),
+					}
+					err := payload.Validate()
+					if err != nil {
+						l.Error().Err(err).
+							Interface("payload", payload).
+							Msg("payload-validation failed for CreateUserSession")
+						w.WriteHeader(500)
+						return
 					}
 					createdUserSession, err := store.CreateUserSession(r.Context(), payload)
 					if err != nil {

@@ -2,7 +2,9 @@ package tallylogic
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -50,10 +52,16 @@ func (g Game) Seed() (uint64, uint64) {
 }
 
 type GameRules struct {
-	ID string
-	GameMode
-	SizeX int
-	SizeY int
+	ID       string
+	GameMode GameMode
+	SizeX    int
+	SizeY    int
+	// TODO: not implemented
+	TargetCellValue uint64
+	// TODO: not implemented
+	MaxMoves uint64
+	// TODO: not implemented
+	TargetScore uint64
 	// TODO: not implemented
 	RecreateOnSwipe bool
 	// TODO: not implemented
@@ -69,10 +77,26 @@ type GameRules struct {
 type GameMode int
 
 const (
-	GameModeDefault GameMode = iota
-	GameModeTemplate
+	GameModeRandom GameMode = iota + 1
+	GameModeTutorial
 	GameModeRandomChallenge
 )
+
+func (mode GameMode) String() string {
+	switch mode {
+	case GameModeRandom:
+		return fmt.Sprintf("Default (%d)", mode)
+	case GameModeTutorial:
+		return fmt.Sprintf("Tutorial (%d)", mode)
+	case GameModeRandomChallenge:
+		return fmt.Sprintf("Challenge (%d)", mode)
+	}
+	return fmt.Sprintf("err: Invalid mode: %d", mode)
+}
+func (mode GameMode) MarshalJSON() ([]byte, error) {
+	// return []byte(`"banana"`), nil
+	return json.Marshal(mode.String())
+}
 
 // Copies the game and all values to a new game
 func (g Game) Copy() Game {
@@ -111,6 +135,17 @@ type NewGameOptions struct {
 
 func RestoreGame(g *types.Game) (Game, error) {
 	var mode GameMode
+
+	switch g.Rules.Mode {
+	case types.RuleModeInfiniteEasy, types.RuleModeInfiniteNormal, types.RuleModeInfiniteHard:
+		mode = GameModeRandom
+	case types.RuleModeChallenge:
+		mode = GameModeRandomChallenge
+	case types.RuleModeTutorial:
+		mode = GameModeTutorial
+	default:
+		return Game{}, fmt.Errorf("unsupported game-mode from rules: %v", g.Rules.Mode)
+	}
 	game := Game{
 		ID:            g.ID,
 		board:         nil,
@@ -122,6 +157,8 @@ func RestoreGame(g *types.Game) (Game, error) {
 			SizeX:           int(g.Rules.Columns),
 			SizeY:           int(g.Rules.Rows),
 			RecreateOnSwipe: g.Rules.RecreateOnSwipe,
+			TargetCellValue: g.Rules.TargetCellValue,
+			TargetScore:     g.Rules.TargetScore,
 			// WithSuperPowers: g.Rules.WithSuperPowers,
 			// StartingBricks:  g.Rules.,
 			NoReswipe: g.Rules.NoReSwipe,
@@ -136,21 +173,33 @@ func RestoreGame(g *types.Game) (Game, error) {
 				State: g.State,
 			},
 		},
-		score:       int64(g.Score),
-		moves:       int(g.Moves),
-		Description: g.Description,
-		// Name:        g.Name,
+		score:         int64(g.Score),
+		moves:         int(g.Moves),
+		Description:   g.Description,
+		Name:          g.Name,
 		GoalChecker:   nil,
 		DefeatChecker: nil,
 		History:       []any{},
 	}
 
 	switch game.Rules.GameMode {
-	case GameModeDefault:
+	case GameModeRandom:
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
-		game.GoalChecker = GoalCheck{"Game runs forever"}
+		game.GoalChecker = GoalCheck{"Game runs forever (default)"}
+	case GameModeTutorial:
+		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+		game.GoalChecker = GoalCheck{"Game runs forever (template)"}
+	case GameModeRandomChallenge:
+		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+
+		if game.Rules.TargetCellValue == 0 {
+			return game, fmt.Errorf("TargetCellValue must be set for games of challenge-type")
+		}
+		game.GoalChecker = GoalCheckLargestCell{
+			TargetCellValue: game.Rules.TargetCellValue,
+		}
 	default:
-		return game, fmt.Errorf("not implemented for this gamemode")
+		return game, fmt.Errorf("not implemented for this gamemode: gameMode: %v typeGameMode: (%v)", game.Rules.GameMode, g.Rules.Mode)
 	}
 
 	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
@@ -184,15 +233,16 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
 	game.cellGenerator = cellgenerator.NewCellGenerator(r)
 	switch mode {
-	case GameModeDefault:
+	case GameModeRandom:
 		board := NewTableBoard(5, 5, game.Rules.Options.TableBoardOptions)
 		game.board = &board
 		game.Description = "Default game, 5x5"
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
 		game.GoalChecker = GoalCheck{"Game runs forever"}
-	case GameModeTemplate, GameModeRandomChallenge:
+	case GameModeTutorial, GameModeRandomChallenge:
 		if template != nil {
 			t := template.Create()
+			fmt.Println("templaterules", t.Rules.GameMode, t.Rules.TargetCellValue, template.Rules.TargetCellValue, t.Rules)
 			game.board = &t.Board
 			game.Rules = t.Rules
 			game.Description = t.Description
@@ -228,7 +278,7 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 			game.Description = "Get to 512 points withing 10 moves"
 		}
 	default:
-		return game, fmt.Errorf("Invalid gamemode: %d", mode)
+		return game, fmt.Errorf("Invalid gamemode: %d %s", mode, string(debug.Stack()))
 	}
 	allEmpty := true
 	for _, c := range game.Cells() {
@@ -515,7 +565,7 @@ func (g *Game) EvaluateForPath(path []int) bool {
 	return true
 }
 
-func (g *Game) Print() string {
+func (g Game) Print() string {
 	return g.board.String()
 }
 func (g *Game) ForTemplate() map[string]any {

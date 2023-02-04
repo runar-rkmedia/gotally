@@ -14,7 +14,17 @@ var GenDir embed.FS
 
 var GeneratedTemplates []tallylogic.GameTemplate
 
-func ReadGeneratedBoardsFromDisk() error {
+type Options struct {
+	MaxItems int
+}
+
+func ReadGeneratedBoardsFromDisk(options ...Options) error {
+	o := Options{}
+	for _, x := range options {
+		if x.MaxItems != 0 {
+			o.MaxItems = x.MaxItems
+		}
+	}
 	// generatorDir := path.Join("./generated")
 	// generatorDir := generated.GenDir
 	err := fs.WalkDir(GenDir, ".", func(p string, info fs.DirEntry, err error) error {
@@ -41,12 +51,15 @@ func ReadGeneratedBoardsFromDisk() error {
 			description = fmt.Sprintf("Get at least one cell to a value of %d. This game can be solved in %d moves, with the highest cell at %d", gen.GeneratorOptions.TargetCellValue, gen.Solutions[0].Moves, gen.Solutions[0].HighestCellValue)
 
 		}
-		template := tallylogic.NewGameTemplate(gen.Hash, gen.Name, description, gen.GeneratorOptions.Columns, gen.GeneratorOptions.Rows).
-			SetGoalCheckerLargestValue(int64(gen.GeneratorOptions.TargetCellValue)).
+		template := tallylogic.NewGameTemplate(tallylogic.GameModeRandomChallenge, gen.Hash, gen.Name, description, gen.GeneratorOptions.Columns, gen.GeneratorOptions.Rows).
+			SetGoalCheckerLargestValue(gen.GeneratorOptions.TargetCellValue).
 			SetMaxMoves(gen.GeneratorOptions.MaxMoves).
 			SetStartingLayout(gen.Cells...)
 
 		GeneratedTemplates = append(GeneratedTemplates, *template)
+		if o.MaxItems > 0 && len(GeneratedTemplates) >= o.MaxItems {
+			return fs.SkipAll
+		}
 		return nil
 	})
 	if err != nil {

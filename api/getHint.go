@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -33,12 +34,15 @@ func (s *TallyServer) GetHint(
 	// However, too short hints are also boring
 	// TODO: introduce a weighted hint and solution-sorter
 	session := ContextGetUserState(ctx)
+	if session.Game.Rules.GameMode == 0 {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Session has an invalid game-mode"))
+	}
 
 	response := &model.GetHintResponse{
 		// Instruction: []*model.Instruction{},
 	}
 	// Get a single hint. Does not look ahead to do swipes etc.
-	if session.Game.Rules.GameMode == tallylogic.GameModeDefault {
+	if session.Game.Rules.GameMode == tallylogic.GameModeRandom {
 		hints := session.GetHint()
 		if len(hints) > 0 {
 
@@ -89,7 +93,7 @@ func (s *TallyServer) GetHint(
 		req.Msg.MaxLength = 1
 	}
 	if req.Msg.HintPreference == model.HintPreference_HINT_PREFERENCE_UNSPECIFIED {
-		if session.Game.Rules.GameMode == tallylogic.GameModeDefault {
+		if session.Game.Rules.GameMode == tallylogic.GameModeRandom {
 			req.Msg.HintPreference = model.HintPreference_HINT_PREFERENCE_FIRST_COMBINE
 		} else {
 			req.Msg.HintPreference = model.HintPreference_HINT_PREFERENCE_SHORT

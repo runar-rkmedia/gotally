@@ -61,7 +61,7 @@ func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 		select {
 		case solvedGame := <-solutionsChan:
 			solutions = append(solutions, solvedGame)
-			if solvedGame.Rules.GameMode == GameModeDefault && len(solutions) > 0 {
+			if solvedGame.Rules.GameMode == GameModeRandom && len(solutions) > 0 {
 				if solvedGame.score-g.score > int64(b.InfiniteGameMaxScoreIncrease) {
 					if err != nil && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 						err = nil
@@ -137,7 +137,7 @@ func (b *bruteSolver) solveGame(
 			}
 			continue
 		}
-		if gameCopy.Rules.GameMode == GameModeDefault {
+		if gameCopy.Rules.GameMode == GameModeRandom {
 			solutions <- gameCopy
 		}
 		err := b.solveGame(ctx, gameCopy, startingMoves, solutions, depth, seen, originalGame)
