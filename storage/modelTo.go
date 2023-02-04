@@ -9,23 +9,6 @@ import (
 	"github.com/runar-rkmedia/gotally/types"
 )
 
-// func modelToPlayState(m models.NullPlayState) types.PlayState {
-// 	if !m.Valid {
-// 		return ""
-// 	}
-// 	switch m.PlayState {
-// 	case models.PlayStateAbandoned:
-// 		return types.PlayStateAbandoned
-// 	case models.PlayStateCurrent:
-// 		return types.PlayStateCurrent
-// 	case models.PlayStateLost:
-// 		return types.PlayStateLost
-// 	case models.PlayStateWon:
-// 		return types.PlayStateWon
-// 	}
-// 	return ""
-// }
-
 func toNullTimeNonNullable(t time.Time) sql.NullTime {
 	return toNullTime(&t)
 }
@@ -38,6 +21,24 @@ func toNullTime(t *time.Time) sql.NullTime {
 		Time:  *t,
 	}
 
+}
+func toNullString(str string) sql.NullString {
+	if str == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{
+		Valid:  true,
+		String: str,
+	}
+}
+func toNullInt64(n uint64) sql.NullInt64 {
+	if n == 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{
+		Valid: true,
+		Int64: int64(n),
+	}
 }
 
 func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {

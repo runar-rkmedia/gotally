@@ -58,7 +58,7 @@ func TestGame_Play(t *testing.T) {
 	}{
 		{
 			"Play the first daily board",
-			mustCreateNewGameForTest(GameModeTemplate, GetGameTemplateById("Ch:NotTheObviousPath")),
+			mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath")),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					// Combine 4 into 4 (+) resulting in 8
@@ -125,7 +125,7 @@ func TestGame_Play(t *testing.T) {
 			// 1. The game-solver should be able to play many moves ahead to look for good solutions
 			// 2. A played game should be verifiable, for instace to detect some forms of cheating with highscores.
 			// #. A played game should be replayable, in a UI.
-			mustCreateNewGameForTest(GameModeDefault, nil, NewGameOptions{Seed: 123}),
+			mustCreateNewGameForTest(GameModeRandom, nil, NewGameOptions{Seed: 123}),
 			func(g *Game, t *testing.T) {
 				instructions := []any{
 					SwipeDirectionRight,

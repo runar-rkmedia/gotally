@@ -104,3 +104,4 @@ gotallly
 data/*
 # When some tests fail, they dump the inmemory-database to a file starting with 'dump_'
 dump_*
+out.cover

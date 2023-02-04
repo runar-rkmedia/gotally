@@ -79,10 +79,10 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 
 // generateGame randomly generates a new board.
 func (gb GameGenerator) generateGame() Game {
-	template := NewGameTemplate("gen", "generated", "", gb.Rows, gb.Columns)
+	template := NewGameTemplate(GameModeRandomChallenge, "gen", "generated", "", gb.Rows, gb.Columns)
 	template.GoalChecker = gb.GoalChecker
 	template.Board.cells = gb.GenerateBoardValues()
-	game, err := NewGame(GameModeTemplate, template)
+	game, err := NewGame(GameModeTutorial, template)
 	if err != nil {
 		panic(err)
 	}

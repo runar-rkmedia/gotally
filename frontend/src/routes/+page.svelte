@@ -544,6 +544,10 @@
 						hasHint={nextHint?.instructionOneof.case === 'combine'}
 						hinted={nextHint?.instructionOneof.case === 'combine' &&
 							nextHint.instructionOneof.value.index.includes(i)}
+						hintedLast={nextHint?.instructionOneof.case === 'combine' &&
+							nextHint.instructionOneof.value.index[
+								nextHint.instructionOneof.value.index.length - 1
+							] === i}
 						selectedLast={!!selection.length && selection[selection.length - 1] === i}
 						selectedFirst={!!selection.length && selection[0] === i}
 						evaluatesTo={selection.length >= 2 && pathEvaluatesToLast}

@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"strings"
 	"time"
 
+	"github.com/bufbuild/connect-go"
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/runar-rkmedia/go-common/logger"
@@ -81,9 +83,32 @@ func isSecureRequest(r *http.Request) (bool, string) {
 
 }
 
+func NewLogInterceptor(l logger.AppLogger) connect.UnaryInterceptorFunc {
+	return func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (res connect.AnyResponse, err error) {
+			spec := req.Spec()
+			l.Debug().
+				Str("procedure", spec.Procedure).
+				Interface("streamType", spec.StreamType).
+				Bool("isClient", spec.IsClient).
+				Interface("headers", req.Header()).
+				Str("peer-addr", req.Peer().Addr).
+				Msg("Incoming connect-request")
+			return next(ctx, req)
+		}
+
+	}
+}
+
 func createApiHandler(withDebug bool, options ...TallyOptions) (tally TallyServer, path string, handler http.Handler) {
 	tally = NewTallyServer(logger.GetLogger("tally-server"), options...)
-	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally)
+	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally,
+		connect.WithInterceptors(NewLogInterceptor(logger.GetLogger("connect-log-interceptor"))),
+		connect.WithRecover(func(ctx context.Context, s connect.Spec, h http.Header, a any) error {
+			fmt.Println("\n\n\npanic in conenct-handler", a)
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("unhandled error recoverd"))
+		}))
+
 	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
 	// han := CORSHandler()(
 	// 	RequestIDHandler(mustCreateUUidgenerator())(mainHandler),

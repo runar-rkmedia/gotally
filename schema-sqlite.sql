@@ -8,6 +8,9 @@ create table if not exists rule
     description       varchar(400)     ,
     size_x            int not null,
     size_y            int not null,
+    max_moves            int,
+    target_cell_value            int,
+    target_score            int,
     recreate_on_swipe BOOLEAN          not null,
     no_reswipe        BOOLEAN          not null,
     no_multiply       BOOLEAN          not null,
@@ -22,6 +25,7 @@ create table if not exists game
     id         varchar(21)    not null,
     created_at datetime default CURRENT_TIMESTAMP not null,
     updated_at datetime,
+    name       varchar(80)     ,
     description       varchar(400)     ,
     user_id    varchar(21)    not null,
     rule_id    varchar(22)    not null,
@@ -30,7 +34,8 @@ create table if not exists game
     play_state INT             not null,
     data       blob  not null,
     primary key (id),
-    foreign key (rule_id) references rule
+    foreign key (rule_id) references rule,
+    foreign key (user_id) references user
 );
 
 

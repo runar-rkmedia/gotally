@@ -10,13 +10,13 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, description, user_id, rule_id, score, moves, play_state, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertRule :one
 INSERT INTO rule
-(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: InsertGameHistory :one
@@ -52,6 +52,7 @@ SELECT
        game.created_at game_created_at,
        game.updated_at game_updated_at,
        game.description game_description,
+       game.name game_Name,
        game.data game_data,
        game.play_state game_play_state,
        game.score game_score,

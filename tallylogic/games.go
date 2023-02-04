@@ -20,7 +20,7 @@ func NewDailyBoard() *TableBoard {
 }
 
 func GetGameTemplateById(ID string) *GameTemplate {
-	for _, g := range ChallengeGames {
+	for _, g := range TutorialGames {
 		if g.ID == ID {
 			return &g
 		}
@@ -29,23 +29,23 @@ func GetGameTemplateById(ID string) *GameTemplate {
 }
 
 var (
-	ChallengeGames []GameTemplate = []GameTemplate{
+	TutorialGames []GameTemplate = []GameTemplate{
 
-		*NewGameTemplate("Sum&Product", "Sum & Product", "Get a brick to 36. Bricks can be added, or multiplied together. Try combining 5,4 into 9. What can you do with that 3 and 6?", 3, 3).
+		*NewGameTemplate(GameModeTutorial, "Sum&Product", "Sum & Product", "Get a brick to 36. Bricks can be added, or multiplied together. Try combining 5,4 into 9. What can you do with that 3 and 6?", 3, 3).
 			SetStartingLayout(
 				0, 0, 5,
 				0, 0, 4,
 				3, 6, 9,
 			).
 			SetGoalCheckerLargestValue(36).SetMaxMoves(8),
-		*NewGameTemplate("TimesOne", "Times One", "Get a brick to 1000. Learning the usefulness of 1 times X", 3, 3).
+		*NewGameTemplate(GameModeTutorial, "TimesOne", "Times One", "Get a brick to 1000. Learning the usefulness of 1 times X", 3, 3).
 			SetStartingLayout(
 				500, 1, 0,
 				1, 0, 100,
 				0, 0, 5,
 			).
 			SetGoalCheckerLargestValue(1000).SetMaxMoves(5),
-		*NewGameTemplate("AllLinedUp", "All Lined Up", "Get a brick to 512. Can you combine them all into one?", 4, 4).
+		*NewGameTemplate(GameModeTutorial, "AllLinedUp", "All Lined Up", "Get a brick to 512. Can you combine them all into one?", 4, 4).
 			SetStartingLayout(
 				4, 1, 1, 4,
 				2, 16, 8, 4,
@@ -54,7 +54,7 @@ var (
 			).
 			SetGoalCheckerLargestValue(512).SetMaxMoves(7),
 
-		*NewGameTemplate("Ch:NotTheObviousPath", "Challenge: Not the obvious path", "Get a brick to 512. Multiplication is your friend.", 5, 5).
+		*NewGameTemplate(GameModeTutorial, "Ch:NotTheObviousPath", "Challenge: Not the obvious path", "Get a brick to 512. Multiplication is your friend.", 5, 5).
 			SetStartingLayout(
 				0, 2, 1, 0, 1,
 				64, 4, 4, 1, 2,
@@ -77,7 +77,7 @@ type GoalCheck struct {
 
 type GoalCheckLargestCell struct {
 	GoalCheck
-	TargetCellValue int64
+	TargetCellValue uint64
 }
 
 type DefeatCheckerNoMoreMoves struct {
@@ -127,7 +127,7 @@ func (g GoalCheckLargestCell) Description() string {
 func (g GoalCheckLargestCell) Check(game Game) bool {
 	for _, c := range game.Cells() {
 		value := c.Value()
-		if value >= g.TargetCellValue {
+		if uint64(value) >= g.TargetCellValue {
 			return true
 		}
 
@@ -149,7 +149,7 @@ type GameTemplate struct {
 
 func DefaultGameRules(sizeX, sizeY int) GameRules {
 	return GameRules{
-		GameMode:        GameModeDefault,
+		GameMode:        GameModeRandom,
 		SizeX:           sizeX,
 		SizeY:           sizeY,
 		RecreateOnSwipe: true,
@@ -157,15 +157,15 @@ func DefaultGameRules(sizeX, sizeY int) GameRules {
 		StartingBricks:  6,
 	}
 }
-func DefaultChallengeGameRules(sizeX, sizeY int) GameRules {
+func DefaultChallengeGameRules(sizeX, sizeY int, mode GameMode) GameRules {
 	rules := DefaultGameRules(sizeX, sizeY)
 	rules.StartingBricks = 0
 	rules.RecreateOnSwipe = false
-	rules.GameMode = GameModeTemplate
+	rules.GameMode = mode
 	return rules
 }
 
-func NewGameTemplate(id, name, description string, rows, columns int) *GameTemplate {
+func NewGameTemplate(mode GameMode, id, name, description string, rows, columns int) *GameTemplate {
 	return &GameTemplate{
 		ID:          id,
 		Name:        name,
@@ -173,14 +173,15 @@ func NewGameTemplate(id, name, description string, rows, columns int) *GameTempl
 		Board:       NewTableBoard(rows, columns),
 		Rows:        rows,
 		Columns:     columns,
-		Rules:       DefaultChallengeGameRules(rows, columns),
+		Rules:       DefaultChallengeGameRules(rows, columns, mode),
 	}
 }
 
-func (t *GameTemplate) SetGoalCheckerLargestValue(targetCellValue int64) *GameTemplate {
+func (t *GameTemplate) SetGoalCheckerLargestValue(targetCellValue uint64) *GameTemplate {
 	t.GoalChecker = GoalCheckLargestCell{
 		TargetCellValue: targetCellValue,
 	}
+	t.Rules.TargetCellValue = targetCellValue
 	return t
 
 }
@@ -188,6 +189,7 @@ func (t *GameTemplate) SetMaxMoves(moves int) *GameTemplate {
 	t.DefeatChecker = GoalCheckerMaxMoves{
 		MaxMoves: moves,
 	}
+	t.Rules.MaxMoves = uint64(moves)
 	return t
 
 }
@@ -208,6 +210,9 @@ func (t *GameTemplate) Create() GameTemplate {
 			RecreateOnSwipe: t.Rules.RecreateOnSwipe,
 			WithSuperPowers: t.Rules.WithSuperPowers,
 			StartingBricks:  t.Rules.StartingBricks,
+			MaxMoves:        t.Rules.MaxMoves,
+			TargetCellValue: t.Rules.TargetCellValue,
+			TargetScore:     t.Rules.TargetScore,
 		},
 		Board: TableBoard{
 			rows:    t.Board.rows,

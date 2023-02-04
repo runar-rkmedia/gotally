@@ -20,6 +20,7 @@
 	export let noAnimation: boolean | undefined = undefined
 	export let selected: boolean | undefined
 	export let hinted: boolean | undefined
+	export let hintedLast: boolean | undefined
 	export let hasHint: boolean | undefined
 	export let selectedLast: boolean | undefined
 	export let selectedFirst: boolean | undefined
@@ -53,6 +54,7 @@
 	class:pathDownLeft={pathDir === 'leftdown'}
 	class:pathLeftDown={pathDir === 'downleft'}
 	class:hinted
+	class:hintedLast
 	class:hasHint
 	class:evaluatesTo
 	class:selectedLast
@@ -381,6 +383,7 @@
 	.cell.evaluatesTo.selected {
 		filter: brightness(1.2);
 	}
+	.cell.evaluatesTo.hintedLast:not(.noAnimation),
 	.cell.evaluatesTo.selectedLast:not(.noAnimation) {
 		animation-name: animateHeart;
 		animation-duration: 2s;

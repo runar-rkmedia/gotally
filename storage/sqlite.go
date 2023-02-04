@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"time"
@@ -164,7 +165,7 @@ func toFloat64(v any) (float64, error) {
 // Creates a user, session, game and makes sure the rule exists.
 // This should only be used for new users, not to log in existing users.
 func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (sess *types.SessionUser, err error) {
-	ctx, span := tracerSqlite.Start(ctx, "fetchRules")
+	ctx, span := tracerSqlite.Start(ctx, "CreateUserSession")
 	defer func() {
 		AnnotateSpanError(span, err)
 		span.End()
@@ -220,9 +221,9 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		InvalidAfter: createdSession.InvalidAfter,
 	}
 	userArgs.ActiveGameID = payload.Game.ID
-	modelGame, _, err := modelFromGame(ctx, payload.Game)
+	data, err := MarshalInternalDataGame(ctx, payload.Game.Seed, payload.Game.State, payload.Game.Cells)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create model from game")
+		return nil, fmt.Errorf("failed to marshal datagame: %w", err)
 	}
 	playState, err := fromPlayState(payload.Game.PlayState)
 	if err != nil {
@@ -235,16 +236,17 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		return nil, fmt.Errorf("failed to ensure the rule-set exists, the ID was not set")
 	}
 	insertGameParams := sqlite.InsertGameParams{
-		ID:          modelGame.ID,
-		CreatedAt:   modelGame.CreatedAt,
-		UpdatedAt:   modelGame.UpdatedAt,
+		ID:          payload.Game.ID,
+		CreatedAt:   payload.Game.CreatedAt,
+		UpdatedAt:   toNullTime(payload.Game.UpdatedAt),
 		UserID:      createdUser.ID,
 		RuleID:      rule.ID,
-		Score:       int64(modelGame.Score),
-		Moves:       int64(modelGame.Moves),
+		Score:       int64(payload.Game.Score),
+		Moves:       int64(payload.Game.Moves),
+		Name:        sqlString(payload.Game.Name),
 		Description: sqlString(payload.Game.Description),
 		PlayState:   playState,
-		Data:        modelGame.Data,
+		Data:        data,
 	}
 	createdGame, err := q.InsertGame(ctx, insertGameParams)
 	if err != nil {
@@ -271,16 +273,18 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		return nil, fmt.Errorf("failed to map rule: %w", err)
 	}
 	sessionUser.ActiveGame = &types.Game{
-		ID:        createdGame.ID,
-		CreatedAt: createdGame.CreatedAt,
-		UpdatedAt: &createdGame.UpdatedAt.Time,
-		UserID:    createdGame.UserID,
-		Seed:      payload.Game.Seed,
-		State:     payload.Game.State,
-		Score:     uint64(createdGame.Score),
-		Moves:     uint(createdGame.Moves),
-		Cells:     payload.Game.Cells,
-		PlayState: payload.Game.PlayState,
+		ID:          createdGame.ID,
+		CreatedAt:   createdGame.CreatedAt,
+		UpdatedAt:   &createdGame.UpdatedAt.Time,
+		UserID:      createdGame.UserID,
+		Name:        createdGame.Name.String,
+		Description: createdGame.Description.String,
+		Seed:        payload.Game.Seed,
+		State:       payload.Game.State,
+		Score:       uint64(createdGame.Score),
+		Moves:       uint(createdGame.Moves),
+		Cells:       payload.Game.Cells,
+		PlayState:   payload.Game.PlayState,
 		Rules: types.Rules{
 			ID:              rule.ID,
 			CreatedAt:       rule.CreatedAt,
@@ -294,6 +298,9 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 			NoMultiply:      rule.NoMultiply,
 			NoAddition:      rule.NoAddition,
 		},
+	}
+	if err := sessionUser.ActiveGame.Validate(); err != nil {
+		return nil, err
 	}
 
 	err = tx.Commit()
@@ -333,18 +340,25 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		// return sqlite.Rule{}, fmt.Errorf("The id of the rule cannot be empty")
 		r.ID = createID()
 	}
+	// TODO: this check may not belong here.
+	if r.Mode == types.RuleModeChallenge && r.TargetCellValue == 0 {
+		return sqlite.Rule{}, fmt.Errorf("mode %s requires TargetCellValue", r.Mode)
+	}
 	insertParams := sqlite.InsertRuleParams{
 		ID:              r.ID,
 		Slug:            slug,
 		CreatedAt:       time.Now(),
 		Description:     sqlString(r.Description),
-		Mode:            mode,
+		Mode:            int64(mode),
 		SizeX:           int64(r.Columns),
 		SizeY:           int64(r.Rows),
 		RecreateOnSwipe: r.RecreateOnSwipe,
 		NoReswipe:       r.NoReSwipe,
 		NoMultiply:      r.NoMultiply,
 		NoAddition:      r.NoAddition,
+		MaxMoves:        toNullInt64(r.MaxMoves),
+		TargetCellValue: toNullInt64(r.TargetCellValue),
+		TargetScore:     toNullInt64(r.TargetCellValue),
 	}
 	// doesn't seem to be supporting RETURN just yet: https://github.com/kyleconroy/sqlc/pull/1741
 	return q.InsertRule(ctx, insertParams)
@@ -377,7 +391,7 @@ func fromPlayState(p types.PlayState) (PlayState, error) {
 	return -1, fmt.Errorf("unknown playstate: '%s'", p)
 }
 func toMode(p int64) (types.RuleMode, error) {
-	switch p {
+	switch RuleMode(p) {
 	case RuleModeInfiniteEasy:
 		return types.RuleModeInfiniteEasy, nil
 	case RuleModeInfiniteNormal:
@@ -408,7 +422,7 @@ func fromMode(p types.RuleMode) (RuleMode, error) {
 }
 
 type PlayState = int64
-type RuleMode = int64
+type RuleMode int64
 type InstructionKind = int64
 
 const (
@@ -429,6 +443,33 @@ const (
 	InstructionKindCombine
 	InstructionKindInit
 )
+
+func (mode RuleMode) String() string {
+	switch mode {
+	case RuleModeInfiniteEasy:
+		return fmt.Sprintf("infinite easy (%d)", mode)
+	case RuleModeInfiniteNormal:
+		return fmt.Sprintf("infinite normal (%d)", mode)
+	case RuleModeInfiniteHard:
+		return fmt.Sprintf("infinite hard (%d)", mode)
+	case RuleModeChallenge:
+		return fmt.Sprintf("challenge (%d)", mode)
+	case RuleModeTutorial:
+		return fmt.Sprintf("tutorial (%d)", mode)
+	}
+	return fmt.Sprintf("err: Invalid rulemode: %d", mode)
+}
+func (mode RuleMode) MarshalJSON() ([]byte, error) {
+	// return []byte(`"banana"`), nil
+	return json.Marshal(mode.String())
+}
+
+func nullIntToUint(i sql.NullInt64) uint64 {
+	if !i.Valid {
+		return 0
+	}
+	return uint64(i.Int64)
+}
 
 func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (su *types.SessionUser, err error) {
 	ctx, span := tracerSqlite.Start(ctx, "fetchRules")
@@ -490,6 +531,9 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		NoReSwipe:       rule.NoReswipe,
 		NoMultiply:      rule.NoMultiply,
 		NoAddition:      rule.NoAddition,
+		MaxMoves:        nullIntToUint(rule.MaxMoves),
+		TargetCellValue: nullIntToUint(rule.TargetCellValue),
+		TargetScore:     nullIntToUint(rule.TargetScore),
 	}
 
 	tGame := &types.Game{
@@ -497,6 +541,7 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		CreatedAt: sess.CreatedAt_3,
 		// session does not have an UpdatedAt-field, so the suffix-count is off by one
 		UpdatedAt:   &sess.UpdatedAt_2.Time,
+		Name:        sess.Name.String,
 		Description: sess.Description.String,
 		UserID:      tUser.ID,
 		Seed:        seed,
@@ -506,6 +551,9 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		Cells:       cells,
 		PlayState:   playState,
 		Rules:       tRule,
+	}
+	if err := tGame.Validate(); err != nil {
+		return nil, err
 	}
 	su = &types.SessionUser{
 		Session: types.Session{
@@ -692,6 +740,7 @@ func (p *sqliteStorage) Dump(ctx context.Context) (tg types.Dump, err error) {
 }
 
 func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGamePayload) (tg types.Game, err error) {
+
 	ctx, span := tracerSqlite.Start(ctx, "RestartGame")
 	defer func() {
 		AnnotateSpanError(span, err)
@@ -772,6 +821,7 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 		Score:       0,
 		Moves:       gh.Move,
 		Description: g.Description,
+		Name:        g.Name,
 		PlayState:   PlayStateCurrent,
 		Data:        newData,
 	}
@@ -818,6 +868,7 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 		ID:          createdGame.ID,
 		CreatedAt:   createdGame.CreatedAt,
 		Description: createdGame.Description.String,
+		Name:        createdGame.Name.String,
 		// session does not have an UpdatedAt-field, so the suffix-count is off by one
 		UpdatedAt: &createdGame.UpdatedAt.Time,
 		UserID:    updatedUser.ID,
@@ -840,6 +891,9 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 			NoMultiply:      rule.NoMultiply,
 			NoAddition:      rule.NoAddition,
 		},
+	}
+	if err := tg.Validate(); err != nil {
+		return tg, err
 	}
 
 	return tg, err
@@ -899,15 +953,13 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 			}
 		}
 	}
-	modelGame, _, err := modelFromGame(ctx, payload.Game)
+	data, err := MarshalInternalDataGame(ctx, payload.Game.Seed, payload.Game.State, payload.Game.Cells)
 	if err != nil {
-		return tg, err
+		return tg, fmt.Errorf("failed to marshal datagame: %w", err)
 	}
 	r, err := p.ensureRuleExists(ctx, q, payload.Game.Rules)
 	if err != nil {
 		return tg, fmt.Errorf("failed to save the rules for the game: %w", err)
-	} else {
-		modelGame.RuleID = r.ID
 	}
 	playState, err := fromPlayState(payload.Game.PlayState)
 	if err != nil {
@@ -920,9 +972,10 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 		RuleID:      r.ID,
 		Score:       int64(payload.Game.Score),
 		Moves:       int64(payload.Game.Moves),
+		Name:        sqlString(payload.Game.Name),
 		Description: sqlString(payload.Game.Description),
 		PlayState:   playState,
-		Data:        modelGame.Data,
+		Data:        data,
 	}
 	mode, err := toMode(r.Mode)
 	if err != nil {
@@ -969,6 +1022,7 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 		ID:          createdGame.ID,
 		CreatedAt:   createdGame.CreatedAt,
 		Description: createdGame.Description.String,
+		Name:        createdGame.Name.String,
 		// session does not have an UpdatedAt-field, so the suffix-count is off by one
 		UpdatedAt: &createdGame.UpdatedAt.Time,
 		UserID:    updatedUser.ID,
@@ -991,6 +1045,9 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 			NoMultiply:      r.NoMultiply,
 			NoAddition:      r.NoAddition,
 		},
+	}
+	if err := tg.Validate(); err != nil {
+		return tg, err
 	}
 
 	return tg, err

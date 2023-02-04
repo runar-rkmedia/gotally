@@ -3,6 +3,8 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
@@ -54,6 +56,7 @@ type Game struct {
 	UpdatedAt   *time.Time
 	UserID      string
 	Description string
+	Name        string
 	Seed, State uint64
 	Score       uint64
 	Moves       uint
@@ -61,12 +64,43 @@ type Game struct {
 	PlayState
 	Rules
 }
+
+func (p Game) Validate() error {
+	if p.ID == "" {
+		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
+	}
+	if p.UserID == "" {
+		return fmt.Errorf("%w: Game.UserID", ErrArgumentMissing)
+	}
+	if p.Seed == 0 {
+		return fmt.Errorf("%w: Game.Seed", ErrArgumentMissing)
+	}
+	if p.State == 0 {
+		return fmt.Errorf("%w: Game.State", ErrArgumentMissing)
+	}
+	if len(p.Cells) == 0 {
+		return fmt.Errorf("%w: Game.Cells", ErrArgumentMissing)
+	}
+	if len(p.Cells) != int(p.Rules.Rows)*int(p.Rules.Columns) {
+		return fmt.Errorf("%w: Game.Cells should have matching lenght for board was %d for %dx%d board", ErrArgumentInvalid, len(p.Cells), p.Rules.Rows, p.Rules.Columns)
+	}
+	if p.Rules.Mode == "" {
+		return fmt.Errorf("%w: Game.Rules.Mode %s", ErrArgumentMissing, debug.Stack())
+	}
+
+	return nil
+
+}
+
 type Rules struct {
 	ID              string
 	CreatedAt       time.Time
 	UpdatedAt       *time.Time
 	Description     string
 	Mode            RuleMode
+	TargetCellValue uint64
+	TargetScore     uint64
+	MaxMoves        uint64
 	Rows            uint8
 	Columns         uint8
 	RecreateOnSwipe bool
