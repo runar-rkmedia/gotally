@@ -462,10 +462,17 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 				}
 				// sessionID = idgenerator()
 				var gameOptions tallylogic.NewGameOptions
-				// Undocumented cusomization of game. This is only available in development-mode, and used for internal testing.
-				// It may change at any time.
+
+				gameMode := tallylogic.GameModeTutorial
+				template := &tallylogic.TutorialGames[0]
 				if options.AllowDevelopmentFlags {
+					// This is only for testing-purposes, and should only be done while running locally
+					// For instance can playwright set properties here to ensure consistant options,
+					// like seeding the randomizer used.
+					// It expect a base64-encoded json in the header
 					if o := r.Header.Get("DEV_GAME_OPTIONS"); o != "" {
+						gameMode = tallylogic.GameModeRandom
+						template = nil
 						b, err := base64.StdEncoding.DecodeString(o)
 						if err != nil {
 							l.Warn().Err(err).Str("base64-header", o).Msg("user attempted to set game-options via headers, but the base64-decoding failed")
@@ -479,7 +486,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						}
 					}
 				}
-				if us, err := NewUserState(tallylogic.GameModeTutorial, &tallylogic.TutorialGames[0], sessionID, gameOptions); err != nil {
+				if us, err := NewUserState(gameMode, template, sessionID, gameOptions); err != nil {
 					l.Fatal().Err(err).Msg("Failed in NewUserState")
 				} else {
 					userState = &us

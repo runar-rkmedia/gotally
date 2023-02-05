@@ -10,6 +10,7 @@ const config: PlaywrightTestConfig = {
 	},
 	testDir: './tests/',
 	use: {
+		// actionTimeout: 2000,
 		baseURL: 'http://localhost:8080',
 		extraHTTPHeaders: {
 			DEV_GAME_OPTIONS: encode({ seed: 123, state: 123 }),
