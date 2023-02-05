@@ -6,6 +6,7 @@
     "dev": "vite dev --host",
     "build": "vite build",
     "preview": "vite preview",
+    "playwright": "playwright",
     "test": "playwright test",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -24,7 +25,7 @@
   "devDependencies": {
     "@bufbuild/protoc-gen-connect-web": "^0.1.0",
     "@bufbuild/protoc-gen-es": "^0.0.10",
-    "@playwright/test": "^1.25.0",
+    "@playwright/test": "^1.30.0",
     "@sveltejs/adapter-auto": "next",
     "@sveltejs/adapter-static": "^1.0.0-next.41",
     "@sveltejs/kit": "next",

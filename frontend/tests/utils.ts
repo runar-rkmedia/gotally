@@ -95,6 +95,7 @@ const coordToIndex = (y: number, x: number, maxColumns: number, maxRows: number)
 }
 export const testUtil = {
 	setup,
+	locateTestElement,
 	swipe,
 	clickCellCoord,
 	getHint,
