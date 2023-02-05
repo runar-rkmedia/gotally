@@ -11,7 +11,7 @@ import (
 	"github.com/runar-rkmedia/gotally/tallylogic"
 )
 
-func TestApi_Challange(t *testing.T) {
+func TestApi_Challange_Solving(t *testing.T) {
 	runs := 3
 	generated.ReadGeneratedBoardsFromDisk(generated.Options{MaxItems: 3})
 	for i := 1; i <= runs; i++ {
@@ -42,6 +42,25 @@ func TestApi_Challange(t *testing.T) {
 			}
 		})
 	}
+}
+func TestApi_Challange_Restart(t *testing.T) {
+	generated.ReadGeneratedBoardsFromDisk(generated.Options{MaxItems: 3})
+	t.Run("Should be able to restart", func(t *testing.T) {
+		ts := newTestApi(t)
+		ts.NewGame(tallyv1.GameMode_GAME_MODE_RANDOM_CHALLENGE)
+
+		{
+			// This direction is a bit flaky. I don' actually care about swiping, I just need to perform any move.
+			// for now, this just works because of a fluke. If it ever fails here, we should probably
+			// have the api return a hint first, and then just perform thatn hint
+			res := ts.SwipeDown()
+			testza.AssertGreater(t, res.Msg.Moves, int64(0), "Moves should be 1")
+		}
+		{
+			res := ts.RestartGame()
+			testza.AssertEqual(t, res.Msg.Moves, int64(0), "Moves should be 0")
+		}
+	})
 }
 func getTemplate(s string) *tallylogic.GameTemplate {
 	for i := 0; i < len(generated.GeneratedTemplates); i++ {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
+	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 )
 
 func TestApi_Tutorial(t *testing.T) {
@@ -22,5 +23,20 @@ func TestApi_Tutorial(t *testing.T) {
 
 		res := ts.SolveGameWithHints(4)
 		testza.AssertTrue(t, res.Msg.DidWin, "expected game to be won (solved)")
+	})
+}
+func TestApi_Tutorial_Restart(t *testing.T) {
+	t.Run("Should be able to restart", func(t *testing.T) {
+		ts := newTestApi(t)
+		ts.NewGame(tallyv1.GameMode_GAME_MODE_TUTORIAL)
+
+		{
+			res := ts.SwipeUp()
+			testza.AssertGreater(t, res.Msg.Moves, int64(0), "Moves should be 1")
+		}
+		{
+			res := ts.RestartGame()
+			testza.AssertEqual(t, res.Msg.Moves, int64(0), "Moves should be 0")
+		}
 	})
 }

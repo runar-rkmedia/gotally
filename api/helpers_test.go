@@ -59,7 +59,7 @@ func newTestApi(t *testing.T) testApi {
 	t.Helper()
 
 	logger.InitLogger(logger.LogConfig{
-		Level:      "debug",
+		Level:      "error",
 		Format:     "human",
 		WithCaller: true,
 	})
@@ -235,6 +235,16 @@ func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[mo
 	}
 	testza.AssertEqual(ts.t, mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
 	return newGameResponse
+}
+func (ts *testApi) RestartGame() (response *connect.Response[model.RestartGameResponse]) {
+	ts.t.Helper()
+	res, err := ts.client.RestartGame(ts.context, connect.NewRequest(&model.RestartGameRequest{}))
+	if err != nil {
+		ts.t.Fatalf("restart game failed:  %v", err)
+	}
+	testza.AssertEqual(ts.t, res.Msg.Moves, int64(0), "Expected moves to be reset")
+	testza.AssertEqual(ts.t, res.Msg.Score, int64(0), "Expected score to be reset")
+	return res
 }
 
 func (ts *testApi) SolveGameWithHints(expectMaxHints int) (response *connect.Response[model.CombineCellsResponse]) {

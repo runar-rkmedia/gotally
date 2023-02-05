@@ -104,9 +104,11 @@ func createApiHandler(withDebug bool, options ...TallyOptions) (tally TallyServe
 	tally = NewTallyServer(logger.GetLogger("tally-server"), options...)
 	path, connectHandler := tallyv1connect.NewBoardServiceHandler(&tally,
 		connect.WithInterceptors(NewLogInterceptor(logger.GetLogger("connect-log-interceptor"))),
-		connect.WithRecover(func(ctx context.Context, s connect.Spec, h http.Header, a any) error {
-			fmt.Println("\n\n\npanic in conenct-handler", a)
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("unhandled error recoverd"))
+		connect.WithRecover(func(ctx context.Context, s connect.Spec, h http.Header, err any) error {
+			fmt.Println("\n\n\npanic in conenct-handler", err)
+			tally.l.Error().Interface("err", err).Msg("Panic recovered (connect-handler)")
+
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("unhandled error recovered"))
 		}))
 
 	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession

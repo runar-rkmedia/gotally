@@ -890,6 +890,9 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 			NoReSwipe:       rule.NoReswipe,
 			NoMultiply:      rule.NoMultiply,
 			NoAddition:      rule.NoAddition,
+			TargetCellValue: uint64(rule.TargetCellValue.Int64),
+			TargetScore:     uint64(rule.TargetScore.Int64),
+			MaxMoves:        uint64(rule.MaxMoves.Int64),
 		},
 	}
 	if err := tg.Validate(); err != nil {

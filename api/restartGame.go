@@ -29,6 +29,15 @@ func (s *TallyServer) RestartGame(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validation of RestartGamePayload failed"))
 	}
 	tg, err := s.storage.RestartGame(ctx, payload)
+	if tg.Mode == types.RuleModeChallenge && tg.Rules.TargetCellValue == 0 {
+		s.l.Error().
+			Str("ruleId", session.Game.Rules.ID).
+			Str("restartedRuleID", tg.Rules.ID).
+			Uint64("current", session.Game.Rules.TargetCellValue).
+			Uint64("restartedTargetCellValue", tg.Rules.TargetCellValue).
+			Msg("TargetCellValue not set")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to restart the game"))
+	}
 	if err != nil {
 		s.l.Error().Err(err).Interface("payload", payload).Msg("failed to issue storage.RestartGame payload in api.RestartGame")
 		cerr := createError(connect.CodeInternal, fmt.Errorf("failed to restart the game: %w", err))
