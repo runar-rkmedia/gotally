@@ -50,6 +50,9 @@ type Game struct {
 func (g Game) Seed() (uint64, uint64) {
 	return g.cellGenerator.Seed()
 }
+func (g Game) Board() BoardController {
+	return g.board
+}
 
 type GameRules struct {
 	ID       string
@@ -182,21 +185,25 @@ func RestoreGame(g *types.Game) (Game, error) {
 		History:       []any{},
 	}
 
+	game.DefeatChecker = DefeatCheckerNoMoreMoves{}
+	if game.Rules.TargetCellValue > 0 {
+
+		game.GoalChecker = GoalCheckLargestCell{
+			TargetCellValue: game.Rules.TargetCellValue,
+		}
+	} else if game.Rules.TargetScore > 0 {
+		return game, fmt.Errorf("Not implemented: targetScore")
+	} else {
+		game.GoalChecker = GoalCheck{"Game runs forever (default)"}
+
+	}
 	switch game.Rules.GameMode {
 	case GameModeRandom:
-		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
-		game.GoalChecker = GoalCheck{"Game runs forever (default)"}
 	case GameModeTutorial:
-		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
-		game.GoalChecker = GoalCheck{"Game runs forever (template)"}
 	case GameModeRandomChallenge:
-		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
 
 		if game.Rules.TargetCellValue == 0 {
 			return game, fmt.Errorf("TargetCellValue must be set for games of challenge-type")
-		}
-		game.GoalChecker = GoalCheckLargestCell{
-			TargetCellValue: game.Rules.TargetCellValue,
 		}
 	default:
 		return game, fmt.Errorf("not implemented for this gamemode: gameMode: %v typeGameMode: (%v)", game.Rules.GameMode, g.Rules.Mode)
@@ -242,7 +249,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 	case GameModeTutorial, GameModeRandomChallenge:
 		if template != nil {
 			t := template.Create()
-			fmt.Println("templaterules", t.Rules.GameMode, t.Rules.TargetCellValue, template.Rules.TargetCellValue, t.Rules)
 			game.board = &t.Board
 			game.Rules = t.Rules
 			game.Description = t.Description

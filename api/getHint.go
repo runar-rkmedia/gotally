@@ -34,9 +34,6 @@ func (s *TallyServer) GetHint(
 	// However, too short hints are also boring
 	// TODO: introduce a weighted hint and solution-sorter
 	session := ContextGetUserState(ctx)
-	if session.Game.Rules.GameMode == 0 {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Session has an invalid game-mode"))
-	}
 
 	response := &model.GetHintResponse{
 		// Instruction: []*model.Instruction{},
@@ -47,6 +44,10 @@ func (s *TallyServer) GetHint(
 		if len(hints) > 0 {
 
 			response.Instructions = make([]*model.Instruction, 1)
+			s.l.Debug().
+				Bool("deep", false).
+				Int("hintsFound", len(hints)).
+				Msg("Returning hints")
 			// TODO: sort these better
 			for _, h := range hints {
 				if h.Method != tallylogic.EvalMethodProduct {
@@ -73,19 +74,25 @@ func (s *TallyServer) GetHint(
 			}
 		}
 	}
+	response.Instructions = make([]*model.Instruction, 1)
 	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
+	// h := tallylogic.NewHintCalculator(session.Game, session.Game, session.Game)
 	solver := tallylogic.NewBruteSolver(tallylogic.SolveOptions{
 		MaxDepth:     10,
-		MaxVisits:    100,
+		MaxVisits:    6000,
 		MinMoves:     0,
 		MaxMoves:     10,
-		MaxSolutions: 10,
-		MaxTime:      time.Second * 1,
+		MaxSolutions: 1,
+		MaxTime:      time.Second * 10,
 	})
 	games, err := solver.SolveGame(session.Game)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to generate hint"))
 	}
+	s.l.Debug().
+		Bool("deep", true).
+		Int("solutions", len(games)).
+		Msg("Solver returned solutiosn")
 	if len(games) == 0 {
 		return connect.NewResponse(response), nil
 	}

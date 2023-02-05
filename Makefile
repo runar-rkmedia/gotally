@@ -66,7 +66,7 @@ _test: go-test e2e-test web-unit-test
 test:
 	$(MAKE) -j3 go-test e2e-test web-unit-test
 test-watch:
-	fd '.go' | entr -r gotest ./... 
+	fd '.go' | entr -cr gotest ./... 
 
 # web and servers
 web:

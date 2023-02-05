@@ -129,6 +129,9 @@
 	.cell.hinted:not(.selected) {
 		background-color: var(--color-blue-500);
 	}
+	.cell.hinted:not(.selected).hintedLast {
+		background-color: var(--color-purple-500);
+	}
 	.cell::before {
 		position: absolute;
 		content: '';
@@ -383,6 +386,7 @@
 	.cell.evaluatesTo.selected {
 		filter: brightness(1.2);
 	}
+	.cell.hinted:not(.selected).hintedLast:not(.noAnimation),
 	.cell.evaluatesTo.hintedLast:not(.noAnimation),
 	.cell.evaluatesTo.selectedLast:not(.noAnimation) {
 		animation-name: animateHeart;
