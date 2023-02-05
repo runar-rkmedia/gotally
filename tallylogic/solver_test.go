@@ -4,7 +4,29 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/runar-rkmedia/gotally/types"
 )
+
+func createGame(vals ...int64) Game {
+
+	g, err := RestoreGame(
+		&types.Game{
+			Rules: types.Rules{
+				Mode:            types.RuleModeChallenge,
+				Rows:            3,
+				Columns:         3,
+				TargetCellValue: 80,
+			},
+			Cells: cellCreator(vals...),
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	return g
+}
 
 func Test_bruteSolver_SolveGame(t *testing.T) {
 	tests := []struct {
@@ -22,6 +44,24 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			"Solve next game",
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
 			218,
+		},
+		{
+			// This game currently goes very deep
+			// This can be mitigated with https://github.com/runar-rkmedia/gotally/issues/14
+			// The shortest solution should be:
+			// Combine 7+1+2=10 into 20
+			// [7, 6, 3, 4]
+			// Combine 12+8=20 into 40
+			// [2, 5, 4]
+			// Combine 4*10=40 into 80
+			// [0, 1, 4]
+			"Solve challenge game 0130-current-paul-robin",
+			createGame(
+				4, 10, 12,
+				2, 10, 8,
+				1, 7, 0,
+			),
+			32,
 		},
 		{
 			// Infinite games cannot be solved, but it should calculate the "best" moves that it can make
@@ -44,8 +84,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// }
 			originalSeed, originalState := tt.g.cellGenerator.Seed()
 			b := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
-			h := NewHintCalculator(tt.g.board, tt.g.board, tt.g.board)
-			b.hinter = &h
+			t.Logf("BruteSolver: %#v", b)
 			solutions, err := b.SolveGame(tt.g)
 			t.Logf("Found %d solutions", len(solutions))
 			if err != nil {
@@ -112,8 +151,6 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 func Benchmark_Solver(b *testing.B) {
 	game := mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1])
 	brute := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
-	hinter := NewHintCalculator(game.board, game.board, game.board)
-	brute.hinter = &hinter
 	b.RunParallel(func(p *testing.PB) {
 		for p.Next() {
 			s, err := brute.SolveGame(game)

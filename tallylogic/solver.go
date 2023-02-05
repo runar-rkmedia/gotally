@@ -8,7 +8,6 @@ import (
 )
 
 type bruteSolver struct {
-	hinter Hinter
 	SolveOptions
 }
 
@@ -45,6 +44,7 @@ type SolveOptions struct {
 }
 
 func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
+
 	seen := map[string]struct{}{}
 	game := g.Copy()
 	game.History = Instruction{}
@@ -88,6 +88,8 @@ func NewSolverErr(err error, shouldQuit bool) SolverErr {
 	return SolverErr{err, shouldQuit}
 }
 
+// TODO: Major performance-boost is very much within reach with refactoring into a breadth-first implementation
+// See https://github.com/runar-rkmedia/gotally/issues/14
 func (b *bruteSolver) solveGame(
 	ctx context.Context,
 	g Game,

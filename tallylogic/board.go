@@ -46,17 +46,28 @@ func RestoreTableBoard(columns, rows int, cells []cell.Cell, options ...TableBoa
 	if tb.NoMultiply && tb.NoAddition {
 		panic(fmt.Errorf("NoAddition && NoMultiply cannot both be set (need at least one evauluation-method)"))
 	}
-	tb.cells = cells
+	if len(tb.TableBoardOptions.Cells) > 0 {
+		tb.cells = tb.TableBoardOptions.Cells
+	} else {
+		tb.cells = cells
+	}
 	tb.precalculateNeighboursForCellIndex()
 	return tb
 }
 func NewTableBoard(columns, rows int, options ...TableBoardOptions) TableBoard {
+	o := TableBoardOptions{}
+	for _, v := range options {
+		o = v
+	}
+	if len(o.Cells) > 0 {
+		return RestoreTableBoard(columns, rows, o.Cells, o)
+	}
 	cellCount := columns * rows
 	cells := make([]cell.Cell, cellCount)
 	for i := 0; i < cellCount; i++ {
 		cells[i] = cell.NewCell(0, 0)
 	}
-	return RestoreTableBoard(columns, rows, cells, options...)
+	return RestoreTableBoard(columns, rows, cells, o)
 }
 
 func (tb *TableBoard) Copy() BoardController {

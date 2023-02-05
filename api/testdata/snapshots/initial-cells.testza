@@ -1,0 +1,11 @@
+([]*tallyv1.Cell) (len=9) {
+ (*tallyv1.Cell)(),
+ (*tallyv1.Cell)(),
+ (*tallyv1.Cell)(base:5),
+ (*tallyv1.Cell)(),
+ (*tallyv1.Cell)(),
+ (*tallyv1.Cell)(base:4),
+ (*tallyv1.Cell)(base:3),
+ (*tallyv1.Cell)(base:6),
+ (*tallyv1.Cell)(base:9)
+}
