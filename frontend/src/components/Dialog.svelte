@@ -42,7 +42,6 @@
 		background-color: transparent;
 		border: none;
 		margin: auto;
-		overflow: hidden;
 		opacity: 0;
 		transition: opacity 0.5s var(--easing-standard);
 	}
@@ -54,6 +53,22 @@
 		box-shadow: var(--elevation-4);
 		border-radius: var(--radius-md);
 		backdrop-filter: blur(4px);
+		overflow: auto;
+		max-height: calc(100vh - env(safe-area-inset-bottom, 50px) - env(safe-area-inset-bottom, 50px));
+	}
+	@media (max-width: 640px) {
+		dialog {
+			min-width: 100%;
+			min-height: 100%;
+			padding: 0;
+			margin: 0;
+		}
+		.wrapper {
+			padding-bottom: 60px;
+			padding-top: 60px;
+			min-height: 100%;
+			border-radius: unset;
+		}
 	}
 	dialog.isOpen {
 		opacity: 1;

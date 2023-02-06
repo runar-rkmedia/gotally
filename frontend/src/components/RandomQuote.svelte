@@ -15,12 +15,22 @@
 				'To the best you can do everyday.'
 			],
 			by: 'Jason Mraz'
+		},
+		{
+			paragraphs: [
+				'The brain is like a muscle.',
+				'When it is in use we feel very good.',
+				'Understanding is joyous.'
+			],
+			by: 'Carl Sagan'
+		},
+		{
+			paragraphs: ['You are doing great,', 'keep those brainfluids flowing!']
 		}
 	]
 	$: quote = quotes[seed % quotes.length]
 </script>
 
-<strong>Remember:</strong>
 <figure>
 	<blockquote>
 		{#each quote.paragraphs as item}
@@ -30,7 +40,9 @@
 			</p>
 		{/each}
 	</blockquote>
-	<figcaption>&mdash {quote.by}</figcaption>
+	{#if quote.by}
+		<figcaption>&mdash {quote.by}</figcaption>
+	{/if}
 </figure>
 
 <style>
@@ -39,10 +51,8 @@
 		margin-block: 0px;
 	}
 	blockquote {
+		font-size: 1.2rem;
 		font-family: cursive;
 		margin-inline: 0;
-	}
-	figure {
-		text-align: end;
 	}
 </style>
