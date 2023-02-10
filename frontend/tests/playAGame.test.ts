@@ -16,7 +16,7 @@ const {
 // Coming from Cypress, Playwright seems a bit lacking. I am probably using it wrong.
 //
 
-test('play a short game', async ({ page }) => {
+test('play a short game', async ({ page }, testInfo) => {
 	// Go to http://localhost:5173/
 	await setup(page)
 	await page.locator('.board').click()
@@ -62,11 +62,13 @@ test('play a short game', async ({ page }) => {
 	expect(await getScore(page), 'Score should not change on page-reload').toBe('50')
 
 	// Restart the game
-	await page.locator('[data-testid="menu"]').click();
-	await page.locator('[data-test-id="restart-game"]').click();
+	await page.locator('[data-testid="menu"]').click()
+	await page.locator('[data-test-id="restart-game"]').click()
 	await page.waitForLoadState('networkidle')
 	expect(await getScore(page)).toBe('0')
 	expect(await getMoves(page)).toBe('0')
 	const board = await page.locator('.board').first().innerText()
 	expect(board).toBe(initialBoard)
+	const scr = await page.screenshot({ fullPage: true })
+	await testInfo.attach('screenshot', { body: scr, contentType: 'image/png' })
 })

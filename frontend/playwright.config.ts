@@ -1,4 +1,6 @@
 import type { PlaywrightTestConfig } from '@playwright/test'
+import dot from 'dotenv'
+dot.config()
 
 const encode = (obj: any) => {
 	return Buffer.from(JSON.stringify(obj)).toString('base64')
@@ -9,7 +11,14 @@ const config: PlaywrightTestConfig = {
 		port: 4173
 	},
 	testDir: './tests/',
+	reporter: [
+		['html'],
+		['playwright-tesults-reporter', { 'tesults-target': process.env.TESULTS_API_KEY }]
+	],
 	use: {
+		trace: 'on',
+		screenshot: 'on',
+		video: 'on',
 		// actionTimeout: 2000,
 		baseURL: 'http://localhost:8080',
 		extraHTTPHeaders: {
