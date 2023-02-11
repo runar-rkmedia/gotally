@@ -29,8 +29,6 @@
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
 	$: angle = 100 / factors.length
-	let h: number
-	let w: number
 	$: formattedValue = numberFormatter(cellValue(cell))
 </script>
 
@@ -67,11 +65,7 @@
 	on:touchend
 	on:mouseenter
 	on:focus
-	bind:clientHeight={h}
-	bind:clientWidth={w}
-	style={`--cell-width: ${w}px; --cell-height: ${h}px; --value-length: ${
-		w / formattedValue.length
-	}px`}
+	style={`--value-length: ${formattedValue.length}`}
 >
 	<div class="factors" data-factors={factors.length}>
 		<div class="inner">
@@ -97,6 +91,10 @@
 
 <style lang="scss">
 	.cell {
+		--cell-width: var(--board-cell-width, 100px);
+		--cell-height: var(--board-cell-height, 100px);
+		--value-width: calc(var(--cell-width) / var(--value-length, 1));
+		/* --value-width: 100px; */
 		--max-font-size: 1.8rem;
 		--min-font-size: 1rem;
 		--factor-width: 18vw;
@@ -253,7 +251,7 @@
 		position: absolute;
 		margin: auto;
 		text-align: center;
-		font-size: max(min(var(--value-length), var(--max-font-size)), var(--min-font-size));
+		font-size: max(min(var(--value-width), var(--max-font-size)), var(--min-font-size));
 		top: 0;
 		left: 0;
 		right: 0;

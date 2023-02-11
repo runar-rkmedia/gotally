@@ -400,6 +400,11 @@
 	let canDragToSelect = true
 	let canSelectNonNeighbours = false
 	let resetSelectionOnSwipe = true
+	let boardWidth: number = 682
+	let boardHeight: number = 500
+	$: boardCellWidth = (boardWidth || 100) / ($store?.session?.game?.board?.columns || 1)
+	$: boardCellHeight = (boardHeight || 100) / ($store?.session?.game?.board?.columns || 1)
+	$: boardCellSize = Math.min(boardCellWidth, boardCellHeight)
 </script>
 
 <div class="errors">
@@ -458,6 +463,8 @@
 			/>
 			<div
 				bind:this={boardDiv}
+				bind:clientWidth={boardWidth}
+				bind:clientHeight={boardHeight}
 				use:createSwiper
 				on:touchend|preventDefault={(e) => {
 					if (isSwiping) {
@@ -534,7 +541,12 @@
 					select(findings.index)
 				}}
 				class="board"
-				style={`grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr)`}
+				style={`
+grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); 
+grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
+        --board-cell-width: ${boardCellSize}px;
+        --board-cell-height: ${boardCellSize}px;
+`}
 			>
 				{#each $store.session.game.board.cells as c, i}
 					<CellComp
