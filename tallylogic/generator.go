@@ -213,8 +213,8 @@ func (gb GameGenerator) solveGame(solver bruteSolver, game Game) (*SolvableGame,
 	if err != nil {
 		return nil, err
 	}
-	if len(solutions) > 0 {
-		return &SolvableGame{gb.GameGeneratorOptions, game, solutions}, nil
+	if len(solutions.Games) > 0 {
+		return &SolvableGame{gb.GameGeneratorOptions, game, solutions.Games}, nil
 	}
 	return nil, nil
 }

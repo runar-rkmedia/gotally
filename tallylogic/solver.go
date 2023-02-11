@@ -41,39 +41,72 @@ type SolveOptions struct {
 	MaxSolutions                 int
 	InfiniteGameMaxScoreIncrease int
 	MaxTime                      time.Duration
+	WithStatistics               bool
+}
+type SolveStatistics struct {
+	SeenGames int
+	Depth     int
+	Duration  time.Duration
+}
+type Solutions struct {
+	Games      []Game
+	Statistics SolveStatistics
 }
 
-func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
+func (b *bruteSolver) SolveGame(g Game) (Solutions, error) {
 
 	seen := map[string]struct{}{}
 	game := g.Copy()
 	game.History = Instruction{}
 	solutionsChan := make(chan Game)
+	var statsChan chan SolveStatistics
+	if b.WithStatistics {
+		statsChan = make(chan SolveStatistics)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), b.MaxTime)
 	defer cancel()
-	solutions := []Game{}
+	solutions := Solutions{
+		Games: []Game{},
+	}
 	var err error
+	startTime := time.Now()
 	go func() {
-		err = b.solveGame(ctx, game, g.moves, solutionsChan, -1, &seen, &g)
+		err = b.solveGame(ctx, game, g.moves, solutionsChan, statsChan, -1, &seen, &g)
 		cancel()
 	}()
 	for {
 		select {
 		case solvedGame := <-solutionsChan:
-			solutions = append(solutions, solvedGame)
-			if solvedGame.Rules.GameMode == GameModeRandom && len(solutions) > 0 {
+			solutions.Games = append(solutions.Games, solvedGame)
+			if b.MaxSolutions >= len(solutions.Games) {
+				cancel()
+				solutions.Statistics.Duration = time.Now().Sub(startTime)
+				return solutions, err
+			}
+			if solvedGame.Rules.GameMode == GameModeRandom && len(solutions.Games) > 0 {
 				if solvedGame.score-g.score > int64(b.InfiniteGameMaxScoreIncrease) {
 					if err != nil && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 						err = nil
 					}
+					cancel()
+					solutions.Statistics.Duration = time.Now().Sub(startTime)
 					return solutions, err
 				}
 			}
+		case stats := <-statsChan:
+			if stats.SeenGames > 0 {
+				solutions.Statistics.SeenGames += stats.SeenGames
+			}
+			if stats.Depth > solutions.Statistics.Depth {
+				solutions.Statistics.Depth = stats.Depth
+			}
+
 		case <-ctx.Done():
 			err := ctx.Err()
-			if err != nil && len(solutions) > 0 && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			if err != nil && len(solutions.Games) > 0 && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				err = nil
 			}
+			solutions.Statistics.Duration = time.Now().Sub(startTime)
 			return solutions, err
 		}
 	}
@@ -95,11 +128,17 @@ func (b *bruteSolver) solveGame(
 	g Game,
 	startingMoves int,
 	solutions chan Game,
+	statsChannel chan SolveStatistics,
 	depth int,
 	seen *map[string]struct{},
 	originalGame *Game,
 ) error {
 	depth++
+	if statsChannel != nil {
+		statsChannel <- SolveStatistics{
+			Depth: depth,
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return NewSolverErr(fmt.Errorf("MaxTime threshold exceeded (%w)", err), true)
@@ -121,6 +160,11 @@ func (b *bruteSolver) solveGame(
 		return NewSolverErr(fmt.Errorf("Already seen"), false)
 	}
 	(*seen)[hash] = struct{}{}
+	if statsChannel != nil {
+		statsChannel <- SolveStatistics{
+			SeenGames: 1,
+		}
+	}
 	hints := g.GetHint()
 	for _, h := range hints {
 		gameCopy := g.Copy()
@@ -142,7 +186,7 @@ func (b *bruteSolver) solveGame(
 		if gameCopy.Rules.GameMode == GameModeRandom {
 			solutions <- gameCopy
 		}
-		err := b.solveGame(ctx, gameCopy, startingMoves, solutions, depth, seen, originalGame)
+		err := b.solveGame(ctx, gameCopy, startingMoves, solutions, statsChannel, depth, seen, originalGame)
 		if err != nil {
 			if s, ok := err.(SolverErr); ok {
 				if s.ShouldQuit {
@@ -166,7 +210,7 @@ func (b *bruteSolver) solveGame(
 		gameCopy := g.Copy()
 		changed := gameCopy.Swipe(dir)
 		if changed {
-			err := b.solveGame(ctx, gameCopy, startingMoves, solutions, depth, seen, originalGame)
+			err := b.solveGame(ctx, gameCopy, startingMoves, solutions, statsChannel, depth, seen, originalGame)
 			if s, ok := err.(SolverErr); ok {
 				if s.ShouldQuit {
 					return err
@@ -183,6 +227,15 @@ func (b *bruteSolver) solveGame(
 		}
 
 	}
+	// if depth == 0 {
+	// 	stats := SolveStatistics{
+	// 		SeenGames: len(*seen),
+	// 	}
+	// 	fmt.Printf("Depth 0 stats %#v %v\n", stats, statsChannel)
+	// 	if statsChannel != nil {
+	// 		statsChannel <- stats
+	// 	}
+	// }
 	return nil
 
 }

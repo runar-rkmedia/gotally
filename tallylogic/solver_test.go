@@ -28,22 +28,50 @@ func createGame(vals ...int64) Game {
 	return g
 }
 
+// Note that these requirements are likely to produce flaky tests
+type solveStatsRequirements struct {
+	maxTime      time.Duration
+	maxDepth     int
+	maxSeenGames int
+}
+
+func (s solveStatsRequirements) passesRequirements(t *testing.T, stats SolveStatistics) {
+	if s.maxTime > 0 {
+		if stats.Duration > s.maxTime {
+			t.Errorf("Failed statisticsRequirements for maxTime within %s, was %s\n stats %#v", s.maxTime, stats.Duration, stats)
+		}
+	}
+	if s.maxDepth > 0 && stats.Depth > s.maxDepth {
+		t.Errorf("Failed statisticsRequirements for depth within %d, was %d\n stats %#v", s.maxDepth, stats.Depth, stats)
+	}
+	if s.maxSeenGames > 0 && stats.SeenGames > s.maxSeenGames {
+		t.Errorf("Failed statisticsRequirements for number of seen games within %d, was %d\n stats %#v", s.maxSeenGames, stats.Depth, stats)
+	}
+	// return fmt.Errorf("Doesn not pass statisticsRequirements: %#v", stats)
+}
+
 func Test_bruteSolver_SolveGame(t *testing.T) {
 	tests := []struct {
 		name              string
 		g                 Game
 		wantSolutionCount int
+		SolveOptions
+		solveStatsRequirements
 	}{
 
 		{
 			"Solve a simple game",
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[0]),
 			12,
+			SolveOptions{},
+			solveStatsRequirements{},
 		},
 		{
 			"Solve next game",
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
 			218,
+			SolveOptions{},
+			solveStatsRequirements{},
 		},
 		{
 			// This game currently goes very deep
@@ -62,6 +90,37 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 				1, 7, 0,
 			),
 			32,
+			SolveOptions{},
+			solveStatsRequirements{},
+		},
+		{
+			// Same game as above
+			// TODO: make the game pass by implementing a breadth-first solver
+			// UPDATE: Nah, there is no realy point in this. Just use MaxSolutions=1 for challenges.
+			/// It is fast enough (68 microseconds if it finds it fast, but here up 40 milliseoncds for the slowest)
+			// The shortest solution should be:
+			// Combine 7+1+2=10 into 20
+			// [7, 6, 3, 4]
+			// Combine 12+8=20 into 40
+			// [2, 5, 4]
+			// Combine 4*10=40 into 80
+			// [0, 1, 4]
+			// There is a very short path available, so in theory, it should solve the game within:
+			// maxdepth: 4
+			// seenGames at most: 9^3 = 27
+			"Solve challenge game 0130-current-paul-robin within strict requirements",
+			createGame(
+				4, 10, 12,
+				2, 10, 8,
+				1, 7, 0,
+			),
+			1,
+			SolveOptions{MaxSolutions: 1, MaxTime: time.Second},
+			solveStatsRequirements{
+				// maxDepth:     3,
+				// maxSeenGames: 100,
+				maxTime: time.Millisecond * 10,
+			},
 		},
 		{
 			// Infinite games cannot be solved, but it should calculate the "best" moves that it can make
@@ -74,6 +133,8 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			mustCreateNewGameForTest(GameModeRandom, nil, NewGameOptions{Seed: 1238}),
 			// Not sure what to make of this value
 			-1,
+			SolveOptions{},
+			solveStatsRequirements{},
 		},
 	}
 	for _, tt := range tests {
@@ -83,14 +144,22 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// 	t.Fatalf("failed to set seed %s", err)
 			// }
 			originalSeed, originalState := tt.g.cellGenerator.Seed()
-			b := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
+			opts := tt.SolveOptions
+			opts.WithStatistics = true
+			if opts.MaxTime == 0 {
+				opts.MaxTime = 10 * time.Second
+			}
+			b := NewBruteSolver(opts)
 			t.Logf("BruteSolver: %#v", b)
-			solutions, err := b.SolveGame(tt.g)
+			solves, err := b.SolveGame(tt.g)
+			solutions := solves.Games
 			t.Logf("Found %d solutions", len(solutions))
 			if err != nil {
 				t.Error(err)
 				return
 			}
+			t.Logf("\n\nstat %s %#v", solves.Statistics.Duration, solves.Statistics)
+			tt.solveStatsRequirements.passesRequirements(t, solves.Statistics)
 
 			if tt.wantSolutionCount >= 0 && len(solutions) != tt.wantSolutionCount {
 				t.Errorf("Found %d solutions, want %d", len(solutions), tt.wantSolutionCount)
@@ -157,7 +226,7 @@ func Benchmark_Solver(b *testing.B) {
 			if err != nil {
 				b.Error(err)
 			}
-			if len(s) == 0 {
+			if len(s.Games) == 0 {
 				b.Errorf("Found no solutions")
 			}
 		}
