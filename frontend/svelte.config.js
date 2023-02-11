@@ -17,10 +17,6 @@ const config = {
       fallback: 'index.html',
       precompress: true
     }),
-    // prerender: { entries: [] }
-    prerender: {
-      default: true,
-    }
 
   }
 };
