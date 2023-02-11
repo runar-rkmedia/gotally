@@ -7,7 +7,7 @@ import {
 } from '@bufbuild/connect-web'
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
-import * as appEnv from '$app/env'
+import * as appEnv from '$app/environment'
 import { writable } from 'svelte/store'
 import type { ApiType } from './store'
 

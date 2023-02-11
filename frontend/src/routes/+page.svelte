@@ -3,7 +3,7 @@
 	import 'pollen-css'
 	import { GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
-	import { browser } from '$app/env'
+	import { browser } from '$app/environment'
 	import {
 		animateSwipe,
 		coordToIndex,

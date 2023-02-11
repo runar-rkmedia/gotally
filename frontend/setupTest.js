@@ -7,7 +7,7 @@ import { setupServer } from 'msw/node'
 
 const fetchMock = createFetchMock(vi)
 // fetchMock.enableMocks()
-vi.mock('$app/env.js', () => ({
+vi.mock('$app/environment.js', () => ({
   amp: false,
   browser: true, // or false for testing ssr
   dev: true,
