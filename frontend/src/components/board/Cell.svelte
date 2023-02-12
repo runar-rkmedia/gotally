@@ -16,15 +16,15 @@
 		twopow: number
 	}
 
-	export let noEval: boolean | undefined
+	export let noEval: boolean | undefined = undefined
 	export let noAnimation: boolean | undefined = undefined
-	export let selected: boolean | undefined
-	export let hinted: boolean | undefined
-	export let hintedLast: boolean | undefined
-	export let hasHint: boolean | undefined
-	export let selectedLast: boolean | undefined
-	export let selectedFirst: boolean | undefined
-	export let evaluatesTo: boolean | undefined
+	export let selected: boolean | undefined = undefined
+	export let hinted: boolean | undefined = undefined
+	export let hintedLast: boolean | undefined = undefined
+	export let hasHint: boolean | undefined = undefined
+	export let selectedLast: boolean | undefined = undefined
+	export let selectedFirst: boolean | undefined = undefined
+	export let evaluatesTo: boolean | undefined = undefined
 	export let pathDir: pathDirection | undefined = undefined
 	export let cell: Cell
 	$: factors = primeFactors(cellValue(cell))
@@ -91,8 +91,8 @@
 
 <style lang="scss">
 	.cell {
-		--cell-width: var(--board-cell-width, 100px);
-		--cell-height: var(--board-cell-height, 100px);
+		--cell-width: min(var(--board-cell-height, 100px), var(--board-cell-width, 100px));
+		--cell-height: var(--cell-width);
 		--value-width: calc(var(--cell-width) / var(--value-length, 1));
 		/* --value-width: 100px; */
 		--max-font-size: 1.8rem;

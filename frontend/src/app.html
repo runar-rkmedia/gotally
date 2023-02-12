@@ -68,9 +68,9 @@
   picture,
   video,
   canvas,
-  svg {
-    display: block;
-    max-width: 100%;
+  {
+  display: block;
+  max-width: 100%;
   }
 
   /*
@@ -81,6 +81,17 @@
   textarea,
   select {
     font: inherit;
+  }
+
+  button {
+    all: unset;
+    cursor: pointer;
+    text-align: center;
+    display: block;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
   }
 
   /*

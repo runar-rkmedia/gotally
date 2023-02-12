@@ -79,11 +79,11 @@ server-watch:
 build-web:
 	@echo "VITE_API: '$$VITE_API' $VITE_API"
 	cd frontend && VITE_API="/" npm run build
+	# Copy the static frontend files to the expected folder for the api
+	# The api will then bundle the files within its binary
 	rm -rf static/static
 	mkdir -p static/static
-	cp -r frontend/.svelte-kit/output/client/* static/static
-	# Not really sure why, but currently I have to copy the index file... I am sure I am doing something wrong....
-	cp frontend/.svelte-kit/output/prerendered/pages/index.html static/static
+	cp  -r ./frontend/build/* static/static
 
 build-api:
 	CGO_ENABLED=0 GOOS=linux go build -v -ldflags="$(ldflags)" -o gotally ./api/cmd/

@@ -1,7 +1,7 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
+	import { GameMode, GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/environment'
 	import {
@@ -23,6 +23,8 @@
 	import userSettings from '../userSettings'
 	import PrimeFactors from '../components/PrimeFactors.svelte'
 	import { findCellFromTouch } from '../utils/touchHandlers'
+	import Icon from '../components/Icon.svelte'
+	import { findDOMParent } from '../utils/findDomParent'
 
 	let boardDiv: HTMLDivElement
 	let showGameMenu = false
@@ -73,12 +75,29 @@
 				}
 				mouseDown = false
 			}
-			document.onkeydown = async (e) => {
+			document.onkeyup = async (e) => {
 				if ($store.didWin) {
 					return
 				}
 				if (swipeLock) {
 					e.preventDefault()
+					return
+				}
+				if (e.ctrlKey) {
+					return
+				}
+				if (e.shiftKey) {
+					return
+				}
+				if (e.altKey || e.metaKey) {
+					return
+				}
+				if (
+					document.activeElement &&
+					(document.activeElement?.tagName === 'INPUT' ||
+						document.activeElement?.tagName === 'textarea' ||
+						findDOMParent(document.activeElement, (el) => el.tagName === 'FORM'))
+				) {
 					return
 				}
 				const hasSelection = selection.length
@@ -106,11 +125,14 @@
 							selectionMap = {}
 						}
 						break
+					case 'm':
+						showGameMenu = !showGameMenu
+						break
 					case 'ArrowLeft':
 					case 'a':
 						if (hasSelection) {
 							const next = lastSelection - 1
-							if (lastSelection % $store.session.game.board.columns === 0) {
+							if (lastSelection % $store.session?.game.board.columns! === 0) {
 								return
 							}
 							if (selection.includes(next)) {
@@ -123,9 +145,12 @@
 						break
 					case 'ArrowRight':
 					case 'd':
+						if (showGameMenu) {
+							return
+						}
 						if (hasSelection) {
 							const next = lastSelection + 1
-							if (next % $store.session.game.board.columns === 0) {
+							if (next % $store.session?.game.board.columns === 0) {
 								return
 							}
 							if (selection.includes(next)) {
@@ -138,6 +163,9 @@
 						break
 					case 'ArrowDown':
 					case 's':
+						if (showGameMenu) {
+							return
+						}
 						if (hasSelection) {
 							const next = lastSelection + $store.session.game.board.rows
 							if (next > $store.session.game.board.rows * $store.session.game.board.columns) {
@@ -153,6 +181,9 @@
 						break
 					case 'ArrowUp':
 					case 'w':
+						if (showGameMenu) {
+							return
+						}
 						if (hasSelection) {
 							const next = lastSelection - $store.session.game.board.rows
 							if (next < 0) {
@@ -167,21 +198,30 @@
 						swipe(SwipeDirection.UP)
 						break
 					case 'h':
+						if (showGameMenu) {
+							return
+						}
 						getHint()
 						break
 					// Combine path
 					case 'Space':
 					case ' ':
+						if (showGameMenu) {
+							return
+						}
 						if (!hasSelection) {
 							return
 						}
 						select(lastSelection)
 						break
-					case 'c':
+					case 'r':
+						if (!$store?.session.game.moves) {
+							return
+						}
 						storeHandler.commit(storeHandler.restartGame())
 						break
 					case 'n':
-						storeHandler.commit(storeHandler.newGame({}))
+						storeHandler.commit(storeHandler.newGame({ mode: GameMode.RANDOM_CHALLENGE }))
 						break
 
 					default:
@@ -438,22 +478,27 @@
 <div class="gameView">
 	{#if $store?.session?.game?.board}
 		<div class="headControls">
-			<div>
-				<div class="score" data-score={$store.session.game.score} data-testid="score">
-					Score: {$store.session.game.score}
-				</div>
-				{#if $store.session.username}
-					<div class="username" style="float: right;padding-inline-end: var(--size-4);">
-						Username: {$store.session.username}
+			<div class="info">
+				<div>
+					<div class="score" data-score={$store.session.game.score} data-testid="score">
+						Score: {$store.session.game.score}
 					</div>
-				{/if}
-				<small class="boardName" title={$store.session.game.board.id}
-					>{$store.session.game.board.name}</small
-				>
-				<div class="moves" data-moves={$store.session.game.moves}>
-					Moves: {$store.session.game.moves}
+					<small class="boardName" title={$store.session.game.board.id}
+						>{$store.session.game.board.name}</small
+					>
+					<div class="moves" data-moves={$store.session.game.moves}>
+						Moves: {$store.session.game.moves}
+					</div>
 				</div>
 			</div>
+			<button
+				class="icon-only"
+				data-testid="menu"
+				on:click={() => (showGameMenu = true)}
+				aria-roledescription="Show menu"
+			>
+				<Icon icon="settings" color="white" />
+			</button>
 		</div>
 
 		<div class="boardContainer">
@@ -634,13 +679,21 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 			{$store.session.game.description}
 		</p>
 		<div class="bottom-controls">
-			<button data-testid="hint" on:click={() => getHint()}>Hint </button>
-			<button data-testid="menu" on:click={() => (showGameMenu = true)}>Menu </button>
+			<button data-testid="hint" on:click={() => getHint()} disabled={$store.didWin}>
+				<Icon icon="help" color="white" /> Hint
+			</button>
 		</div>
 	{/if}
 </div>
 
-<style>
+<style lang="scss">
+	:root {
+		--color-primary: var(--color-blue-500);
+		--color-secondary: var(--color-green-500);
+		--color-danger: var(--color-orange-500);
+		--color-error: var(--color-red-500);
+		--color-white: var(--color-grey-50);
+	}
 	p {
 		padding-inline: var(--size-4);
 		padding-block-end: var(--size-2);
@@ -690,10 +743,26 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		opacity: 0.4;
 	}
 	button {
-		background-color: var(--color-blue);
+		cursor: pointer;
 		transition: opacity 70ms var(--easing-standard);
 		min-width: 52px;
 		min-height: 52px;
-		color: var(--color-black);
+		color: var(--color-white);
+		&:not(icon-only) {
+			background-color: var(--color-primary);
+		}
+
+		&.icon-only {
+			min-height: 48px;
+			background: unset;
+			border: unset;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+	}
+	.headControls {
+		display: flex;
+		justify-content: space-between;
 	}
 </style>
