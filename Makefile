@@ -4,21 +4,38 @@ gitHash = $(shell git rev-parse --short HEAD)
 buildDate = $(shell TZ=UTC date +"%Y-%m-%dT%H:%M:%SZ")
 ldflags=-X 'main.Version=$(version)' -X 'main.Date=$(buildDate)' -X 'main.Commit=$(gitHash)' -X 'main.IsDevStr=0'
 
-hasGoTestDox = $(shell command -v gotestdox 2>/dev/null)
+hasBufCli = $(shell command -v bxuf 2> /dev/null)
 gotester = $(shell command -v gotest 2>/dev/null || printf "go test")
-
-# gotester=gotestdox
 
 ifndef VERBOSE
 MAKEFLAGS += --no-print-directory
 endif
+ifeq (, $(shell which buf 2> /dev/null))
+$(error "No buf in PATH, consider adding the buf-cli from https://docs.buf.build/installation")
+endif
 
-dev:
+start:
+	$(MAKE) -s deps
+	$(MAKE) -s -j2 web server
+
+watch:
+ifeq (, $(shell which fd 2> /dev/null))
+$(error "No fd in PATH, which is required for watch-mode consider adding fd from https://github.com/sharkdp/fd ")
+endif
+ifeq (, $(shell which entr 2> /dev/null))
+$(error "No entr in PATH, which is required for watch-mode consider adding the entr from https://github.com/eradman/entr ")
+endif
+	$(MAKE) -s deps
 	$(MAKE) -s -j4 web server-watch test-watch buf-watch
 
 # Dependencies
 deps:
+	$(MAKE) -s -j3 frontend/node_modules deps_go generate
+frontend/node_modules: frontend/package.json
 	@cd frontend && npm install
+deps_go:
+	go mod tidy
+
 generate:
 	buf generate
 sqlc:
@@ -71,10 +88,13 @@ test-watch:
 # web and servers
 web:
 	cd frontend && npm run dev --host -- --clearScreen false 
+web_public_api:
+	@echo "Using the public api-server. For local testing, it is adviced to use the local server instead."
+	cd frontend && VITE_DEV_API="https://gotally.fly.dev" npm run dev --host -- --clearScreen false 
 server:
 	go run ./api/cmd/
 server-watch:
-	fd '.go' | entr -r sh -c "golangci-lint run & go run ./api/cmd/"
+	fd '.go' | entr -r sh -c "go run ./api/cmd/"
 
 build-web:
 	@echo "VITE_API: '$$VITE_API' $VITE_API"
