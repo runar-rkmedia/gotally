@@ -85,13 +85,15 @@ function createMorePrimes(limit = 100) {
 	outer: while (added <= limit) {
 		candidate += 2
 		const root = Math.sqrt(candidate)
-		for (i = 0; i < listOfPrimes.length && listOfPrimes[i] <= root; ++i)
+		for (i = 0; i < listOfPrimes.length && listOfPrimes[i] <= root; ++i) {
 			if (candidate % listOfPrimes[i] === 0) {
 				continue outer
 			}
-		added++
-		listOfPrimes.push(candidate)
+			added++
+			listOfPrimes.push(candidate)
+		}
 	}
 	primeCount + listOfPrimes.length
 }
 let primeCount = listOfPrimes.length
+console.log('factors', primeFactors(768).join(' * '))

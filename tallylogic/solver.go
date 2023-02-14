@@ -60,6 +60,10 @@ func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 	for {
 		select {
 		case solvedGame := <-solutionsChan:
+			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
+				cancel()
+				continue
+			}
 			solutions = append(solutions, solvedGame)
 			if solvedGame.Rules.GameMode == GameModeRandom && len(solutions) > 0 {
 				if solvedGame.score-g.score > int64(b.InfiniteGameMaxScoreIncrease) {
@@ -68,6 +72,9 @@ func (b *bruteSolver) SolveGame(g Game) ([]Game, error) {
 					}
 					return solutions, err
 				}
+			}
+			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
+				cancel()
 			}
 		case <-ctx.Done():
 			err := ctx.Err()
@@ -129,14 +136,7 @@ func (b *bruteSolver) solveGame(
 			return NewSolverErr(fmt.Errorf("Failed in game-solving for hint"), true)
 		}
 		if gameCopy.IsGameWon() {
-			// if b.MinMoves > 0 && b.MinMoves > gameCopy.Moves() {
-			// 	return solutions, fmt.Errorf("Game solved in less moves than required: %d moves wanted at least %d", gameCopy.Moves(), b.MinMoves)
-			// }
 			solutions <- gameCopy
-			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
-				// TODO: introduce solutions-counter?
-				return nil
-			}
 			continue
 		}
 		if gameCopy.Rules.GameMode == GameModeRandom {
@@ -159,7 +159,22 @@ func (b *bruteSolver) solveGame(
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
 		if !originalGame.Rules.NoReswipe && len(g.History) > 0 {
-			if equal, _ := CompareInstrictionAreEqual(dir, g.History[len(g.History)-1]); equal {
+			// there is no point in swiping the same direction twice
+			last := g.History[len(g.History)-1]
+			if last == dir {
+				continue
+			}
+			// there is no point in swiping the opposite direction of the last swipe
+			if last == SwipeDirectionUp && dir == SwipeDirectionDown {
+				continue
+			}
+			if last == SwipeDirectionDown && dir == SwipeDirectionUp {
+				continue
+			}
+			if last == SwipeDirectionLeft && dir == SwipeDirectionRight {
+				continue
+			}
+			if last == SwipeDirectionRight && dir == SwipeDirectionLeft {
 				continue
 			}
 		}

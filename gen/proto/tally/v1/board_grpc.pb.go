@@ -28,6 +28,7 @@ type BoardServiceClient interface {
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	SwipeBoard(ctx context.Context, in *SwipeBoardRequest, opts ...grpc.CallOption) (*SwipeBoardResponse, error)
 	CombineCells(ctx context.Context, in *CombineCellsRequest, opts ...grpc.CallOption) (*CombineCellsResponse, error)
+	GenerateGame(ctx context.Context, in *GenerateGameRequest, opts ...grpc.CallOption) (*GenerateGameResponse, error)
 	VoteBoard(ctx context.Context, in *VoteBoardRequest, opts ...grpc.CallOption) (*VoteBoardResponse, error)
 }
 
@@ -93,6 +94,15 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, in *CombineCellsR
 	return out, nil
 }
 
+func (c *boardServiceClient) GenerateGame(ctx context.Context, in *GenerateGameRequest, opts ...grpc.CallOption) (*GenerateGameResponse, error) {
+	out := new(GenerateGameResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GenerateGame", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *boardServiceClient) VoteBoard(ctx context.Context, in *VoteBoardRequest, opts ...grpc.CallOption) (*VoteBoardResponse, error) {
 	out := new(VoteBoardResponse)
 	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/VoteBoard", in, out, opts...)
@@ -112,6 +122,7 @@ type BoardServiceServer interface {
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	SwipeBoard(context.Context, *SwipeBoardRequest) (*SwipeBoardResponse, error)
 	CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error)
+	GenerateGame(context.Context, *GenerateGameRequest) (*GenerateGameResponse, error)
 	VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error)
 }
 
@@ -136,6 +147,9 @@ func (UnimplementedBoardServiceServer) SwipeBoard(context.Context, *SwipeBoardRe
 }
 func (UnimplementedBoardServiceServer) CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CombineCells not implemented")
+}
+func (UnimplementedBoardServiceServer) GenerateGame(context.Context, *GenerateGameRequest) (*GenerateGameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateGame not implemented")
 }
 func (UnimplementedBoardServiceServer) VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VoteBoard not implemented")
@@ -260,6 +274,24 @@ func _BoardService_CombineCells_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BoardService_GenerateGame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateGameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).GenerateGame(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/GenerateGame",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).GenerateGame(ctx, req.(*GenerateGameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BoardService_VoteBoard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VoteBoardRequest)
 	if err := dec(in); err != nil {
@@ -308,6 +340,10 @@ var BoardService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CombineCells",
 			Handler:    _BoardService_CombineCells_Handler,
+		},
+		{
+			MethodName: "GenerateGame",
+			Handler:    _BoardService_GenerateGame_Handler,
 		},
 		{
 			MethodName: "VoteBoard",

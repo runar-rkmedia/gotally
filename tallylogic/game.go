@@ -469,18 +469,24 @@ func (g *Game) DescribeInstruction(instruction any) string {
 		cell := g.board.GetCellAtIndex(index)
 		return fmt.Sprintf("Selecting %d at %dx%d", cell.Value(), t[0], t[1])
 	case []int:
-		values := make([]int64, len(t))
 		coords := make([][2]int, len(t))
 		for i := 0; i < len(t); i++ {
-			cell := g.board.GetCellAtIndex(i)
-			x, y := g.board.IndexToCord(i)
-			coords[0] = [2]int{x, y}
-			values[i] = cell.Value()
+			index := t[i]
+			x, y := g.board.IndexToCord(index)
+			coords[i] = [2]int{x, y}
 		}
 
-		return fmt.Sprintf("Combining values %v (%v) {%v}", values, coords, t)
+		return fmt.Sprintf("Combining at coords (%v) -- original: {%v}", coords, t)
+	case Instruction:
+		s := make([]string, len(t))
+		for i, v := range t {
+			s[i] = g.DescribeInstruction(v)
+
+		}
+		return strings.Join(s, "\n\t")
+	default:
+		return fmt.Sprintf("unknown instruction, %#v", t)
 	}
-	return "unknown instruction"
 }
 
 // This is used to instruct the game using small data-values Not really sure

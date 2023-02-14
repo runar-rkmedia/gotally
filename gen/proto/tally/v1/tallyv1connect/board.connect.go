@@ -33,6 +33,7 @@ type BoardServiceClient interface {
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
+	GenerateGame(context.Context, *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error)
 	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
 }
 
@@ -76,6 +77,11 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+"/tally.v1.BoardService/CombineCells",
 			opts...,
 		),
+		generateGame: connect_go.NewClient[v1.GenerateGameRequest, v1.GenerateGameResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/GenerateGame",
+			opts...,
+		),
 		voteBoard: connect_go.NewClient[v1.VoteBoardRequest, v1.VoteBoardResponse](
 			httpClient,
 			baseURL+"/tally.v1.BoardService/VoteBoard",
@@ -92,6 +98,7 @@ type boardServiceClient struct {
 	getSession   *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
 	swipeBoard   *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
 	combineCells *connect_go.Client[v1.CombineCellsRequest, v1.CombineCellsResponse]
+	generateGame *connect_go.Client[v1.GenerateGameRequest, v1.GenerateGameResponse]
 	voteBoard    *connect_go.Client[v1.VoteBoardRequest, v1.VoteBoardResponse]
 }
 
@@ -125,6 +132,11 @@ func (c *boardServiceClient) CombineCells(ctx context.Context, req *connect_go.R
 	return c.combineCells.CallUnary(ctx, req)
 }
 
+// GenerateGame calls tally.v1.BoardService.GenerateGame.
+func (c *boardServiceClient) GenerateGame(ctx context.Context, req *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error) {
+	return c.generateGame.CallUnary(ctx, req)
+}
+
 // VoteBoard calls tally.v1.BoardService.VoteBoard.
 func (c *boardServiceClient) VoteBoard(ctx context.Context, req *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error) {
 	return c.voteBoard.CallUnary(ctx, req)
@@ -138,6 +150,7 @@ type BoardServiceHandler interface {
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
+	GenerateGame(context.Context, *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error)
 	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
 }
 
@@ -178,6 +191,11 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 		svc.CombineCells,
 		opts...,
 	))
+	mux.Handle("/tally.v1.BoardService/GenerateGame", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/GenerateGame",
+		svc.GenerateGame,
+		opts...,
+	))
 	mux.Handle("/tally.v1.BoardService/VoteBoard", connect_go.NewUnaryHandler(
 		"/tally.v1.BoardService/VoteBoard",
 		svc.VoteBoard,
@@ -211,6 +229,10 @@ func (UnimplementedBoardServiceHandler) SwipeBoard(context.Context, *connect_go.
 
 func (UnimplementedBoardServiceHandler) CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.CombineCells is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) GenerateGame(context.Context, *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GenerateGame is not implemented"))
 }
 
 func (UnimplementedBoardServiceHandler) VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error) {

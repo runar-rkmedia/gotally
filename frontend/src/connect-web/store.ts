@@ -21,6 +21,11 @@ type Cell = Replaced<Strip<Api.Cell>, bigint, number>
 type Board = Replaced<Omit<Strip<Api.Board>, 'cells'> & { cells: Cell[] }, bigint, number>
 type Game = Replaced<Omit<Strip<Api.Game>, 'board'> & { board: Board }, bigint, number>
 type Session = Replaced<Omit<Strip<Api.Session>, 'game'> & { game: Game }, bigint, number>
+type GeneratedGame = Replaced<
+	Omit<Strip<Api.GenerateGameResponse>, 'game'> & { game: Game },
+	bigint,
+	number
+>
 
 type Strip<T extends Buf.Message> = Omit<
 	T,
@@ -97,6 +102,9 @@ export interface ApiType {
 	swipe: (
 		direction: SwipeDirection
 	) => CommitableGoResult<{ board: Board; moves: number; didChange: boolean }>
+	generateGame: (
+		payload: Replaced<PartialMessage<Api.GenerateGameRequest>, bigint, number>
+	) => CommitableGoResult<GeneratedGame>
 	vote: (options: PartialMessage<Api.VoteBoardRequest>) => CommitableGoResult<Vote>
 	getSession: () => CommitableGoResult<Session>
 	combineCells: (
@@ -130,6 +138,30 @@ class ApiStore implements ApiType {
 		}
 		await commit()
 		return { result, error }
+	}
+	generateGame: ApiType['generateGame'] = async (options) => {
+		const [result, err] = await go(client.generateGame(options as any))
+		if (err) {
+			handleError('generateGame', err)
+			return [null, null, err]
+		}
+		const { game } = result
+		if (!game) {
+			return [null, null, ErrNoResult]
+		}
+		const res = {
+			game: strip<Game>(game),
+			idealMoves: Number(result.idealMoves),
+			idealScore: Number(result.idealScore),
+			highestScore: Number(result.highestScore),
+			solutions: result.solutions.map((g) => strip<Game>(g))
+		}
+		const commit = async () => {
+			// TODO: commit the result to the store
+			console.error('not implemented: commit for generateGame', { res })
+		}
+
+		return [res, commit, null]
 	}
 	getHint: ApiType['getHint'] = async (options = {}) => {
 		const [result, err] = await go(client.getHint(options))
