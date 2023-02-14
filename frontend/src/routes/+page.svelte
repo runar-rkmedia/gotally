@@ -687,13 +687,6 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 </div>
 
 <style lang="scss">
-	:root {
-		--color-primary: var(--color-blue-500);
-		--color-secondary: var(--color-green-500);
-		--color-danger: var(--color-orange-500);
-		--color-error: var(--color-red-500);
-		--color-white: var(--color-grey-50);
-	}
 	p {
 		padding-inline: var(--size-4);
 		padding-block-end: var(--size-2);

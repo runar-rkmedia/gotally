@@ -193,8 +193,14 @@ func (t *GameTemplate) SetMaxMoves(moves int) *GameTemplate {
 	return t
 
 }
+
+// Deprecated, use SetStartingLayoutUints
 func (t *GameTemplate) SetStartingLayout(brickValue ...int64) *GameTemplate {
 	t.Board.cells = cellCreator(brickValue...)
+	return t
+}
+func (t *GameTemplate) SetStartingLayoutUints(brickValue ...uint64) *GameTemplate {
+	t.Board.cells = cellCreatorUints(brickValue...)
 	return t
 }
 func (t *GameTemplate) Create() GameTemplate {

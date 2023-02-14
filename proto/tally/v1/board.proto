@@ -185,6 +185,25 @@ message Session {
   int64 games_played = 4;
 }
 
+message GenerateGameRequest {
+	uint32 rows  = 1;
+  uint32 columns      =2;
+	uint64 target_cell_value     =3;
+	uint32 max_bricks           =4;
+	uint32 min_bricks           =5;
+	uint64 min_moves            =6;
+	uint64 max_moves            =7;
+	uint64 max_iterations       =8;
+  bool with_solutions = 9;
+}
+message GenerateGameResponse {
+  Game game = 1;
+  uint32 ideal_moves = 2;
+  uint64 ideal_score = 3;
+  uint64 highest_score = 4;
+  repeated Game solutions = 5;
+}
+
 service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
   rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
@@ -192,5 +211,6 @@ service BoardService {
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {}
   rpc SwipeBoard(SwipeBoardRequest) returns (SwipeBoardResponse) {}
   rpc CombineCells(CombineCellsRequest) returns (CombineCellsResponse) {}
+  rpc GenerateGame(GenerateGameRequest) returns (GenerateGameResponse) {}
   rpc VoteBoard(VoteBoardRequest) returns (VoteBoardResponse) {}
 }
