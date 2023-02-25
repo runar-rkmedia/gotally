@@ -77,15 +77,14 @@ func (s *TallyServer) GetHint(
 	response.Instructions = make([]*model.Instruction, 1)
 	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
 	// h := tallylogic.NewHintCalculator(session.Game, session.Game, session.Game)
-	solver := tallylogic.NewBruteDepthSolver(tallylogic.SolveOptions{
+	games, err := tallylogic.SolveGame(tallylogic.SolveOptions{
 		MaxDepth:     10,
 		MaxVisits:    6000,
 		MinMoves:     0,
 		MaxMoves:     10,
 		MaxSolutions: 1,
 		MaxTime:      time.Second * 10,
-	})
-	games, err := solver.SolveGame(session.Game)
+	}, session.Game)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to generate hint"))
 	}

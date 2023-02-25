@@ -30,29 +30,32 @@ func BoardHightlighter(g *Game) func(CellValuer, int, string) string {
 	}
 }
 
-func mustCreateNewGameForTest(mode GameMode, template *GameTemplate, options ...NewGameOptions) Game {
-	opt := NewGameOptions{}
-	if len(options) != 0 {
-		opt = options[0]
+func mustCreateNewGameForTest(mode GameMode, template *GameTemplate, options ...NewGameOptions) func() Game {
+	return func() Game {
+
+		opt := NewGameOptions{}
+		if len(options) != 0 {
+			opt = options[0]
+		}
+		if opt.Seed == 0 {
+			opt.Seed = 1
+		}
+		if opt.State == 0 {
+			opt.State = 1
+		}
+		game, err := NewGame(mode, template, opt)
+		if err != nil {
+			panic(err)
+		}
+		return game
 	}
-	if opt.Seed == 0 {
-		opt.Seed = 1
-	}
-	if opt.State == 0 {
-		opt.State = 1
-	}
-	game, err := NewGame(mode, template, opt)
-	if err != nil {
-		panic(err)
-	}
-	return game
 }
 
 func TestGame_Play(t *testing.T) {
 	type playgame = func(game *Game, t *testing.T)
 	tests := []struct {
 		name          string
-		fields        Game
+		gamefactory   func() Game
 		play          playgame
 		expectedScore int64
 	}{
@@ -180,12 +183,13 @@ func TestGame_Play(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			gg := tt.gamefactory()
 			g := &Game{
-				board:         tt.fields.board,
-				selectedCells: tt.fields.selectedCells,
-				cellGenerator: tt.fields.cellGenerator,
-				Rules:         tt.fields.Rules,
-				score:         tt.fields.score,
+				board:         gg.board,
+				selectedCells: gg.selectedCells,
+				cellGenerator: gg.cellGenerator,
+				Rules:         gg.Rules,
+				score:         gg.score,
 			}
 			tt.play(g, t)
 			if tt.expectedScore != g.score {

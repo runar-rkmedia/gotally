@@ -94,7 +94,7 @@ func (b *bruteDepthSolver) solveGame(
 		return NewSolverErr(fmt.Errorf("Game-depth overflow %d (seen: %d)", depth, len(*seen)), false)
 	}
 	if len(*seen) > b.MaxVisits {
-		return NewSolverErr(fmt.Errorf("Game-seen overflow (seend %d)", len(*seen)), false)
+		return NewSolverErr(fmt.Errorf("Game-seen overflow (seen %d)", len(*seen)), false)
 	}
 
 	if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-startingMoves) {

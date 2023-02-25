@@ -1,6 +1,8 @@
 package tallylogic
 
-import "time"
+import (
+	"time"
+)
 
 type Hinter interface {
 	GetHints() map[string]Hint
@@ -35,9 +37,20 @@ func NewSolverErr(err error, shouldQuit bool) SolverErr {
 
 func GameSolverFactory(options GameSolverFactoryOptions) Solver {
 	if options.BreadthFirst {
-		s := NewBruteDepthSolver(options.SolveOptions)
+		s := NewBruteBreadthSolver(options.SolveOptions)
 		return &s
 	}
 	s := NewBruteDepthSolver(options.SolveOptions)
 	return &s
+}
+func SolveGame(options SolveOptions, game Game) ([]Game, error) {
+	// The breadth-first is not very good at solving infinite games
+	// so we use the depth-first for these games
+	if game.Rules.GameMode == GameModeRandom {
+		s := NewBruteDepthSolver(options)
+		return s.SolveGame(game)
+	}
+
+	s := NewBruteBreadthSolver(options)
+	return s.SolveGame(game)
 }

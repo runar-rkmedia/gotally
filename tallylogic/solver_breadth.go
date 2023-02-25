@@ -2,6 +2,7 @@ package tallylogic
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -11,6 +12,9 @@ type bruteBreadthSolver struct {
 	SolveOptions
 }
 
+// NOTE: The breadth-first solver is TERRIBLE at solving infinite games.
+// The depth-first-solver should be used for those cases, as it is more likely
+// to produce solutions with a high score.
 func NewBruteBreadthSolver(options SolveOptions) bruteBreadthSolver {
 	if options.MaxDepth == 0 {
 		options.MaxDepth = 1_000
@@ -29,22 +33,87 @@ func NewBruteBreadthSolver(options SolveOptions) bruteBreadthSolver {
 	}
 }
 
+type gameJob struct {
+	Game
+	hash  string
+	depth int
+	kind  string
+}
+
 func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 
 	seen := map[string]struct{}{}
+	depthJobs := map[int][]Game{}
+	jobsCh := make(chan gameJob)
+	errCh := make(chan error)
+
 	game := g.Copy()
+	seen[game.Hash()] = struct{}{}
 	game.History = Instruction{}
 	solutionsChan := make(chan Game)
 	ctx, cancel := context.WithTimeout(context.Background(), b.MaxTime)
 	defer cancel()
 	solutions := []Game{}
 	var err error
+	var iterations = 1
 	go func() {
-		err = b.solveGame(ctx, game, g.moves, solutionsChan, -1, &seen, &g)
-		cancel()
+		currentDepth := -1
+		b.solveGame(ctx, game, jobsCh, solutionsChan, errCh, currentDepth, &g)
+		currentDepth++
+		for {
+			if depthJobs[currentDepth] == nil || len(depthJobs[currentDepth]) == 0 {
+				cancel()
+				return
+			}
+			for _, l := range depthJobs[currentDepth] {
+
+				iterations++
+				b.solveGame(ctx, l, jobsCh, solutionsChan, errCh, currentDepth, &g)
+			}
+			currentDepth++
+		}
+
 	}()
 	for {
 		select {
+		case error := <-errCh:
+			if error == nil {
+				continue
+			}
+			if s, ok := error.(SolverErr); ok {
+				if s.ShouldQuit {
+					err = error
+					cancel()
+				}
+			}
+
+		case job := <-jobsCh:
+			if _, ok := seen[job.hash]; ok {
+				continue
+			}
+
+			seen[job.hash] = struct{}{}
+			if job.depth > b.MaxDepth {
+				err = NewSolverErr(fmt.Errorf("Game-seen overflow (seen %d) (depth %d)", len(seen), job.depth), false)
+				cancel()
+				continue
+			}
+			// TODO: is there really a difference between this and the depth?
+			if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-g.moves) {
+				err = NewSolverErr(fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d", g.Moves(), b.MaxMoves), true)
+				cancel()
+				continue
+			}
+			if len(seen) > b.MaxVisits {
+				err = NewSolverErr(fmt.Errorf("Game-seen overflow (seen %d) (depth %d)", len(seen), job.depth), false)
+				cancel()
+				continue
+			}
+			if depthJobs[job.depth] == nil {
+				depthJobs[job.depth] = []Game{job.Game}
+			} else {
+				depthJobs[job.depth] = append(depthJobs[job.depth], job.Game)
+			}
 		case solvedGame := <-solutionsChan:
 			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
 				cancel()
@@ -63,13 +132,17 @@ func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 				cancel()
 			}
 		case <-ctx.Done():
-			err := ctx.Err()
-			if err != nil && len(solutions) > 0 && errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-				err = nil
+			contextErr := ctx.Err()
+			if err != nil {
+				return solutions, err
 			}
-			return solutions, err
+			if contextErr != nil && len(solutions) > 0 && errors.Is(contextErr, context.DeadlineExceeded) || errors.Is(contextErr, context.Canceled) {
+				contextErr = nil
+			}
+			return solutions, contextErr
 		}
 	}
+
 }
 
 // TODO: Major performance-boost is very much within reach with refactoring into a breadth-first implementation
@@ -77,40 +150,28 @@ func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 func (b *bruteBreadthSolver) solveGame(
 	ctx context.Context,
 	g Game,
-	startingMoves int,
+	jobsCh chan gameJob,
 	solutions chan Game,
+	errCh chan error,
 	depth int,
-	seen *map[string]struct{},
 	originalGame *Game,
-) error {
+) {
 	depth++
 	if err := ctx.Err(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return NewSolverErr(fmt.Errorf("MaxTime threshold exceeded (%w)", err), true)
+			return
 		}
-		return NewSolverErr(fmt.Errorf("context: err %w", err), true)
-	}
-	if depth > b.MaxDepth {
-		return NewSolverErr(fmt.Errorf("Game-depth overflow %d (seen: %d)", depth, len(*seen)), false)
-	}
-	if len(*seen) > b.MaxVisits {
-		return NewSolverErr(fmt.Errorf("Game-seen overflow (seend %d)", len(*seen)), false)
+		errCh <- NewSolverErr(fmt.Errorf("context: err %w", err), true)
+		return
 	}
 
-	if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-startingMoves) {
-		return NewSolverErr(fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d", g.Moves(), b.MaxMoves), true)
-	}
-	hash := g.board.Hash()
-	if _, ok := (*seen)[hash]; ok {
-		return NewSolverErr(fmt.Errorf("Already seen"), false)
-	}
-	(*seen)[hash] = struct{}{}
 	hints := g.GetHint()
 	for _, h := range hints {
 		gameCopy := g.Copy()
 		ok := gameCopy.EvaluateForPath(h.Path)
 		if !ok {
-			return NewSolverErr(fmt.Errorf("Failed in game-solving for hint"), true)
+			errCh <- NewSolverErr(fmt.Errorf("Failed in game-solving for hint"), true)
+			return
 		}
 		if gameCopy.IsGameWon() {
 			solutions <- gameCopy
@@ -119,19 +180,9 @@ func (b *bruteBreadthSolver) solveGame(
 		if gameCopy.Rules.GameMode == GameModeRandom {
 			solutions <- gameCopy
 		}
-		err := b.solveGame(ctx, gameCopy, startingMoves, solutions, depth, seen, originalGame)
-		if err != nil {
-			if s, ok := err.(SolverErr); ok {
-				if s.ShouldQuit {
-					return err
-				}
-			}
-			continue
-			// return solutions, err
-		}
-		// solutions = more
-		if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
-			return nil
+		hash := gameCopy.board.Hash()
+		jobsCh <- gameJob{
+			gameCopy, hash, depth, "hint",
 		}
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
@@ -142,6 +193,8 @@ func (b *bruteBreadthSolver) solveGame(
 				continue
 			}
 			// there is no point in swiping the opposite direction of the last swipe
+			// THIS IS ONLY TRUE FOR GAMES WHERE THERE IS NO Cell-generation
+			// TODO: implement a check for this distinction
 			if last == SwipeDirectionUp && dir == SwipeDirectionDown {
 				continue
 			}
@@ -157,24 +210,13 @@ func (b *bruteBreadthSolver) solveGame(
 		}
 		gameCopy := g.Copy()
 		changed := gameCopy.Swipe(dir)
-		if changed {
-			err := b.solveGame(ctx, gameCopy, startingMoves, solutions, depth, seen, originalGame)
-			if s, ok := err.(SolverErr); ok {
-				if s.ShouldQuit {
-					return err
-				}
-			}
-			if err != nil {
-				continue
-				// return solutions, err
-			}
-			// solutions = more
-			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
-				return nil
-			}
+		if !changed {
+			continue
 		}
-
+		hash := hex.EncodeToString([]byte(gameCopy.board.Hash()))
+		jobsCh <- gameJob{
+			gameCopy, hash, depth, "swipe",
+		}
 	}
-	return nil
 
 }

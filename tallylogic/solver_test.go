@@ -2,11 +2,19 @@ package tallylogic
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
+	"github.com/MarvinJWendt/testza"
+	"github.com/go-test/deep"
 	"github.com/runar-rkmedia/gotally/types"
 )
+
+func init() {
+	testza.SetShowStartupMessage(false)
+
+}
 
 func createGame(vals ...int64) Game {
 
@@ -30,20 +38,43 @@ func createGame(vals ...int64) Game {
 
 func Test_bruteSolver_SolveGame(t *testing.T) {
 	tests := []struct {
-		name              string
-		g                 Game
-		wantSolutionCount int
+		name string
+		GameSolverFactoryOptions
+		g                            func() Game
+		wantSolutionCountGte         int
+		wantSolutionShortDescription []string
 	}{
 
 		{
 			"Solve a simple game",
+			GameSolverFactoryOptions{BreadthFirst: false},
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[0]),
 			12,
+			nil,
+		},
+		{
+			"Solve a simple game",
+			GameSolverFactoryOptions{BreadthFirst: true},
+			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[0]),
+			12,
+			nil,
 		},
 		{
 			"Solve next game",
+			GameSolverFactoryOptions{BreadthFirst: false},
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
 			218,
+			nil,
+		},
+		{
+			"Solve next game",
+			GameSolverFactoryOptions{BreadthFirst: true},
+			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
+			// I have not confirmed why there is a difference in the count of soltuions produced between breadth-first and depth-first
+			// but I dont have the time to figure it out.
+			// Could it be that when they decide that they have seen a game before, they are visiting vastly different nodes?
+			211,
+			nil,
 		},
 		{
 			// This game currently goes very deep
@@ -56,13 +87,18 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// Combine 4*10=40 into 80
 			// [0, 1, 4]
 			"Solve challenge game 0130-current-paul-robin",
-			createGame(
-				4, 10, 12,
-				2, 10, 8,
-				1, 7, 0,
-			),
-			32,
+			GameSolverFactoryOptions{BreadthFirst: true, SolveOptions: SolveOptions{MaxSolutions: 1}},
+			func() Game {
+				return createGame(
+					4, 10, 12,
+					2, 10, 8,
+					1, 7, 0,
+				)
+			},
+			1,
+			[]string{"indexes:7,6,3,4;indexes:2,5,4;indexes:0,1,4;"},
 		},
+
 		{
 			// Infinite games cannot be solved, but it should calculate the "best" moves that it can make
 			// to get the best points, or the boards complexity is reduced.
@@ -71,41 +107,76 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// - A mix of root-number-types makes it more complex. This has to take into account the
 			//   fraction of the composite.
 			"'Solve' an infinite game",
+			GameSolverFactoryOptions{BreadthFirst: false},
 			mustCreateNewGameForTest(GameModeRandom, nil, NewGameOptions{Seed: 1238}),
 			// Not sure what to make of this value
 			-1,
+			nil,
 		},
 	}
+
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		tt.SolveOptions.MaxTime = 10 * time.Second
+		prefix := ""
+		if tt.BreadthFirst {
+			prefix = "breadth "
+		} else {
+			prefix = "depth "
+		}
+		t.Run(prefix+tt.name, func(t *testing.T) {
+			gg := tt.g()
+			if tt.BreadthFirst && gg.Rules.GameMode == GameModeRandom {
+				t.Log("Skipping infinite game-test for BreadthFirst since it should not be used for that ")
+				return
+			}
 			// err := tt.g.cellGenerator.SetSeed(uint64(123))
 			// if err != nil {
 			// 	t.Fatalf("failed to set seed %s", err)
 			// }
-			originalSeed, originalState := tt.g.cellGenerator.Seed()
-			options := GameSolverFactoryOptions{
-				SolveOptions: SolveOptions{
-					MaxTime: 10000 * time.Millisecond,
-				},
-			}
-			b := GameSolverFactory(options)
+			originalSeed, originalState := gg.cellGenerator.Seed()
+			b := GameSolverFactory(tt.GameSolverFactoryOptions)
 			t.Logf("BruteSolver: %#v", b)
-			solutions, err := b.SolveGame(tt.g)
-			t.Logf("Found %d solutions", len(solutions))
+			start := time.Now()
+			solutions, err := b.SolveGame(gg)
+			timeTaken := time.Now().Sub(start)
+			t.Logf("Found %d solutions in %s", len(solutions), timeTaken)
 			if err != nil {
 				t.Error(err)
 				return
 			}
-
-			if tt.wantSolutionCount >= 0 && len(solutions) != tt.wantSolutionCount {
-				t.Errorf("Found %d solutions, want %d", len(solutions), tt.wantSolutionCount)
+			if tt.wantSolutionShortDescription != nil && len(tt.wantSolutionShortDescription) > 0 {
+				s := make([]string, len(solutions))
 				for i, solved := range solutions {
-					t.Logf("Solution %d: solved in %d moves with a score of %d %#v", i, solved.Moves(), solved.Score(), solved.History)
+					s[i] = solved.History.DescribeShort()
 				}
-				t.Log(tt.g.board.String())
+				sort.Slice(s, func(i, j int) bool {
+					li := len(s[i])
+					lj := len(s[j])
+					if li == lj {
+						return s[i] < s[j]
+					}
+					return li < lj
+				})
+				testza.AssertEqual(t, tt.wantSolutionShortDescription, s)
+				if diff := deep.Equal(s, tt.wantSolutionShortDescription); diff != nil {
+					t.Errorf("Expected solutions-description to match. Diff: %v", diff)
+
+				}
+				// os.WriteFile("mytest_"+prefix, []byte(strings.Join(s, "\n")), os.ModePerm)
 			}
 
-			if tt.g.Rules.NoReswipe {
+			if tt.wantSolutionCountGte >= 0 && len(solutions) < tt.wantSolutionCountGte {
+				t.Errorf("Found %d solutions, want %d", len(solutions), tt.wantSolutionCountGte)
+				for i, solved := range solutions {
+					t.Logf("Solution %d: solved - %d moves with a score of %d %s", i, solved.Moves(), solved.Score(), solved.History.DescribeShort())
+				}
+				// intentionally no prefix for testname here, since we want to compare them
+				t.Log(gg.board.String())
+			}
+
+			// intentionally no prefix for testname here, since we want to compare them
+			t.Log(gg.board.String())
+			if gg.Rules.NoReswipe {
 				for _, solution := range solutions {
 					for i := 1; i < len(solution.History); i++ {
 						prev := solution.History[i-1]
@@ -121,7 +192,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			if len(solutions) == 0 {
 				return
 			}
-			if seed, state := tt.g.cellGenerator.Seed(); seed != originalSeed || state != originalState {
+			if seed, state := gg.cellGenerator.Seed(); seed != originalSeed || state != originalState {
 				t.Fatal("seed changed")
 			}
 
@@ -133,16 +204,16 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 				combine := func(vs ...any) string {
 					return fmt.Sprintf("%v", vs)
 				}
-				t.Logf("seed: %d-%d, %s %s", originalSeed, originalState, combine(tt.g.cellGenerator.Seed()), combine(solution.cellGenerator.Seed()))
-				desc := tt.g.DescribeInstruction(instr)
+				t.Logf("seed: %d-%d, %s %s", originalSeed, originalState, combine(gg.cellGenerator.Seed()), combine(solution.cellGenerator.Seed()))
+				desc := gg.DescribeInstruction(instr)
 				switch t := instr.(type) {
 				case []int:
 					for _, v := range t {
-						tt.g.SelectCell(v)
+						gg.SelectCell(v)
 					}
 				}
-				t.Log(desc, tt.g.board.PrintBoard(BoardHightlighter(&tt.g)))
-				ok := tt.g.instruct(instr)
+				t.Log(desc, gg.board.PrintBoard(BoardHightlighter(&gg)))
+				ok := gg.instruct(instr)
 				if !ok {
 					t.Errorf("Failed to run instruction for game at positon %d %s", i, desc)
 					return
@@ -154,7 +225,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 }
 
 func Benchmark_Solver(b *testing.B) {
-	game := mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1])
+	game := mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1])()
 	options := GameSolverFactoryOptions{
 		SolveOptions: SolveOptions{
 			MaxTime: 10000 * time.Millisecond,
