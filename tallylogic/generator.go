@@ -96,7 +96,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		MaxMoves:     gb.MaxMoves,
 		MaxSolutions: 1,
 	}
-	solver := NewBruteSolver(options)
+	solver := NewBruteDepthSolver(options)
 
 	ch := make(chan SolvableGame, 100)
 	jobs := make(chan Game, gb.Concurrency)
@@ -208,7 +208,7 @@ type SolvableGame struct {
 	Solutions []Game
 }
 
-func (gb GameGenerator) solveGame(solver bruteSolver, game Game) (*SolvableGame, error) {
+func (gb GameGenerator) solveGame(solver bruteDepthSolver, game Game) (*SolvableGame, error) {
 	solutions, err := solver.SolveGame(game)
 	if err != nil {
 		return nil, err
