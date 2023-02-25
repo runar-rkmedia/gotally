@@ -83,7 +83,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// 	t.Fatalf("failed to set seed %s", err)
 			// }
 			originalSeed, originalState := tt.g.cellGenerator.Seed()
-			b := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
+			b := NewBruteDepthSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
 			t.Logf("BruteSolver: %#v", b)
 			solutions, err := b.SolveGame(tt.g)
 			t.Logf("Found %d solutions", len(solutions))
@@ -150,7 +150,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 
 func Benchmark_Solver(b *testing.B) {
 	game := mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1])
-	brute := NewBruteSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
+	brute := NewBruteDepthSolver(SolveOptions{MaxTime: 10000 * time.Millisecond})
 	b.RunParallel(func(p *testing.PB) {
 		for p.Next() {
 			s, err := brute.SolveGame(game)

@@ -77,7 +77,7 @@ func (s *TallyServer) GetHint(
 	response.Instructions = make([]*model.Instruction, 1)
 	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
 	// h := tallylogic.NewHintCalculator(session.Game, session.Game, session.Game)
-	solver := tallylogic.NewBruteSolver(tallylogic.SolveOptions{
+	solver := tallylogic.NewBruteDepthSolver(tallylogic.SolveOptions{
 		MaxDepth:     10,
 		MaxVisits:    6000,
 		MinMoves:     0,

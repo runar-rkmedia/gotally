@@ -162,7 +162,7 @@ func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic
 			MaxSolutions: 1,
 			MaxTime:      time.Millisecond * 100,
 		}
-		solver := tallylogic.NewBruteSolver(options)
+		solver := tallylogic.NewBruteDepthSolver(options)
 		solutions, err := solver.SolveGame(game)
 		if err != nil {
 			switch {
