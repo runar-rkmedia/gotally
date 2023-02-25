@@ -6,7 +6,8 @@ import (
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
-	"github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/randomizer"
+	"github.com/runar-rkmedia/gotally/tallylogic/gameGeneratorTargetCell"
 )
 
 func (s *TallyServer) GenerateGame(
@@ -15,32 +16,21 @@ func (s *TallyServer) GenerateGame(
 ) (*connect.Response[model.GenerateGameResponse], error) {
 	// session := ContextGetUserState(ctx)
 	// TODO: Check that user is registered /admin etc.
-	options := tallylogic.GameGeneratorOptions{
-		Rows:                int(req.Msg.Rows),
-		Columns:             int(req.Msg.Columns),
-		GoalChecker:         nil,
-		TargetCellValue:     uint64(req.Msg.TargetCellValue),
-		MaxBricks:           int(req.Msg.MaxBricks),
-		MinBricks:           int(req.Msg.MinBricks),
-		MinMoves:            int(req.Msg.MinMoves),
-		MaxMoves:            int(req.Msg.MaxMoves),
-		MaxIterations:       int(req.Msg.MaxIterations),
-		CellGenerator:       nil,
-		Randomizer:          nil,
-		MinGames:            1,
-		GameSolutionChannel: make(chan tallylogic.SolvableGame, 8),
+	options := gamegenerator_target_cell.GameGeneratorTargetCellOptions{
+		TargetCell:         req.Msg.TargetCellValue,
+		MinCellValue:       0,
+		MaxCellValue:       12,
+		RandomCellChance:   -1,
+		MaxCells:           int(req.Msg.MaxBricks),
+		MaxAdditionalCells: int(req.Msg.MaxAdditionalCells),
+		Rows:               int(req.Msg.Rows),
+		Columns:            int(req.Msg.Columns),
+		MaxMoves:           int(req.Msg.MaxMoves),
+		MinMoves:           int(req.Msg.MinMoves),
+		// Seed:               req.Msg.Seed,
+		Randomizer: randomizer.NewRandomizerFromSeed(req.Msg.Seed, req.Msg.Salt),
 	}
-	if options.TargetCellValue != 0 {
-		options.GoalChecker = tallylogic.GoalCheckLargestCell{
-			GoalCheck:       tallylogic.GoalCheck{},
-			TargetCellValue: options.TargetCellValue,
-		}
-	}
-	fmt.Println("\n\nboobobob")
-	fmt.Println(devpretty(req.Msg))
-	fmt.Printf("bobo %#v", options)
-
-	generator, err := tallylogic.NewGameGenerator(options)
+	generator, err := gamegenerator_target_cell.NewGameGeneratorForTargetCell(options)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to initialize game-generator: %w", err))
 	}
