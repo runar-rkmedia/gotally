@@ -156,13 +156,15 @@ func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic
 			return game, nil, err
 		}
 		// Ensure that the game can be solved.
-		options := tallylogic.SolveOptions{
-			MinMoves:     gen.MinMoves,
-			MaxMoves:     gen.MaxMoves,
-			MaxSolutions: 1,
-			MaxTime:      time.Millisecond * 100,
+		options := tallylogic.GameSolverFactoryOptions{
+			SolveOptions: tallylogic.SolveOptions{
+				MinMoves:     gen.MinMoves,
+				MaxMoves:     gen.MaxMoves,
+				MaxSolutions: 1,
+				MaxTime:      time.Millisecond * 100,
+			},
 		}
-		solver := tallylogic.NewBruteDepthSolver(options)
+		solver := tallylogic.GameSolverFactory(options)
 		solutions, err := solver.SolveGame(game)
 		if err != nil {
 			switch {

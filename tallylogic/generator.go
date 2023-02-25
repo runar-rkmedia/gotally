@@ -91,12 +91,14 @@ func (gb GameGenerator) generateGame() Game {
 
 // GenerateGame randomly generates a new board that is solvable within the requirements set
 func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
-	options := SolveOptions{
-		MinMoves:     gb.MinMoves,
-		MaxMoves:     gb.MaxMoves,
-		MaxSolutions: 1,
+	options := GameSolverFactoryOptions{
+		SolveOptions: SolveOptions{
+			MinMoves:     gb.MinMoves,
+			MaxMoves:     gb.MaxMoves,
+			MaxSolutions: 1,
+		},
 	}
-	solver := NewBruteDepthSolver(options)
+	solver := GameSolverFactory(options)
 
 	ch := make(chan SolvableGame, 100)
 	jobs := make(chan Game, gb.Concurrency)
@@ -208,7 +210,7 @@ type SolvableGame struct {
 	Solutions []Game
 }
 
-func (gb GameGenerator) solveGame(solver bruteDepthSolver, game Game) (*SolvableGame, error) {
+func (gb GameGenerator) solveGame(solver Solver, game Game) (*SolvableGame, error) {
 	solutions, err := solver.SolveGame(game)
 	if err != nil {
 		return nil, err
