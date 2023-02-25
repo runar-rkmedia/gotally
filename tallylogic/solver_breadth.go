@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-type bruteDepthSolver struct {
+type bruteBreadthSolver struct {
 	SolveOptions
 }
 
-func NewBruteDepthSolver(options SolveOptions) bruteDepthSolver {
+func NewBruteBreadthSolver(options SolveOptions) bruteBreadthSolver {
 	if options.MaxDepth == 0 {
 		options.MaxDepth = 1_000
 	}
@@ -24,12 +24,12 @@ func NewBruteDepthSolver(options SolveOptions) bruteDepthSolver {
 	if options.InfiniteGameMaxScoreIncrease == 0 {
 		options.InfiniteGameMaxScoreIncrease = 1000
 	}
-	return bruteDepthSolver{
+	return bruteBreadthSolver{
 		SolveOptions: options,
 	}
 }
 
-func (b *bruteDepthSolver) SolveGame(g Game) ([]Game, error) {
+func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 
 	seen := map[string]struct{}{}
 	game := g.Copy()
@@ -74,7 +74,7 @@ func (b *bruteDepthSolver) SolveGame(g Game) ([]Game, error) {
 
 // TODO: Major performance-boost is very much within reach with refactoring into a breadth-first implementation
 // See https://github.com/runar-rkmedia/gotally/issues/14
-func (b *bruteDepthSolver) solveGame(
+func (b *bruteBreadthSolver) solveGame(
 	ctx context.Context,
 	g Game,
 	startingMoves int,
