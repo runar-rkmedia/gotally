@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -40,10 +41,42 @@ type gameJob struct {
 	kind  string
 }
 
+type jobs struct {
+	queue map[int][]Game
+	sync.RWMutex
+}
+
+func (j *jobs) get(depth int) *Game {
+	j.Lock()
+	defer j.Unlock()
+	l := j.queue[depth]
+	if l == nil {
+		return nil
+	}
+	if len(l) == 0 {
+		return nil
+	}
+	g := l[len(l)-1]
+	j.queue[depth] = l[:len(l)-1]
+	return &g
+}
+func (j *jobs) has(depth int) bool {
+	j.RLock()
+	defer j.RUnlock()
+	l := j.queue[depth]
+	if l == nil {
+		return false
+	}
+	if len(l) == 0 {
+		return false
+	}
+	return true
+}
+
 func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 
 	seen := map[string]struct{}{}
-	depthJobs := map[int][]Game{}
+	depthJobs := jobs{make(map[int][]Game), sync.RWMutex{}}
 	jobsCh := make(chan gameJob)
 	errCh := make(chan error)
 
@@ -61,14 +94,18 @@ func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 		b.solveGame(ctx, game, jobsCh, solutionsChan, errCh, currentDepth, &g)
 		currentDepth++
 		for {
-			if depthJobs[currentDepth] == nil || len(depthJobs[currentDepth]) == 0 {
+			if !depthJobs.has(currentDepth) {
 				cancel()
 				return
 			}
-			for _, l := range depthJobs[currentDepth] {
+			for {
+				l := depthJobs.get(currentDepth)
+				if l == nil {
+					break
+				}
 
 				iterations++
-				b.solveGame(ctx, l, jobsCh, solutionsChan, errCh, currentDepth, &g)
+				b.solveGame(ctx, *l, jobsCh, solutionsChan, errCh, currentDepth, &g)
 			}
 			currentDepth++
 		}
@@ -109,11 +146,13 @@ func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 				cancel()
 				continue
 			}
-			if depthJobs[job.depth] == nil {
-				depthJobs[job.depth] = []Game{job.Game}
+			depthJobs.Lock()
+			if depthJobs.queue[job.depth] == nil {
+				depthJobs.queue[job.depth] = []Game{job.Game}
 			} else {
-				depthJobs[job.depth] = append(depthJobs[job.depth], job.Game)
+				depthJobs.queue[job.depth] = append(depthJobs.queue[job.depth], job.Game)
 			}
+			depthJobs.Unlock()
 		case solvedGame := <-solutionsChan:
 			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
 				cancel()
