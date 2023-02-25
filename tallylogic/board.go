@@ -162,6 +162,7 @@ func (tb TableBoard) PrintBoard(highlighter func(c CellValuer, index int, padded
 }
 
 // Uniqely identifies the board by its value. ID's etc are ignored.
+// The string is likely to not be printable
 func (tb TableBoard) Hash() string {
 	builder := strings.Builder{}
 	// builder.WriteString(fmt.Sprintf("%dx%d;", tb.columns, tb.rows))

@@ -1,10 +1,14 @@
 package tallylogic
 
 import (
+	"encoding/hex"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/gookit/color"
+	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
@@ -374,6 +378,7 @@ func Benchmark_TableBoardSwipeVertical(b *testing.B) {
 			0, 3, 4, 0, 0,
 			0, 0, 0, 3, 0,
 			1, 2, 3, 4, 5,
+			1, 2, 3, 4, 5,
 		),
 	})
 	b.RunParallel(func(p *testing.PB) {
@@ -388,6 +393,7 @@ func Benchmark_TableBoardSwipeHorizontal(b *testing.B) {
 			0, 1, 3, 0, 0,
 			0, 3, 4, 0, 0,
 			0, 0, 0, 3, 0,
+			1, 2, 3, 4, 5,
 			1, 2, 3, 4, 5,
 		),
 	})
@@ -445,4 +451,35 @@ func TestTableBoard_AreNeighboursByIndex(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTableBoard_Hash(t *testing.T) {
+	t.Run("Should hash uniquely", func(t *testing.T) {
+		tb := TableBoard{
+			rows:    3,
+			columns: 3,
+		}
+		hashes := make(map[string]string)
+		for i := 0; i < 1000; i++ {
+			rand := randomizer.NewRandomizer(123)
+			// rand.SetSeed(i, i)
+			size := tb.rows * tb.columns
+			cells := make([]int64, size)
+			for i := 0; i < size; i++ {
+				cells[i] = rand.Int63n(1200) + 20000
+			}
+			tb.cells = cellCreator(cells...)
+			hash := tb.Hash()
+			if hash == "" {
+				t.Fatalf("Hash was empty")
+			}
+			cellsStr := strings.Trim(strings.Replace(fmt.Sprint(cells), " ", ",", -1), "[]")
+			if existing, exists := hashes[hash]; exists {
+				if existing != cellsStr {
+					t.Fatalf("Duplicate for hash '%s' %s != %s", hex.EncodeToString([]byte(hash)), existing, cellsStr)
+				}
+			}
+			hashes[hash] = cellsStr
+		}
+	})
 }

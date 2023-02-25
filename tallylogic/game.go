@@ -363,6 +363,12 @@ func (i *Instruction) AddEvaluateSelection(indexes []int) {
 	(*i) = append(*i, indexes)
 }
 func (i Instruction) Hash() string {
+	return i.hash(36, false)
+}
+func (i Instruction) DescribeShort() string {
+	return i.hash(10, true)
+}
+func (i Instruction) hash(base int, withPrefix bool) string {
 	b := strings.Builder{}
 	for _, ins := range i {
 		switch ins {
@@ -379,21 +385,32 @@ func (i Instruction) Hash() string {
 		default:
 			switch t := ins.(type) {
 			case int:
-				b.WriteString(strconv.FormatInt(int64(t), 36))
+				if withPrefix {
+					b.WriteString("index:")
+				}
+				b.WriteString(strconv.FormatInt(int64(t), base))
 			case [2]int:
-				b.WriteString(strconv.FormatInt(int64(t[0]), 36))
+				if withPrefix {
+					b.WriteString("coord:")
+				}
+				b.WriteString(strconv.FormatInt(int64(t[0]), base))
 				b.WriteString("x")
-				b.WriteString(strconv.FormatInt(int64(t[1]), 36))
+				b.WriteString(strconv.FormatInt(int64(t[1]), base))
 			case []int:
+				if withPrefix {
+					b.WriteString("indexes:")
+				}
 				for i := 0; i < len(t); i++ {
-					b.WriteString(strconv.FormatInt(int64(t[i]), 36))
+					b.WriteString(strconv.FormatInt(int64(t[i]), base))
+					if withPrefix && i < len(t)-1 {
+						b.WriteString(",")
+					}
 
 				}
 			}
 		}
 		b.WriteString(";")
 	}
-
 	return b.String()
 }
 
@@ -565,6 +582,14 @@ func (g *Game) EvaluateSelection() bool {
 	g.ClearSelection()
 	return ok
 }
+
+// Evaluates for the path, and mutates the game accordingly
+//
+// changes include:
+// - Changes to cells
+// - Score
+// - Moves
+// - History
 func (g *Game) EvaluateForPath(path []int) bool {
 	err, _ := g.board.ValidatePath(path)
 	if err != nil {
