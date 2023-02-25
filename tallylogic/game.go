@@ -104,6 +104,9 @@ func (mode GameMode) MarshalJSON() ([]byte, error) {
 // Copies the game and all values to a new game
 func (g Game) Copy() Game {
 	// IMPORTANT: Do not copy the onDidChangeEvents here.
+	if g.cellGenerator == nil {
+		panic("no cellgenerator for game")
+	}
 	seed, state := g.cellGenerator.Seed()
 	r := randomizer.NewRandomizerFromSeed(seed, state)
 	cg := cellgenerator.NewCellGenerator(r)

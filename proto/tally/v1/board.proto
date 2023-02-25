@@ -190,11 +190,13 @@ message GenerateGameRequest {
   uint32 columns      =2;
 	uint64 target_cell_value     =3;
 	uint32 max_bricks           =4;
-	uint32 min_bricks           =5;
 	uint64 min_moves            =6;
 	uint64 max_moves            =7;
-	uint64 max_iterations       =8;
-  bool with_solutions = 9;
+	uint64 max_additional_cells       =8;
+	uint64 random_cell_chance       =9;
+  uint64 seed = 10;
+  uint64 salt = 11;
+  bool with_solutions = 12;
 }
 message GenerateGameResponse {
   Game game = 1;

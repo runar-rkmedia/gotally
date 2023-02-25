@@ -94,9 +94,6 @@ func NewGameGeneratorForTargetCell(options GameGeneratorTargetCellOptions) (gen 
 	if gen.MaxAdditionalCells < -1 {
 		return gen, fmt.Errorf("maxAdditionalCells must bo non-negative. To Disable the behavior, use -1 as value")
 	}
-	if gen.MaxAdditionalCells == 0 {
-		gen.MaxAdditionalCells = 5
-	}
 	if gen.TargetCell <= 0 {
 		return gen, fmt.Errorf("targetcell must be positive")
 	}
@@ -154,7 +151,10 @@ func uniqueUints(list []uint64) []uint64 {
 
 func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic.Game, error) {
 	for i := 0; i < 1000; i++ {
-		game, error := gen.generateGame()
+		game, err := gen.generateGame()
+		if err != nil {
+			return game, nil, err
+		}
 		// Ensure that the game can be solved.
 		options := tallylogic.SolveOptions{
 			MinMoves:     gen.MinMoves,
@@ -176,7 +176,7 @@ func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic
 		if solutions == nil || len(solutions) == 0 {
 			continue
 		}
-		return game, solutions, error
+		return game, solutions, err
 	}
 	return tallylogic.Game{}, nil, fmt.Errorf("too many retries")
 }
@@ -192,8 +192,8 @@ func (gen gameGeneratorTargetCell) generateGame() (tallylogic.Game, error) {
 	}
 	if gen.MaxCells > 0 && len(cellsNeeded) > int(gen.MaxCells) {
 		return tallylogic.Game{}, fmt.Errorf(
-			"cannot create game for targetCellvValue %d, when MaxCells is cset to %d",
-			gen.TargetCell, gen.MaxCells)
+			"cannot create game for targetCellvValue %d, when MaxCells is set to %d. Requires at least %d",
+			gen.TargetCell, gen.MaxCells, len(cellsNeeded))
 	}
 
 	var additionalCells int
@@ -289,6 +289,7 @@ func (gen gameGeneratorTargetCell) createGame(cellValues ...uint64) (tallylogic.
 		SetMaxMoves(gen.MaxMoves).
 		SetGoalCheckerLargestValue(gen.TargetCell)
 	game, err := tallylogic.NewGame(tallylogic.GameModeRandomChallenge, template)
+	fmt.Println("new game")
 	if err != nil {
 		return game, fmt.Errorf("failed in gameGeneratorTargetCell.createGame: %w", err)
 	}
