@@ -63,6 +63,20 @@ func getRequiredCellsHighestForm(min, max, target uint64) ([]uint64, error) {
 	cellsNeeded = append(cellsNeeded, cellsNeeded[len(cellsNeeded)-1])
 	return cellsNeeded, nil
 }
+func getRequiredCellCount(min, max, target uint64) (uint64, error) {
+	if target < min {
+		return 0, fmt.Errorf("target cannot be smaller than the minimum value")
+	}
+	if target <= max {
+		return 0, nil
+	}
+	if target%2 != 0 {
+		return 0, fmt.Errorf("target is above max-value, and not divisble by 2")
+	}
+
+	f := math.Log(float64(target)/float64(max)) / math.Log(2)
+	return uint64(math.Ceil(f)) + 1, nil
+}
 
 func NewGameGeneratorForTargetCell(options GameGeneratorTargetCellOptions) (gen gameGeneratorTargetCell, err error) {
 	gen.GameGeneratorTargetCellOptions = options
