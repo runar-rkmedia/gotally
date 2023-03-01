@@ -2,6 +2,7 @@ package tallylogic
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -35,6 +36,21 @@ type Randomizer interface {
 	Intn(n int) int
 }
 
+func getRequiredCellCount(min, max, target uint64) (uint64, error) {
+	if target < min {
+		return 0, fmt.Errorf("target cannot be smaller than the minimum value")
+	}
+	if target <= max {
+		return 0, nil
+	}
+	if target%2 != 0 {
+		return 0, fmt.Errorf("target is above max-value, and not divisble by 2")
+	}
+
+	f := math.Log(float64(target)/float64(max)) / math.Log(2)
+	return uint64(math.Ceil(f)) + 1, nil
+}
+
 func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error) {
 	if options.GameSolutionChannel == nil {
 		err = fmt.Errorf("channel empty")
@@ -46,8 +62,13 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 	if options.MaxIterations == 0 {
 		options.MaxIterations = 1_000_000
 	}
-	if options.MinBricks <= 0 {
-		options.MinBricks = 1
+	fmt.Println("target", options.TargetCellValue, options.GoalChecker)
+	min, err := getRequiredCellCount(1, 12, options.TargetCellValue)
+	if err != nil {
+		return GameGenerator{}, fmt.Errorf("cannot create game: %w", err)
+	}
+	if options.MinBricks <= int(min) {
+		options.MinBricks = int(min)
 	}
 	gb.GameGeneratorOptions = options
 	if options.Columns < 1 {
@@ -89,9 +110,38 @@ func (gb GameGenerator) generateGame() Game {
 	return game
 }
 
+// Does a quick check to see if a game is solvable to a certain target value
+// Ignoring the order of any of the values
+func (gb GameGenerator) isUnsolvableQuickCheck(values []uint64, targetValue uint64) bool {
+	// This implementation needs to be fast about eliminating games
+	targetDoubled := targetValue * 2
+	var multiples uint64 = 1
+	for i := 0; i < len(values); i++ {
+		if values[i] >= targetValue {
+			return false
+		}
+		if values[i] == 0 {
+			continue
+		}
+		multiples *= values[i]
+		if multiples >= targetDoubled {
+			return false
+		}
+	}
+	// We can eliminate this safely
+	if multiples < targetDoubled {
+		// fmt.Println("multiple below", multiples, targetValue, values)
+		return true
+	}
+	// check multiples
+
+	return false
+}
+
 // GenerateGame randomly generates a new board that is solvable within the requirements set
 func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 	options := GameSolverFactoryOptions{
+		// BreadthFirst: true,
 		SolveOptions: SolveOptions{
 			MinMoves:     gb.MinMoves,
 			MaxMoves:     gb.MaxMoves,
@@ -126,6 +176,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 
 					}
 					if sb != nil {
+						fmt.Println("got a solution after", time.Now().Sub(start).Milliseconds())
 						ch <- *sb
 						quit2 <- struct{}{}
 						return
@@ -138,12 +189,30 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		}
 	}()
 	jobHash := map[string]struct{}{}
+	skipped := 0
+	total := 0
 	generateJob := func() {
 		// jobs <- gb.generateGame()
 		// return
 
 		for {
 			game := gb.generateGame()
+			total++
+			cells := game.Cells()
+			cellvalues := make([]uint64, len(cells))
+			for i := 0; i < len(cells); i++ {
+				cellvalues[i] = uint64(cells[i].Value())
+			}
+			if gb.TargetCellValue > 0 {
+				unsolvable := gb.isUnsolvableQuickCheck(cellvalues, gb.TargetCellValue)
+				if unsolvable {
+					skipped++
+					total++
+					// continue
+				}
+			}
+			// fmt.Printf("skipped %d of %d | %.2f\n", skipped, total, float64(skipped)/float64(total))
+
 			hash := game.board.Hash()
 			if _, ok := jobHash[hash]; !ok {
 				jobHash[hash] = struct{}{}
@@ -166,7 +235,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		expectedToBeDoneAt := start.Add(expectedToBeDone)
 		uniques := len(jobHash)
 		_, err := writer.WriteString(
-			fmt.Sprintf("\n[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d, Failure: %5.1f%%, ErrorMap: %v",
+			fmt.Sprintf("[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d, Failure: %5.1f%%, ErrorMap: %v\n",
 				perc*100,
 				(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
 				expectedToBeDoneAt.Format("15:04:05"),

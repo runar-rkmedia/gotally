@@ -50,6 +50,15 @@ func Test_getRequiredCellsHighestForm(t *testing.T) {
 			if diff := deep.Equal(got, tt.want); diff != nil {
 				t.Errorf("getNeededCellsHighestForm() = %v, want %v\ndiff: %#v", got, tt.want, diff)
 			}
+			gotCount, err := getRequiredCellCount(tt.args.min, tt.args.max, tt.args.target)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getNeededCellsHighestForm() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			t.Log("got", got, gotCount)
+			if len(got) != int(gotCount) {
+				t.Fatalf("Expected count to be equal to the length, got %d, expected %d", gotCount, len(got))
+			}
 		})
 	}
 }
