@@ -73,7 +73,7 @@ func (j *jobs) has(depth int) bool {
 	return true
 }
 
-func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
+func (b *bruteBreadthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, error) {
 
 	seen := map[string]struct{}{}
 	depthJobs := jobs{make(map[int][]Game), sync.RWMutex{}}
@@ -113,6 +113,8 @@ func (b *bruteBreadthSolver) SolveGame(g Game) ([]Game, error) {
 	}()
 	for {
 		select {
+		case <-quitCh:
+			cancel()
 		case error := <-errCh:
 			if error == nil {
 				continue

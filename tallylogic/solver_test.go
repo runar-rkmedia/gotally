@@ -137,8 +137,8 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			b := GameSolverFactory(tt.GameSolverFactoryOptions)
 			t.Logf("BruteSolver: %#v", b)
 			start := time.Now()
-			solutions, err := b.SolveGame(gg)
 			timeTaken := time.Now().Sub(start)
+			solutions, err := b.SolveGame(gg, nil)
 			t.Logf("Found %d solutions in %s", len(solutions), timeTaken)
 			if err != nil {
 				t.Error(err)
@@ -234,7 +234,7 @@ func Benchmark_Solver(b *testing.B) {
 	brute := GameSolverFactory(options)
 	b.RunParallel(func(p *testing.PB) {
 		for p.Next() {
-			s, err := brute.SolveGame(game)
+			s, err := brute.SolveGame(game, nil)
 			if err != nil {
 				b.Error(err)
 			}
