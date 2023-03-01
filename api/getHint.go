@@ -84,7 +84,7 @@ func (s *TallyServer) GetHint(
 		MaxMoves:     10,
 		MaxSolutions: 1,
 		MaxTime:      time.Second * 10,
-	}, session.Game)
+	}, session.Game, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to generate hint"))
 	}

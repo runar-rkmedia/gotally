@@ -8,7 +8,7 @@ type Hinter interface {
 	GetHints() map[string]Hint
 }
 type Solver interface {
-	SolveGame(g Game) ([]Game, error)
+	SolveGame(g Game, quitCh chan struct{}) ([]Game, error)
 }
 
 type SolveOptions struct {
@@ -43,14 +43,14 @@ func GameSolverFactory(options GameSolverFactoryOptions) Solver {
 	s := NewBruteDepthSolver(options.SolveOptions)
 	return &s
 }
-func SolveGame(options SolveOptions, game Game) ([]Game, error) {
+func SolveGame(options SolveOptions, game Game, quitCh chan struct{}) ([]Game, error) {
 	// The breadth-first is not very good at solving infinite games
 	// so we use the depth-first for these games
 	if game.Rules.GameMode == GameModeRandom {
 		s := NewBruteDepthSolver(options)
-		return s.SolveGame(game)
+		return s.SolveGame(game, quitCh)
 	}
 
 	s := NewBruteBreadthSolver(options)
-	return s.SolveGame(game)
+	return s.SolveGame(game, quitCh)
 }

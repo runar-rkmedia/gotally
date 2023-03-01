@@ -104,6 +104,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 	jobs := make(chan Game, gb.Concurrency)
 	doneCh := make(chan struct{})
 	quit := make(chan struct{})
+	quit2 := make(chan struct{})
 	errorsCh := make(chan string)
 	errors := map[string]int{}
 	start := time.Now()
@@ -114,10 +115,11 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		for {
 			select {
 			case <-quit:
+				quit2 <- struct{}{}
 				return
 			case game := <-jobs:
 				go func(game Game) {
-					sb, err := gb.solveGame(solver, game)
+					sb, err := gb.solveGame(solver, game, quit2)
 					if err != nil {
 						errorsCh <- err.Error()
 						return
@@ -125,7 +127,10 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 					}
 					if sb != nil {
 						ch <- *sb
+						quit2 <- struct{}{}
+						return
 					} else {
+						quit2 <- struct{}{}
 						doneCh <- struct{}{}
 					}
 				}(game)
@@ -210,8 +215,8 @@ type SolvableGame struct {
 	Solutions []Game
 }
 
-func (gb GameGenerator) solveGame(solver Solver, game Game) (*SolvableGame, error) {
-	solutions, err := solver.SolveGame(game)
+func (gb GameGenerator) solveGame(solver Solver, game Game, quitCh chan struct{}) (*SolvableGame, error) {
+	solutions, err := solver.SolveGame(game, quitCh)
 	if err != nil {
 		return nil, err
 	}

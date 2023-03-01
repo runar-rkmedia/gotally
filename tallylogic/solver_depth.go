@@ -29,7 +29,7 @@ func NewBruteDepthSolver(options SolveOptions) bruteDepthSolver {
 	}
 }
 
-func (b *bruteDepthSolver) SolveGame(g Game) ([]Game, error) {
+func (b *bruteDepthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, error) {
 
 	seen := map[string]struct{}{}
 	game := g.Copy()
@@ -45,6 +45,9 @@ func (b *bruteDepthSolver) SolveGame(g Game) ([]Game, error) {
 	}()
 	for {
 		select {
+		case <-quitCh:
+			cancel()
+			continue
 		case solvedGame := <-solutionsChan:
 			if b.MaxSolutions > 0 && len(solutions) >= b.MaxSolutions {
 				cancel()

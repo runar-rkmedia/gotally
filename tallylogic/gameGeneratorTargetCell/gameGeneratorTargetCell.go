@@ -162,7 +162,7 @@ func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic
 			MaxSolutions: 1,
 			MaxTime:      time.Millisecond * 100,
 		}
-		solutions, err := tallylogic.SolveGame(options, game)
+		solutions, err := tallylogic.SolveGame(options, game, nil)
 		if err != nil {
 			switch {
 			case errors.Is(err, context.DeadlineExceeded):
