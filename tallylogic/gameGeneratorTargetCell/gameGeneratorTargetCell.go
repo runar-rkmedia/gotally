@@ -163,7 +163,7 @@ func uniqueUints(list []uint64) []uint64 {
 	return uniq
 }
 
-func (gen gameGeneratorTargetCell) GenerateGame() (tallylogic.Game, []tallylogic.Game, error) {
+func (gen gameGeneratorTargetCell) GenerateGame(ctx context.Context) (tallylogic.Game, []tallylogic.Game, error) {
 	for i := 0; i < 1000; i++ {
 		game, err := gen.generateGame()
 		if err != nil {

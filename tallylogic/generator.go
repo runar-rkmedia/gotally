@@ -9,6 +9,7 @@ import (
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 	"github.com/runar-rkmedia/gotally/tallylogic/cellgenerator"
+	"golang.org/x/net/context"
 )
 
 type GameGeneratorOptions struct {
@@ -62,7 +63,6 @@ func NewGameGenerator(options GameGeneratorOptions) (gb GameGenerator, err error
 	if options.MaxIterations == 0 {
 		options.MaxIterations = 1_000_000
 	}
-	fmt.Println("target", options.TargetCellValue, options.GoalChecker)
 	min, err := getRequiredCellCount(1, 12, options.TargetCellValue)
 	if err != nil {
 		return GameGenerator{}, fmt.Errorf("cannot create game: %w", err)
@@ -148,7 +148,7 @@ func send[T any](name string, ch chan T, msg T) bool {
 }
 
 // GenerateGame randomly generates a new board that is solvable within the requirements set
-func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
+func (gb GameGenerator) GenerateGame(ctx context.Context) (Game, []Game, error) {
 	options := GameSolverFactoryOptions{
 		// BreadthFirst: true,
 		SolveOptions: SolveOptions{
@@ -173,6 +173,9 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 	go func() {
 		for {
 			select {
+			case <-ctx.Done():
+
+				return
 			case <-quit:
 				send("q3", quit2, struct{}{})
 				return
@@ -185,7 +188,6 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 
 					}
 					if sb != nil {
-						fmt.Println("got a solution after", time.Now().Sub(start).Milliseconds())
 						ch <- *sb
 						send("q4", quit2, struct{}{})
 						return
@@ -247,12 +249,13 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		expectedToBeDoneAt := start.Add(expectedToBeDone)
 		uniques := len(jobHash)
 		_, err := writer.WriteString(
-			fmt.Sprintf("[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d, Failure: %5.1f%%, ErrorMap: %v\n",
+			fmt.Sprintf("[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d Skipped: %d, Failure: %5.1f%%, ErrorMap: %v\n",
 				perc*100,
 				(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
 				expectedToBeDoneAt.Format("15:04:05"),
 				ratePerSecond,
 				uniques,
+				skipped,
 				float64(errorCount)/float64(total)*100,
 				errors),
 		)
@@ -261,8 +264,12 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		}
 	}
 	ticker := time.NewTicker(time.Millisecond * 500)
+outer:
 	for {
 		select {
+		case <-ctx.Done():
+			break outer
+
 		case <-ticker.C:
 			printStatus()
 		case sg := <-ch:
@@ -288,6 +295,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 			generateJob()
 		}
 	}
+	return Game{}, nil, ctx.Err()
 }
 
 type SolvableGame struct {

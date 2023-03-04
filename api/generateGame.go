@@ -14,7 +14,7 @@ import (
 )
 
 type gamegenerator interface {
-	GenerateGame() (tallylogic.Game, []tallylogic.Game, error)
+	GenerateGame(ctx context.Context) (tallylogic.Game, []tallylogic.Game, error)
 }
 
 func (s *TallyServer) GenerateGame(
@@ -25,7 +25,7 @@ func (s *TallyServer) GenerateGame(
 		err := connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("generating games has been disabled"))
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 	// session := ContextGetUserState(ctx)
 	// TODO: Check that user is registered /admin etc.
@@ -98,7 +98,7 @@ func (s *TallyServer) GenerateGame(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to initialize game-generator: %w", err))
 	}
-	game, solutions, err := generator.GenerateGame()
+	game, solutions, err := generator.GenerateGame(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate game: %w", err))
 	}
