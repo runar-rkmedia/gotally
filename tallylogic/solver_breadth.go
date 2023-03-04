@@ -204,12 +204,7 @@ func (b *bruteBreadthSolver) solveGame(
 		if errors.Is(err, context.DeadlineExceeded) {
 			return
 		}
-		select {
-		case errCh <- NewSolverErr(fmt.Errorf("context: err %w", err), true):
-		default:
-			fmt.Println("channana")
-
-		}
+		send[error]("deadline", errCh, NewSolverErr(fmt.Errorf("context: err %w", err), true))
 		return
 	}
 
