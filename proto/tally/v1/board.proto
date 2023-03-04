@@ -185,6 +185,16 @@ message Session {
   int64 games_played = 4;
 }
 
+enum GeneratorAlgorithm {
+  GENERATOR_ALGORITHM_UNSPECIFIED = 0;
+  // A slow algorithm which attempts to generate games by randomization
+  // Very slow for larger values, or more advanced games
+  GENERATOR_ALGORITHM_RANDOMIZED = 1;
+  // A faster algorithm that works in reverse. 
+  // The games generated can be a bit monotomous.
+  GENERATOR_ALGORITHM_REVERSE = 2;
+}
+
 message GenerateGameRequest {
 	uint32 rows  = 1;
   uint32 columns      =2;
@@ -197,6 +207,7 @@ message GenerateGameRequest {
   uint64 seed = 10;
   uint64 salt = 11;
   bool with_solutions = 12;
+  GeneratorAlgorithm algorithm = 13;
 }
 message GenerateGameResponse {
   Game game = 1;

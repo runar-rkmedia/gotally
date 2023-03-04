@@ -1,7 +1,6 @@
 package tallylogic
 
 import (
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strings"
@@ -460,26 +459,31 @@ func TestTableBoard_Hash(t *testing.T) {
 			columns: 3,
 		}
 		hashes := make(map[string]string)
-		for i := 0; i < 1000; i++ {
+		slowHashes := make(map[string]string)
+		for i := 0; i < 100000; i++ {
 			rand := randomizer.NewRandomizer(123)
 			// rand.SetSeed(i, i)
 			size := tb.rows * tb.columns
 			cells := make([]int64, size)
 			for i := 0; i < size; i++ {
-				cells[i] = rand.Int63n(1200) + 20000
+				cells[i] = rand.Int63n(7)
 			}
 			tb.cells = cellCreator(cells...)
+			// fmt.Println(tb.PrintBoard(nil))
 			hash := tb.Hash()
 			if hash == "" {
 				t.Fatalf("Hash was empty")
 			}
-			cellsStr := strings.Trim(strings.Replace(fmt.Sprint(cells), " ", ",", -1), "[]")
-			if existing, exists := hashes[hash]; exists {
-				if existing != cellsStr {
-					t.Fatalf("Duplicate for hash '%s' %s != %s", hex.EncodeToString([]byte(hash)), existing, cellsStr)
-				}
+			// A slower, but working hash
+			showHash := strings.Trim(strings.Replace(fmt.Sprint(cells), " ", ",", -1), "[]")
+			hashes[hash] = showHash
+			slowHashes[showHash] = hash
+			if len(hashes) != len(slowHashes) {
+				t.Log(tb.PrintBoard(nil))
+				t.Log(showHash)
+				t.Fatalf("Not correct")
 			}
-			hashes[hash] = cellsStr
 		}
+		fmt.Println("created", len(hashes), len(slowHashes))
 	})
 }

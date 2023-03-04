@@ -111,23 +111,18 @@ func createApiHandler(withDebug bool, options ...TallyOptions) (tally TallyServe
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("unhandled error recovered"))
 		}))
 
-	// http://192.168.10.101:8080/tally.v1.BoardService/GetSession
-	// han := CORSHandler()(
-	// 	RequestIDHandler(mustCreateUUidgenerator())(mainHandler),
-	// )
 	pipe := []MiddleWare{
 		Recovery(withDebug, logger.GetLogger("recovery")),
 		CORSHandler(),
 		RequestIDHandler(mustCreateUUidgenerator()),
 		Logger(logger.GetLogger("request")),
 		Authorization(tally.storage, AuthorizationOptions{
-			// TODO: disable in production
-			AllowDevelopmentFlags: true}),
+			AllowDevelopmentFlags: tally.AllowDevelopmentFlags}),
 	}
 	return tally, path, pipeline(connectHandler, pipe...)
 }
 
-func StartServer() {
+func StartServer(options TallyOptions) {
 	logger.InitLogger(logger.LogConfig{
 		Level:      "debug",
 		Format:     "human",
@@ -143,7 +138,7 @@ func StartServer() {
 		baseLogger.Fatal().Err(err).Msg("failed to read generated files")
 	}
 
-	_, path, han := createApiHandler(debug)
+	_, path, han := createApiHandler(debug, options)
 	// tally := NewTallyServer(logger.GetLogger("tally-server"))
 	mux := http.NewServeMux()
 	// Register metrics
@@ -184,12 +179,22 @@ type TallyServer struct {
 	UidGenerator func() string
 	storage      PersistantStorage
 	l            logger.AppLogger
+	// Allow game-geneartion to occur
+	// TODO: perhasp we should use build-frags to hide these instead.
+	FeatureGameGeneration bool
+	// If set will allow the client to set some options on each request that normally is not allowed.
+	// Mostly used for e2e-testing, where the client wants to be in control over the randomization and such
+	AllowDevelopmentFlags bool
 }
 
 type TallyOptions struct {
 	// Connection-string for the database
-	DatabaseDSN         string
-	SkipStatsCollection *bool
+	DatabaseDSN           string
+	SkipStatsCollection   *bool
+	FeatureGameGeneration *bool
+	// If set will allow the client to set some options on each request that normally is not allowed.
+	// Mostly used for e2e-testing, where the client wants to be in control over the randomization and such
+	AllowDevelopmentFlags *bool
 }
 
 func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
@@ -201,6 +206,12 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		if o.SkipStatsCollection != nil {
 			opt.SkipStatsCollection = o.SkipStatsCollection
 		}
+		if o.FeatureGameGeneration != nil {
+			opt.FeatureGameGeneration = o.FeatureGameGeneration
+		}
+		if o.AllowDevelopmentFlags != nil {
+			opt.AllowDevelopmentFlags = o.AllowDevelopmentFlags
+		}
 	}
 	db, err := storage.NewSqliteStorage(logger.GetLogger("database"), opt.DatabaseDSN)
 	// db, err := database.NewDatabase(logger.GetLoggerWithLevel("db", "info"), "")
@@ -208,12 +219,28 @@ func NewTallyServer(l logger.AppLogger, options ...TallyOptions) TallyServer {
 		baseLogger.Fatal().Err(err).Msg("failed to initialize database")
 	}
 	ts := TallyServer{
-		l:            l,
-		UidGenerator: mustCreateUUidgenerator(),
-		storage:      db,
+		l:                     l,
+		UidGenerator:          mustCreateUUidgenerator(),
+		storage:               db,
+		FeatureGameGeneration: isTrue(opt.FeatureGameGeneration),
+		AllowDevelopmentFlags: isTrue(opt.AllowDevelopmentFlags),
 	}
 	if opt.SkipStatsCollection != nil && !*opt.SkipStatsCollection {
 		go ts.collectStatsAtInterval(time.Second * 15)
 	}
+	if ts.AllowDevelopmentFlags || ts.FeatureGameGeneration {
+
+		l.Warn().
+			Bool("AllowDevelopmentFlags", ts.AllowDevelopmentFlags).
+			Bool("FeatureGameGeneration", ts.FeatureGameGeneration).
+			Msg("Starting tallyserver with options")
+	}
 	return ts
+}
+
+func isTrue(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b == true
 }

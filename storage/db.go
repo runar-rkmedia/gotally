@@ -15,13 +15,8 @@ import (
 )
 
 func newDb(l logger.AppLogger, dsn string, withOpenTelemetry bool) (*sql.DB, error) {
-	// if dsn == "" {
-	// 	dsn = os.Getenv("DSN")
-	// }
 	if dsn == "" {
-		// database for local development, don't worry, this is not the password I use for everything, I swear!
-		// dsn = "my://root:secret@localhost/tallyboard"
-		dsn = "sqlite:./data/db.sqlite"
+		return nil, fmt.Errorf("dsn must be set for the database-connection")
 	}
 
 	u, err := parse(dsn)

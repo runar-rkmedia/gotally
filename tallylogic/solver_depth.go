@@ -116,7 +116,9 @@ func (b *bruteDepthSolver) solveGame(
 			return NewSolverErr(fmt.Errorf("Failed in game-solving for hint"), true)
 		}
 		if gameCopy.IsGameWon() {
-			solutions <- gameCopy
+			if !send("solution", solutions, gameCopy) {
+				return nil
+			}
 			continue
 		}
 		if gameCopy.Rules.GameMode == GameModeRandom {
