@@ -137,6 +137,15 @@ func (gb GameGenerator) isUnsolvableQuickCheck(values []uint64, targetValue uint
 
 	return false
 }
+func send[T any](name string, ch chan T, msg T) bool {
+	select {
+	case ch <- msg:
+		return true
+	default:
+		return false
+	}
+
+}
 
 // GenerateGame randomly generates a new board that is solvable within the requirements set
 func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
@@ -165,7 +174,7 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 		for {
 			select {
 			case <-quit:
-				quit2 <- struct{}{}
+				send("q3", quit2, struct{}{})
 				return
 			case game := <-jobs:
 				go func(game Game) {
@@ -178,11 +187,14 @@ func (gb GameGenerator) GenerateGame() (Game, []Game, error) {
 					if sb != nil {
 						fmt.Println("got a solution after", time.Now().Sub(start).Milliseconds())
 						ch <- *sb
-						quit2 <- struct{}{}
+						send("q4", quit2, struct{}{})
 						return
 					} else {
-						quit2 <- struct{}{}
-						doneCh <- struct{}{}
+						ok1 := send("q1", quit2, struct{}{})
+						ok2 := send("q2", doneCh, struct{}{})
+						if !ok1 || !ok2 {
+							return
+						}
 					}
 				}(game)
 			}

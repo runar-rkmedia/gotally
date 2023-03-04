@@ -92,9 +92,9 @@ web_public_api:
 	@echo "Using the public api-server. For local testing, it is adviced to use the local server instead."
 	cd frontend && VITE_DEV_API="https://gotally.fly.dev" npm run dev --host -- --clearScreen false 
 server:
-	go run ./api/cmd/
+	go run ./api/cmd/ --development
 server-watch:
-	fd '.go' | entr -r sh -c "go run ./api/cmd/"
+	fd '.go' | entr -cr go run ./api/cmd/ --development
 
 build-web:
 	@echo "VITE_API: '$$VITE_API' $VITE_API"

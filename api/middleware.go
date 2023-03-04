@@ -356,8 +356,10 @@ func Recovery(withStackTrace bool, l logger.AppLogger) MiddleWare {
 }
 
 type AuthorizationOptions struct {
-	Debug                 bool
-	SessionLifeTime       time.Duration
+	Debug           bool
+	SessionLifeTime time.Duration
+	// If set will allow the client to set some options on each request that normally is not allowed.
+	// Mostly used for e2e-testing, where the client wants to be in control over the randomization and such
 	AllowDevelopmentFlags bool
 }
 

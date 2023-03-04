@@ -3,9 +3,16 @@
 	import { storeHandler } from '../../connect-web/store'
 	import BoardPreview from '../../components/BoardPreview.svelte'
 	import type { ConnectError } from '@bufbuild/connect-web'
+	import { GeneratorAlgorithm } from '../../connect-web'
+	import { browser } from '$app/environment'
+	import { onDestroy, onMount } from 'svelte'
 
 	let result: Awaited<ReturnType<typeof storeHandler.generateGame>>[0]
 	let resErr: ConnectError | Error | null
+	let requestStart: Date | null = null
+	let requestEnd: Date | null = null
+	let timerMs = 0
+	let loading = false
 	const o: Parameters<typeof storeHandler.generateGame>[0] = {
 		rows: 3,
 		columns: 3,
@@ -14,8 +21,38 @@
 		minMoves: 3,
 		maxMoves: 9,
 		withSolutions: true,
-		randomCellChance: 0
+		randomCellChance: 0,
+		algorithm: GeneratorAlgorithm.RANDOMIZED
 	}
+	onMount(() => {
+		if (!browser) {
+			return
+		}
+		// should probably use a store instead here, but this is only for development
+		const v = localStorage.getItem('gotally_generator')
+		if (!v) {
+			return
+		}
+		const json = JSON.parse(v) as typeof o
+		for (const [k, v] of Object.entries(json)) {
+			;(o as any)[k] = v
+		}
+	})
+
+	const interval = setInterval(() => {
+		if (requestEnd) {
+			return
+		}
+		if (!requestStart) {
+			timerMs = 0
+			return
+		}
+		timerMs = new Date().getTime() - requestStart.getTime()
+	}, 500)
+
+	onDestroy(() => {
+		clearInterval(interval)
+	})
 	$: error = {
 		rows: !o.rows || o.rows < 3 || (o.rows > 9 && 'Rows must be between 3 and 9'),
 		columns: !o.columns || o.columns < 3 || (o.columns > 9 && 'Columns must be between 3 and 9'),
@@ -27,15 +64,25 @@
 	$: hasError = Object.values(error).some(Boolean)
 
 	const onSubmit = async () => {
-		if (hasError) {
+		if (hasError || loading) {
 			return
 		}
 		result = null
 		resErr = null
+		timerMs = 0
+		requestStart = new Date()
+		requestEnd = null
+		loading = true
 		const r = await storeHandler.commit(storeHandler.generateGame(o))
-		console.log({ result: r })
+		loading = false
+		requestEnd = new Date()
+		timerMs = requestStart.getTime() - requestEnd.getTime()
+		console.log({ result: r, timerMs })
 		result = r.result
 		resErr = r.error
+		if (!r.error && browser) {
+			localStorage.setItem('gotally_generator', JSON.stringify(o))
+		}
 	}
 </script>
 
@@ -46,6 +93,15 @@
 	<!-- content here -->
 {/if}
 <form on:submit|preventDefault={onSubmit}>
+	<Field error={error.algorithm} label="algorithm">
+		<select name="algorithm" bind:value={o.algorithm}>
+			<option value={GeneratorAlgorithm.RANDOMIZED}
+				>Randomized - Slow, but gives more varied results</option
+			>
+			<option value={GeneratorAlgorithm.REVERSE}>Reverse - Fast, but very monotomous results</option
+			>
+		</select>
+	</Field>
 	<div class="set">
 		<Field error={error.rows} label="Rows">
 			<input min="3" max="80" type="number" bind:value={o.rows} />
@@ -63,9 +119,11 @@
 	<Field error={error.maxBricks} label="Max Bricks">
 		<input min="3" max="100000000" type="number" bind:value={o.maxBricks} />
 	</Field>
-	<Field error={error.randomCellChance} label="Random cell chance">
-		<input min="-1" max="120" type="number" bind:value={o.randomCellChance} />
-	</Field>
+	{#if o.algorithm == GeneratorAlgorithm.REVERSE}
+		<Field error={error.randomCellChance} label="Random cell chance">
+			<input min="-1" max="120" type="number" bind:value={o.randomCellChance} />
+		</Field>
+	{/if}
 	<div class="set">
 		<Field error={error.minMoves} label="Min moves">
 			<input min="3" max="100000000" type="number" bind:value={o.minMoves} />
@@ -74,7 +132,15 @@
 			<input min={o.minMoves} max="100000000" type="number" bind:value={o.maxMoves} />
 		</Field>
 	</div>
-	<button type="submit" disabled={hasError}>Send</button>
+	<button type="submit" disabled={hasError || loading}>Send</button>
+	{#if loading}
+		{#if timerMs}
+			<p>Waiting for game-generation {timerMs}ms</p>
+		{/if}
+	{:else if timerMs}
+		<p>Game generated in {timerMs}ms</p>
+	{/if}
+
 	{#if result}
 		<div class="games">
 			<div class="game">

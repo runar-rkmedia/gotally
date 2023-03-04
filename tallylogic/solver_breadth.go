@@ -2,7 +2,6 @@ package tallylogic
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -133,18 +132,21 @@ func (b *bruteBreadthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, er
 
 			seen[job.hash] = struct{}{}
 			if job.depth > b.MaxDepth {
-				err = NewSolverErr(fmt.Errorf("Game-seen overflow (seen %d) (depth %d)", len(seen), job.depth), false)
+				fmt.Println(job.Game.Print())
+				err = NewSolverErr(fmt.Errorf("Game-seen threshold triggered (seen %d) (depth %d)", len(seen), job.depth), false)
 				cancel()
 				continue
 			}
 			// TODO: is there really a difference between this and the depth?
 			if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-g.moves) {
-				err = NewSolverErr(fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d", g.Moves(), b.MaxMoves), true)
+				fmt.Println(job.Game.Print())
+				err = NewSolverErr(fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d, depth %d", g.Moves(), b.MaxMoves, job.depth), true)
 				cancel()
 				continue
 			}
 			if len(seen) > b.MaxVisits {
-				err = NewSolverErr(fmt.Errorf("Game-seen overflow (seen %d) (depth %d)", len(seen), job.depth), false)
+				fmt.Println("Original game", g.Print())
+				err = NewSolverErr(fmt.Errorf("Game-visits threshold triggered (seen %d) (MaxVisits %d, depth %d)", len(seen), b.MaxVisits, job.depth), false)
 				cancel()
 				continue
 			}
@@ -202,7 +204,12 @@ func (b *bruteBreadthSolver) solveGame(
 		if errors.Is(err, context.DeadlineExceeded) {
 			return
 		}
-		errCh <- NewSolverErr(fmt.Errorf("context: err %w", err), true)
+		select {
+		case errCh <- NewSolverErr(fmt.Errorf("context: err %w", err), true):
+		default:
+			fmt.Println("channana")
+
+		}
 		return
 	}
 
@@ -215,16 +222,14 @@ func (b *bruteBreadthSolver) solveGame(
 			return
 		}
 		if gameCopy.IsGameWon() {
-			solutions <- gameCopy
-			continue
+			send("solution-gamewon", solutions, gameCopy)
 		}
 		if gameCopy.Rules.GameMode == GameModeRandom {
-			solutions <- gameCopy
+			send("solution-random", solutions, gameCopy)
 		}
 		hash := gameCopy.board.Hash()
-		jobsCh <- gameJob{
-			gameCopy, hash, depth, "hint",
-		}
+		// hash := gameCopy.Print()
+		send("hint-job", jobsCh, gameJob{gameCopy, hash, depth, "hint"})
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
 		if !originalGame.Rules.NoReswipe && len(g.History) > 0 {
@@ -254,10 +259,9 @@ func (b *bruteBreadthSolver) solveGame(
 		if !changed {
 			continue
 		}
-		hash := hex.EncodeToString([]byte(gameCopy.board.Hash()))
-		jobsCh <- gameJob{
-			gameCopy, hash, depth, "swipe",
-		}
+		// hash := gameCopy.Print()
+		hash := gameCopy.board.Hash()
+		send("swipe-job", jobsCh, gameJob{gameCopy, hash, depth, "swipe"})
 	}
 
 }

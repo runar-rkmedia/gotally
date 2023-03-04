@@ -302,7 +302,6 @@ func (gen gameGeneratorTargetCell) createGame(cellValues ...uint64) (tallylogic.
 		SetMaxMoves(gen.MaxMoves).
 		SetGoalCheckerLargestValue(gen.TargetCell)
 	game, err := tallylogic.NewGame(tallylogic.GameModeRandomChallenge, template)
-	fmt.Println("new game")
 	if err != nil {
 		return game, fmt.Errorf("failed in gameGeneratorTargetCell.createGame: %w", err)
 	}

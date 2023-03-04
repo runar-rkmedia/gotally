@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"runtime"
 
@@ -10,6 +11,10 @@ import (
 )
 
 func main() {
+	isDev := flag.Bool("development", false, "Set to true to enable development-mode")
+	DSN := flag.String("dsn", "sqlite:./data/db.sqlite", "Set to override the database connection-string (DSN) to use. ")
+
+	flag.Parse()
 
 	{
 		pyroScopeUrl := os.Getenv("PYROSCOPE_URL")
@@ -20,7 +25,13 @@ func main() {
 			}
 		}
 	}
-	api.StartServer()
+	options := api.TallyOptions{
+		DatabaseDSN:           *DSN,
+		SkipStatsCollection:   nil,
+		FeatureGameGeneration: isDev,
+		AllowDevelopmentFlags: isDev,
+	}
+	api.StartServer(options)
 }
 
 // testing if periscope is useful
