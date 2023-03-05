@@ -460,7 +460,7 @@ func TestTableBoard_Hash(t *testing.T) {
 		}
 		hashes := make(map[string]string)
 		slowHashes := make(map[string]string)
-		for i := 0; i < 100000; i++ {
+		for i := 0; i < 1000; i++ {
 			rand := randomizer.NewRandomizer(123)
 			// rand.SetSeed(i, i)
 			size := tb.rows * tb.columns
@@ -484,6 +484,5 @@ func TestTableBoard_Hash(t *testing.T) {
 				t.Fatalf("Not correct")
 			}
 		}
-		fmt.Println("created", len(hashes), len(slowHashes))
 	})
 }

@@ -17,6 +17,7 @@ type Game struct {
 	Description sql.NullString
 	UserID      string
 	RuleID      string
+	TemplateID  sql.NullString
 	Score       int64
 	Moves       int64
 	PlayState   int64
@@ -30,6 +31,21 @@ type GameHistory struct {
 	Kind      int64
 	Points    int64
 	Data      []byte
+}
+
+type GameTemplate struct {
+	ID              string
+	CreatedAt       time.Time
+	UpdatedAt       sql.NullTime
+	RuleID          string
+	CreatedBy       string
+	UpdatedBy       sql.NullString
+	Name            string
+	Description     sql.NullString
+	ChallengeNumber sql.NullInt64
+	IdealMoves      sql.NullInt64
+	IdealScore      sql.NullInt64
+	Data            []byte
 }
 
 type Rule struct {

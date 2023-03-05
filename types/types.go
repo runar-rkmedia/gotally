@@ -29,6 +29,19 @@ type Session struct {
 	ActiveGame *Game
 }
 
+type GameTemplate struct {
+	ID              string
+	CreatedAt       time.Time
+	UpdatedAt       *time.Time
+	ChallengeNumber *int
+	IdealMoves      *int
+	CreatedByID     string
+	UpdatedBy       string
+	Description     string
+	Name            string
+	Cells           []cell.Cell
+	Rules
+}
 type SessionUser struct {
 	Session
 	User
@@ -48,6 +61,7 @@ type Dump struct {
 	Rules         any //[]Rules
 	Sessions      any //[]Session
 	Users         any //[]User
+	Template      any //[]GameTemplate
 }
 
 type Game struct {

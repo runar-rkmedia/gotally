@@ -217,6 +217,41 @@ message GenerateGameResponse {
   repeated Game solutions = 5;
 }
 
+
+message GetGameChallengesRequest {
+}
+message GetGameChallengesResponse {
+  repeated GameChallenge challenges = 1;
+}
+
+message GameChallenge {
+  string id = 1;
+  uint32 challenge_number = 2;
+  uint32 ideal_moves = 3;
+  uint64 target_cell_value = 4;
+  uint32 columns = 5;
+  uint32 rows = 6;
+  string name = 7;
+  string description = 8;
+  repeated Cell cells = 9;
+}
+
+
+message CreateGameChallengeRequest {
+  uint32 challenge_number = 1;
+  uint32 ideal_moves = 2;
+  uint64 target_cell_value = 3;
+  uint32 columns = 4;
+  uint32 rows = 5;
+  string name = 6;
+  string description = 7;
+  repeated Cell cells = 8;
+}
+message CreateGameChallengeResponse {
+  string id = 1;
+  uint32 challenge_number = 2;
+}
+
 service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
   rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
@@ -226,4 +261,6 @@ service BoardService {
   rpc CombineCells(CombineCellsRequest) returns (CombineCellsResponse) {}
   rpc GenerateGame(GenerateGameRequest) returns (GenerateGameResponse) {}
   rpc VoteBoard(VoteBoardRequest) returns (VoteBoardResponse) {}
+  rpc GetGameChallenges(GetGameChallengesRequest) returns (GetGameChallengesResponse) {}
+  rpc CreateGameChallenge(CreateGameChallengeRequest) returns (CreateGameChallengeResponse) {}
 }

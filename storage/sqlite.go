@@ -162,6 +162,128 @@ func toFloat64(v any) (float64, error) {
 	}
 }
 
+func (p *sqliteStorage) GetGameChallenges(ctx context.Context) (response []types.GameTemplate, err error) {
+	ctx, span := tracerSqlite.Start(ctx, "GetGameChallenges")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	q, tx, err := p.beginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	list, err := q.GetGameChallengesTemplates(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game-challenges")
+	}
+	response = make([]types.GameTemplate, len(list))
+	p.fetchRules(ctx)
+	for i := 0; i < len(list); i++ {
+		r := p.ruleCache.getCachedRule(list[i].RuleID)
+		if r == nil {
+			rr, err := q.GetRule(ctx, sqlite.GetRuleParams{ID: list[i].RuleID})
+			if err != nil {
+				return response, fmt.Errorf("failed to fetch rule")
+			}
+			p.ruleCache.addRulesToCache([]sqlite.Rule{rr})
+			if rr.ID == "" {
+				return response, fmt.Errorf("expected to find the rule with id '%s' in the database, but it was not found", list[i].RuleID)
+			}
+			r = &rr
+		}
+		rule, err := toTypeRule(*r)
+		if err != nil {
+			return response, err
+		}
+		cells, _, _, err := UnmarshalInternalDataGame(ctx, list[i].Data)
+		response[i] = types.GameTemplate{
+			ID:              list[i].ID,
+			CreatedAt:       list[i].CreatedAt,
+			UpdatedAt:       fromNullTime(list[i].UpdatedAt),
+			ChallengeNumber: nullIntToIntP(list[i].ChallengeNumber),
+			IdealMoves:      nullIntToIntP(list[i].IdealMoves),
+			CreatedByID:     list[i].CreatedBy,
+			UpdatedBy:       list[i].UpdatedBy.String,
+			Description:     list[i].Description.String,
+			Name:            list[i].Name,
+			Cells:           cells,
+			Rules:           rule,
+		}
+
+	}
+
+	return
+}
+func (p *sqliteStorage) CreateGameTemplate(ctx context.Context, payload types.CreateGameTemplatePayload) (response *types.GameTemplate, err error) {
+
+	ctx, span := tracerSqlite.Start(ctx, "CreateGameTemplate")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	err = payload.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("payload-validation-failed: %w", err)
+	}
+	q, tx, err := p.beginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	rule, err := p.ensureRuleExists(ctx, q, payload.Rules)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure rule existance: %w", err)
+	}
+
+	data, err := MarshalInternalDataGame(ctx, 0, 0, payload.Cells)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal datagame: %w", err)
+	}
+	templateArgs := sqlite.InserTemplateParams{
+		ID:          payload.ID,
+		CreatedAt:   payload.CreatedAt,
+		RuleID:      rule.ID,
+		CreatedBy:   payload.CreatedByID,
+		Name:        payload.Name,
+		Description: sqlString(payload.Description),
+		Data:        data,
+	}
+	if payload.ChallengeNumber != nil {
+		templateArgs.ChallengeNumber.Int64 = int64(*payload.ChallengeNumber)
+		templateArgs.ChallengeNumber.Valid = true
+	}
+	t, err := q.InserTemplate(ctx, templateArgs)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to insert template: %w", err)
+	}
+
+	typeRule, err := toTypeRule(rule)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map rule: %w", err)
+	}
+	response = &types.GameTemplate{
+		ID:              t.ID,
+		CreatedAt:       t.CreatedAt,
+		UpdatedAt:       fromNullTime(t.UpdatedAt),
+		ChallengeNumber: nullIntToIntP(t.ChallengeNumber),
+		CreatedByID:     t.CreatedBy,
+		UpdatedBy:       t.UpdatedBy.String,
+		Description:     t.Description.String,
+		Name:            t.Name,
+		Cells:           payload.Cells,
+		Rules:           typeRule,
+	}
+	err = tx.Commit()
+	return response, err
+
+}
+
 // Creates a user, session, game and makes sure the rule exists.
 // This should only be used for new users, not to log in existing users.
 func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (sess *types.SessionUser, err error) {
@@ -268,7 +390,7 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert gameHistory: %w", err)
 	}
-	mode, err := toMode(rule.Mode)
+	typeRule, err := toTypeRule(rule)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map rule: %w", err)
 	}
@@ -285,19 +407,7 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		Moves:       uint(createdGame.Moves),
 		Cells:       payload.Game.Cells,
 		PlayState:   payload.Game.PlayState,
-		Rules: types.Rules{
-			ID:              rule.ID,
-			CreatedAt:       rule.CreatedAt,
-			UpdatedAt:       &rule.UpdatedAt.Time,
-			Description:     rule.Description.String,
-			Mode:            mode,
-			Rows:            uint8(rule.SizeY),
-			Columns:         uint8(rule.SizeX),
-			RecreateOnSwipe: rule.RecreateOnSwipe,
-			NoReSwipe:       rule.NoReswipe,
-			NoMultiply:      rule.NoMultiply,
-			NoAddition:      rule.NoAddition,
-		},
+		Rules:       typeRule,
 	}
 	if err := sessionUser.ActiveGame.Validate(); err != nil {
 		return nil, err
@@ -359,6 +469,9 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		MaxMoves:        toNullInt64(r.MaxMoves),
 		TargetCellValue: toNullInt64(r.TargetCellValue),
 		TargetScore:     toNullInt64(r.TargetCellValue),
+	}
+	if insertParams.SizeX == 0 || insertParams.SizeY == 0 {
+		return sqlite.Rule{}, fmt.Errorf("The rules has invalid size: %#v", insertParams)
 	}
 	// doesn't seem to be supporting RETURN just yet: https://github.com/kyleconroy/sqlc/pull/1741
 	return q.InsertRule(ctx, insertParams)
@@ -469,6 +582,13 @@ func nullIntToUint(i sql.NullInt64) uint64 {
 		return 0
 	}
 	return uint64(i.Int64)
+}
+func nullIntToIntP(i sql.NullInt64) *int {
+	if !i.Valid {
+		return nil
+	}
+	n := int(i.Int64)
+	return &n
 }
 
 func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.GetUserPayload) (su *types.SessionUser, err error) {
@@ -735,6 +855,11 @@ func (p *sqliteStorage) Dump(ctx context.Context) (tg types.Dump, err error) {
 		return tg, fmt.Errorf("failed to retrieve all users")
 	}
 	tg.Users = users
+	templates, err := q.GetAllTemplates(ctx)
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve all templates")
+	}
+	tg.Template = templates
 
 	return
 }

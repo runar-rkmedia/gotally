@@ -31,13 +31,15 @@ create table if not exists game
     name       varchar(80)     ,
     description       varchar(400)     ,
     user_id    varchar(21)    not null,
-    rule_id    varchar(22)    not null,
+    rule_id    varchar(21)    not null,
+    template_id    varchar(21),
     score      int not null,
     moves      int    not null,
     play_state INT             not null,
     data       blob  not null,
     primary key (id),
     foreign key (rule_id) references rule,
+    foreign key (template_id) references game_template,
     foreign key (user_id) references user
 );
 
@@ -78,6 +80,27 @@ create table if not exists session
     primary key (id),
     foreign key (user_id) references user
 );
+create table if not exists game_template
+(
+    id            varchar(21) not null,
+    created_at    datetime     not null,
+    updated_at    datetime,
+    rule_id    varchar(21)    not null,
+    created_by    varchar(21)    not null,
+    updated_by    varchar(21),
+    name       varchar(80)     not null,
+    description       varchar(400)     ,
+    challenge_number INT,
+    ideal_moves INT,
+    ideal_score INT,
+    data       blob  not null,
+    UNIQUE(challenge_number),
+    primary key (id),
+    foreign key (rule_id) references rule,
+    foreign key (created_by) references user,
+    foreign key (updated_by) references user
+);
+
 
 create unique index if not exists game_id_move
     on game_history (game_id, move);
@@ -87,4 +110,6 @@ create unique index if not exists active_game_id
 
 create unique index if not exists slug
     on rule (slug);
+create unique index if not exists game_template_challenge_number
+    on game_template (challenge_number);
 

@@ -2,7 +2,11 @@ import type { ConnectError, CallOptions } from '@bufbuild/connect-web'
 import type Buf from '@bufbuild/protobuf'
 import { writable } from 'svelte/store'
 import { client, go, handleError } from './client'
-import type { Instruction, SwipeDirection } from './proto/tally/v1/board_pb'
+import type {
+	CreateGameChallengesResponse,
+	Instruction,
+	SwipeDirection
+} from './proto/tally/v1/board_pb'
 import type Api from './proto/tally/v1/board_pb'
 import { objectKeys } from 'simplytyped'
 import type { PartialMessage } from '@bufbuild/protobuf'
@@ -16,12 +20,13 @@ interface Store {
 	hintDoneIndex: number
 }
 
-type Vote = Strip<Api.VoteBoardResponse>
-type Cell = Replaced<Strip<Api.Cell>, bigint, number>
-type Board = Replaced<Omit<Strip<Api.Board>, 'cells'> & { cells: Cell[] }, bigint, number>
-type Game = Replaced<Omit<Strip<Api.Game>, 'board'> & { board: Board }, bigint, number>
-type Session = Replaced<Omit<Strip<Api.Session>, 'game'> & { game: Game }, bigint, number>
-type GeneratedGame = Replaced<
+export type Vote = Strip<Api.VoteBoardResponse>
+export type Cell = Replaced<Strip<Api.Cell>, bigint, number>
+export type Challenge = Replaced<Strip<Api.GameChallenge>, bigint, number>
+export type Board = Replaced<Omit<Strip<Api.Board>, 'cells'> & { cells: Cell[] }, bigint, number>
+export type Game = Replaced<Omit<Strip<Api.Game>, 'board'> & { board: Board }, bigint, number>
+export type Session = Replaced<Omit<Strip<Api.Session>, 'game'> & { game: Game }, bigint, number>
+export type GeneratedGame = Replaced<
 	Omit<Strip<Api.GenerateGameResponse>, 'game'> & { game: Game },
 	bigint,
 	number
@@ -105,6 +110,12 @@ export interface ApiType {
 	generateGame: (
 		payload: Replaced<PartialMessage<Api.GenerateGameRequest>, bigint, number>
 	) => CommitableGoResult<GeneratedGame>
+	createTemplate: (
+		payload: Replaced<PartialMessage<Api.CreateGameChallengeRequest>, bigint, number>
+	) => CommitableGoResult<{ id: string; challengeNumber: number }>
+	getChallenges: (
+		payload: Replaced<PartialMessage<Api.GetGameChallengesRequest>, bigint, number>
+	) => CommitableGoResult<Challenge[]>
 	vote: (options: PartialMessage<Api.VoteBoardRequest>) => CommitableGoResult<Vote>
 	getSession: () => CommitableGoResult<Session>
 	combineCells: (
@@ -155,6 +166,37 @@ class ApiStore implements ApiType {
 			idealScore: Number(result.idealScore),
 			highestScore: Number(result.highestScore),
 			solutions: result.solutions.map((g) => strip<Game>(g))
+		}
+		const commit = async () => {
+			// TODO: commit the result to the store
+			console.error('not implemented: commit for generateGame', { res })
+		}
+
+		return [res, commit, null]
+	}
+	getChallenges: ApiType['getChallenges'] = async (options) => {
+		const [result, err] = await go(client.getGameChallenges(options as any))
+		if (err) {
+			handleError('getChallenges', err)
+			return [null, null, err]
+		}
+		const res = result.challenges.map((r) => strip<Challenge>(r))
+		const commit = async () => {
+			// TODO: commit the result to the store
+			console.error('not implemented: commit for generateGame', { res })
+		}
+
+		return [res, commit, null]
+	}
+	createTemplate: ApiType['createTemplate'] = async (options) => {
+		const [result, err] = await go(client.createGameChallenge(options as any))
+		if (err) {
+			handleError('createTemplate', err)
+			return [null, null, err]
+		}
+		const res = {
+			id: result.id,
+			challengeNumber: result.challengeNumber
 		}
 		const commit = async () => {
 			// TODO: commit the result to the store

@@ -30,6 +30,8 @@ type BoardServiceClient interface {
 	CombineCells(ctx context.Context, in *CombineCellsRequest, opts ...grpc.CallOption) (*CombineCellsResponse, error)
 	GenerateGame(ctx context.Context, in *GenerateGameRequest, opts ...grpc.CallOption) (*GenerateGameResponse, error)
 	VoteBoard(ctx context.Context, in *VoteBoardRequest, opts ...grpc.CallOption) (*VoteBoardResponse, error)
+	GetGameChallenges(ctx context.Context, in *GetGameChallengesRequest, opts ...grpc.CallOption) (*GetGameChallengesResponse, error)
+	CreateGameChallenge(ctx context.Context, in *CreateGameChallengeRequest, opts ...grpc.CallOption) (*CreateGameChallengeResponse, error)
 }
 
 type boardServiceClient struct {
@@ -112,6 +114,24 @@ func (c *boardServiceClient) VoteBoard(ctx context.Context, in *VoteBoardRequest
 	return out, nil
 }
 
+func (c *boardServiceClient) GetGameChallenges(ctx context.Context, in *GetGameChallengesRequest, opts ...grpc.CallOption) (*GetGameChallengesResponse, error) {
+	out := new(GetGameChallengesResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GetGameChallenges", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *boardServiceClient) CreateGameChallenge(ctx context.Context, in *CreateGameChallengeRequest, opts ...grpc.CallOption) (*CreateGameChallengeResponse, error) {
+	out := new(CreateGameChallengeResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/CreateGameChallenge", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BoardServiceServer is the server API for BoardService service.
 // All implementations should embed UnimplementedBoardServiceServer
 // for forward compatibility
@@ -124,6 +144,8 @@ type BoardServiceServer interface {
 	CombineCells(context.Context, *CombineCellsRequest) (*CombineCellsResponse, error)
 	GenerateGame(context.Context, *GenerateGameRequest) (*GenerateGameResponse, error)
 	VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error)
+	GetGameChallenges(context.Context, *GetGameChallengesRequest) (*GetGameChallengesResponse, error)
+	CreateGameChallenge(context.Context, *CreateGameChallengeRequest) (*CreateGameChallengeResponse, error)
 }
 
 // UnimplementedBoardServiceServer should be embedded to have forward compatible implementations.
@@ -153,6 +175,12 @@ func (UnimplementedBoardServiceServer) GenerateGame(context.Context, *GenerateGa
 }
 func (UnimplementedBoardServiceServer) VoteBoard(context.Context, *VoteBoardRequest) (*VoteBoardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VoteBoard not implemented")
+}
+func (UnimplementedBoardServiceServer) GetGameChallenges(context.Context, *GetGameChallengesRequest) (*GetGameChallengesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGameChallenges not implemented")
+}
+func (UnimplementedBoardServiceServer) CreateGameChallenge(context.Context, *CreateGameChallengeRequest) (*CreateGameChallengeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateGameChallenge not implemented")
 }
 
 // UnsafeBoardServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -310,6 +338,42 @@ func _BoardService_VoteBoard_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BoardService_GetGameChallenges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGameChallengesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).GetGameChallenges(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/GetGameChallenges",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).GetGameChallenges(ctx, req.(*GetGameChallengesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BoardService_CreateGameChallenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateGameChallengeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).CreateGameChallenge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/CreateGameChallenge",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).CreateGameChallenge(ctx, req.(*CreateGameChallengeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BoardService_ServiceDesc is the grpc.ServiceDesc for BoardService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -348,6 +412,14 @@ var BoardService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VoteBoard",
 			Handler:    _BoardService_VoteBoard_Handler,
+		},
+		{
+			MethodName: "GetGameChallenges",
+			Handler:    _BoardService_GetGameChallenges_Handler,
+		},
+		{
+			MethodName: "CreateGameChallenge",
+			Handler:    _BoardService_CreateGameChallenge_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

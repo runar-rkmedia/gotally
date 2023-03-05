@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/gotally/sqlite"
 	"github.com/runar-rkmedia/gotally/types"
 )
 
@@ -21,6 +22,12 @@ func toNullTime(t *time.Time) sql.NullTime {
 		Time:  *t,
 	}
 
+}
+func fromNullTime(t sql.NullTime) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	return &t.Time
 }
 func toNullString(str string) sql.NullString {
 	if str == "" {
@@ -53,6 +60,26 @@ func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {
 		return tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT
 	}
 	return tallyv1.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED
+}
+
+func toTypeRule(rule sqlite.Rule) (types.Rules, error) {
+	mode, err := toMode(rule.Mode)
+	if err != nil {
+		return types.Rules{}, err
+	}
+	return types.Rules{
+		ID:              rule.ID,
+		CreatedAt:       rule.CreatedAt,
+		UpdatedAt:       &rule.UpdatedAt.Time,
+		Description:     rule.Description.String,
+		Mode:            mode,
+		Rows:            uint8(rule.SizeY),
+		Columns:         uint8(rule.SizeX),
+		RecreateOnSwipe: rule.RecreateOnSwipe,
+		NoReSwipe:       rule.NoReswipe,
+		NoMultiply:      rule.NoMultiply,
+		NoAddition:      rule.NoAddition,
+	}, nil
 }
 
 var (

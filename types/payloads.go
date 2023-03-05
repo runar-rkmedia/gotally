@@ -45,6 +45,42 @@ func (p CreateUserSessionPayload) Validate() error {
 	return nil
 }
 
+type GetGameTemplatePayload struct{}
+type CreateGameTemplatePayload struct {
+	ID              string
+	CreatedAt       time.Time
+	UpdatedAt       *time.Time
+	CreatedByID     string
+	UpdatedBy       string
+	Description     string
+	ChallengeNumber *int
+	Name            string
+	Cells           []cell.Cell
+	Rules
+}
+
+func (p CreateGameTemplatePayload) Validate() error {
+	if p.ID == "" {
+		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
+	}
+	if p.CreatedByID == "" {
+		return fmt.Errorf("%w: CreatedByID", ErrArgumentMissing)
+	}
+	if p.Name == "" {
+		return fmt.Errorf("%w: Name", ErrArgumentMissing)
+	}
+	if p.Rules.Mode == RuleModeChallenge && p.Rules.TargetCellValue == 0 {
+		return fmt.Errorf("%w: Game.Rules.TargetCellValue for Game.Rules.Mode=%v (%#v)", ErrArgumentMissing, p.Rules.Mode, p.Rules)
+	}
+	expectedCellCount := p.Rows * p.Columns
+	fmt.Println("\n\n\n\nfoobar", expectedCellCount, p.Rows, p.Columns)
+	if len(p.Cells) != int(expectedCellCount) {
+		return fmt.Errorf("%w: Number of cells must match Rows*Columns", ErrArgumentInvalid)
+	}
+
+	return nil
+}
+
 type SwipePayload struct {
 	GameID         string
 	SwipeDirection SwipeDirection

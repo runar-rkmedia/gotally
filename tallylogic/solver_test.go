@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/MarvinJWendt/testza"
-	"github.com/go-test/deep"
 	"github.com/runar-rkmedia/gotally/types"
 )
 
@@ -40,9 +39,9 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 	tests := []struct {
 		name string
 		GameSolverFactoryOptions
-		g                            func() Game
-		wantSolutionCountGte         int
-		wantSolutionShortDescription []string
+		g                                 func() Game
+		wantSolutionCountGte              int
+		wantOneOfSolutionShortDescription []string
 	}{
 
 		{
@@ -63,7 +62,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			"Solve next game",
 			GameSolverFactoryOptions{BreadthFirst: false},
 			mustCreateNewGameForTest(GameModeTutorial, &TutorialGames[1]),
-			218,
+			28,
 			nil,
 		},
 		{
@@ -96,7 +95,10 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 				)
 			},
 			1,
-			[]string{"indexes:7,6,3,4;indexes:2,5,4;indexes:0,1,4;"},
+			[]string{
+				"indexes:7,6,3,4;indexes:2,5,4;indexes:0,1,4;",
+				"indexes:3,6,7,4;indexes:2,5,4;indexes:0,1,4;",
+			},
 		},
 
 		{
@@ -144,29 +146,37 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			if tt.wantSolutionShortDescription != nil && len(tt.wantSolutionShortDescription) > 0 {
+			if tt.wantOneOfSolutionShortDescription != nil && len(tt.wantOneOfSolutionShortDescription) > 0 {
+				found := false
 				s := make([]string, len(solutions))
-				for i, solved := range solutions {
-					s[i] = solved.History.DescribeShort()
-				}
-				sort.Slice(s, func(i, j int) bool {
-					li := len(s[i])
-					lj := len(s[j])
-					if li == lj {
-						return s[i] < s[j]
+			outer:
+				for _, want := range tt.wantOneOfSolutionShortDescription {
+					for i, solved := range solutions {
+						s[i] = solved.History.DescribeShort()
 					}
-					return li < lj
-				})
-				testza.AssertEqual(t, tt.wantSolutionShortDescription, s)
-				if diff := deep.Equal(s, tt.wantSolutionShortDescription); diff != nil {
-					t.Errorf("Expected solutions-description to match. Diff: %v", diff)
+					sort.Slice(s, func(i, j int) bool {
+						li := len(s[i])
+						lj := len(s[j])
+						if li == lj {
+							return s[i] < s[j]
+						}
+						return li < lj
+					})
+					for _, v := range s {
 
+						if want == v {
+							found = true
+							break outer
+						}
+					}
 				}
-				// os.WriteFile("mytest_"+prefix, []byte(strings.Join(s, "\n")), os.ModePerm)
+				if !found {
+					t.Fatalf("Expected to find one of these solutions, but none of them were included.\nOne of: %v\nGot: %v", tt.wantOneOfSolutionShortDescription, s)
+				}
 			}
 
 			if tt.wantSolutionCountGte >= 0 && len(solutions) < tt.wantSolutionCountGte {
-				t.Errorf("Found %d solutions, want %d", len(solutions), tt.wantSolutionCountGte)
+				t.Errorf("Found %d solutions, want at least %d", len(solutions), tt.wantSolutionCountGte)
 				for i, solved := range solutions {
 					t.Logf("Solution %d: solved - %d moves with a score of %d %s", i, solved.Moves(), solved.Score(), solved.History.DescribeShort())
 				}

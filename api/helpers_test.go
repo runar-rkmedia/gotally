@@ -65,8 +65,10 @@ func newTestApi(t *testing.T) testApi {
 	})
 	_true := true
 	tally, path, handler := createApiHandler(true, TallyOptions{
-		DatabaseDSN:         fmt.Sprintf("sqlite:file::%s:?mode=memory&cache=shared", mustCreateUUidgenerator()()),
-		SkipStatsCollection: &_true,
+		DatabaseDSN:           fmt.Sprintf("sqlite:file::%s:?mode=memory&cache=shared", mustCreateUUidgenerator()()),
+		SkipStatsCollection:   &_true,
+		FeatureGameGeneration: &_true,
+		AllowDevelopmentFlags: &_true,
 	})
 	ts := httptest.NewServer(handler)
 	t.Cleanup(ts.Close)
@@ -107,7 +109,7 @@ func newTestApi(t *testing.T) testApi {
 		t.Fatalf("Getsession failed %s", strErr(err))
 	}
 	if res.Msg.Session.Username != "GO_TESTER" {
-		t.Fatalf("Expected username to have been set (dev-header) to '%s' but was '%s'", "GO_TESTER", res.Msg.Session.Username)
+		t.Fatalf("Expected username to have been set (dev-header) to '%s' but was '%s'. Did you enable development-mode for the api-server?", "GO_TESTER", res.Msg.Session.Username)
 	}
 	a.initialSession = *res
 	a.initialGame = a.Game()
@@ -203,11 +205,12 @@ func (ta *testApi) DumpDBWithPrefix(prefix string) {
 // does not really matter, though
 type sqliteDump struct {
 	Date          time.Time
-	Games         []sqlite.Game        //[]Game
-	GameHistories []sqlite.GameHistory //[]any
-	Rules         []sqlite.Rule        //[]Rules
-	Sessions      []sqlite.Session     //[]Session
-	Users         []sqlite.User        //[]User
+	Games         []sqlite.Game         //[]Game
+	GameHistories []sqlite.GameHistory  //[]any
+	Rules         []sqlite.Rule         //[]Rules
+	Sessions      []sqlite.Session      //[]Session
+	Users         []sqlite.User         //[]User
+	Templates     []sqlite.GameTemplate //[]GameTemplate
 }
 
 func (ta *testApi) GetDBDump() sqliteDump {
@@ -223,6 +226,7 @@ func (ta *testApi) GetDBDump() sqliteDump {
 		Rules:         d.Rules.([]sqlite.Rule),
 		Sessions:      d.Sessions.([]sqlite.Session),
 		Users:         d.Users.([]sqlite.User),
+		Templates:     d.Template.([]sqlite.GameTemplate),
 	}
 }
 func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[model.NewGameResponse]) {
@@ -312,6 +316,10 @@ func (ts *testApi) GetHint(expectMinHints int) *connect.Response[model.GetHintRe
 		}
 	}
 	return res
+}
+func (ts *testApi) LogMark(s string, args ...any) {
+	ts.t.Helper()
+	ts.t.Logf("\n------------------------------------------------------------\n-- %s --\n------------------------------------------------------------\n", fmt.Sprintf(s, args...))
 }
 func (ts *testApi) expectSimpleBoardEquality(wantValues ...int64) {
 	ts.t.Helper()

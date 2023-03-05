@@ -46,7 +46,7 @@ func (q *Queries) GetAllGameHistory(ctx context.Context) ([]GameHistory, error) 
 }
 
 const getAllGames = `-- name: GetAllGames :many
-SELECT id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data from game
+SELECT id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data from game
 `
 
 func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
@@ -66,6 +66,7 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 			&i.Description,
 			&i.UserID,
 			&i.RuleID,
+			&i.TemplateID,
 			&i.Score,
 			&i.Moves,
 			&i.PlayState,
@@ -160,6 +161,46 @@ func (q *Queries) GetAllSessions(ctx context.Context) ([]Session, error) {
 	return items, nil
 }
 
+const getAllTemplates = `-- name: GetAllTemplates :many
+SELECT id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data from game_template
+`
+
+func (q *Queries) GetAllTemplates(ctx context.Context) ([]GameTemplate, error) {
+	rows, err := q.db.QueryContext(ctx, getAllTemplates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GameTemplate
+	for rows.Next() {
+		var i GameTemplate
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RuleID,
+			&i.CreatedBy,
+			&i.UpdatedBy,
+			&i.Name,
+			&i.Description,
+			&i.ChallengeNumber,
+			&i.IdealMoves,
+			&i.IdealScore,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllUsers = `-- name: GetAllUsers :many
 SELECT id, created_at, updated_at, username, active_game_id from user
 `
@@ -194,7 +235,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getGame = `-- name: GetGame :one
-select id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data from game
+select id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data from game
 where id == ?
 `
 
@@ -209,12 +250,55 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
 		&i.Data,
 	)
 	return i, err
+}
+
+const getGameChallengesTemplates = `-- name: GetGameChallengesTemplates :many
+select id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data from game_template
+where challenge_number is not null
+order by challenge_number
+`
+
+func (q *Queries) GetGameChallengesTemplates(ctx context.Context) ([]GameTemplate, error) {
+	rows, err := q.db.QueryContext(ctx, getGameChallengesTemplates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GameTemplate
+	for rows.Next() {
+		var i GameTemplate
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RuleID,
+			&i.CreatedBy,
+			&i.UpdatedBy,
+			&i.Name,
+			&i.Description,
+			&i.ChallengeNumber,
+			&i.IdealMoves,
+			&i.IdealScore,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getGameHistoryByMoveNumber = `-- name: GetGameHistoryByMoveNumber :one
@@ -236,6 +320,56 @@ func (q *Queries) GetGameHistoryByMoveNumber(ctx context.Context, arg GetGameHis
 		&i.Move,
 		&i.Kind,
 		&i.Points,
+		&i.Data,
+	)
+	return i, err
+}
+
+const getGameTemplate = `-- name: GetGameTemplate :one
+select id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data from game_template
+where id = ?
+`
+
+func (q *Queries) GetGameTemplate(ctx context.Context, id string) (GameTemplate, error) {
+	row := q.db.QueryRowContext(ctx, getGameTemplate, id)
+	var i GameTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RuleID,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.Name,
+		&i.Description,
+		&i.ChallengeNumber,
+		&i.IdealMoves,
+		&i.IdealScore,
+		&i.Data,
+	)
+	return i, err
+}
+
+const getGameTemplateByChallengeNumber = `-- name: GetGameTemplateByChallengeNumber :one
+select id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data from game_template
+where challenge_number = ?
+`
+
+func (q *Queries) GetGameTemplateByChallengeNumber(ctx context.Context, challengeNumber sql.NullInt64) (GameTemplate, error) {
+	row := q.db.QueryRowContext(ctx, getGameTemplateByChallengeNumber, challengeNumber)
+	var i GameTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RuleID,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.Name,
+		&i.Description,
+		&i.ChallengeNumber,
+		&i.IdealMoves,
+		&i.IdealScore,
 		&i.Data,
 	)
 	return i, err
@@ -365,11 +499,58 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 	return i, err
 }
 
+const inserTemplate = `-- name: InserTemplate :one
+INSERT INTO game_template
+(id, created_at, rule_id, created_by, name, description, challenge_number, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data
+`
+
+type InserTemplateParams struct {
+	ID              string
+	CreatedAt       time.Time
+	RuleID          string
+	CreatedBy       string
+	Name            string
+	Description     sql.NullString
+	ChallengeNumber sql.NullInt64
+	Data            []byte
+}
+
+func (q *Queries) InserTemplate(ctx context.Context, arg InserTemplateParams) (GameTemplate, error) {
+	row := q.db.QueryRowContext(ctx, inserTemplate,
+		arg.ID,
+		arg.CreatedAt,
+		arg.RuleID,
+		arg.CreatedBy,
+		arg.Name,
+		arg.Description,
+		arg.ChallengeNumber,
+		arg.Data,
+	)
+	var i GameTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.RuleID,
+		&i.CreatedBy,
+		&i.UpdatedBy,
+		&i.Name,
+		&i.Description,
+		&i.ChallengeNumber,
+		&i.IdealMoves,
+		&i.IdealScore,
+		&i.Data,
+	)
+	return i, err
+}
+
 const insertGame = `-- name: InsertGame :one
 INSERT INTO game
 (id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
 `
 
 type InsertGameParams struct {
@@ -409,6 +590,7 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
@@ -619,7 +801,7 @@ UPDATE game
 SET updated_at = ?,
     play_state = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
 `
 
 type SetPlayStateForGameParams struct {
@@ -639,6 +821,7 @@ func (q *Queries) SetPlayStateForGame(ctx context.Context, arg SetPlayStateForGa
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
@@ -713,7 +896,7 @@ SET updated_at = ?,
     play_state = ?,
     data       = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
 `
 
 type UpdateGameParams struct {
@@ -747,6 +930,7 @@ func (q *Queries) UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, e
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,

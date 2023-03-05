@@ -36,4 +36,7 @@ type SessionStore interface {
 	NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error)
 	// Restarts the current active game
 	RestartGame(ctx context.Context, payload types.RestartGamePayload) (types.Game, error)
+	// Creates a new template, often used for challenges
+	CreateGameTemplate(ctx context.Context, payload types.CreateGameTemplatePayload) (*types.GameTemplate, error)
+	GetGameChallenges(ctx context.Context) ([]types.GameTemplate, error)
 }

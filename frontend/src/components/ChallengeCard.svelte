@@ -1,22 +1,11 @@
 <script lang="ts">
 	import type { PartialMessage } from '@bufbuild/protobuf'
 	import { GameMode, type NewGameRequest } from '../connect-web'
-	import { storeHandler } from '../connect-web/store'
+	import { storeHandler, type Challenge } from '../connect-web/store'
 	import BoardPreview from './BoardPreview.svelte'
 	import Icon from './Icon.svelte'
 	import Pyro from './Pyro.svelte'
 
-	type challenge = {
-		id: string
-		name: string
-		score: number
-		moves: number
-		ideal: number
-		rating: number
-		rows: number
-		columns: number
-		locked: boolean
-	}
 	const newGame = async (options: PartialMessage<NewGameRequest>) => {
 		return storeHandler.commit(storeHandler.newGame(options))
 	}
@@ -39,7 +28,7 @@
 		}
 	}
 	$: rating = getRating(challenge.rating)
-	export let challenge: challenge
+	export let challenge: Challenge
 </script>
 
 <!-- svelte-ignore missing-declaration -->
@@ -97,10 +86,11 @@
 		<BoardPreview
 			columns={challenge.rows}
 			rows={challenge.columns}
-			cells={new Array(challenge.rows * challenge.columns || 30).fill(null).map((_, i) => ({
-				base: Math.random() > 0.6 ? 0 : Math.ceil(Math.random() * 12),
-				twopow: 0
-			}))}
+			cells={challenge.cells ||
+				new Array(challenge.rows * challenge.columns || 30).fill(null).map((_, i) => ({
+					base: Math.random() > 0.6 ? 0 : Math.ceil(Math.random() * 12),
+					twopow: 0
+				}))}
 		/>
 	</div>
 </button>

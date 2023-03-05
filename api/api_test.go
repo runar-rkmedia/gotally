@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MarvinJWendt/testza"
 	"github.com/bufbuild/connect-go"
 	"github.com/go-test/deep"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
@@ -313,6 +314,172 @@ func TestApi_NewGame(t *testing.T) {
 			}
 			if res != nil {
 				t.Fatalf("Expected response to be nil, but it was: %#v", res)
+			}
+		}
+
+	})
+}
+func TestApi_Challenges(t *testing.T) {
+	t.Run("Should return the challenges after creation", func(t *testing.T) {
+		ts := newTestApi(t)
+		ctx := context.TODO()
+		// ------------------------------------------------------------
+		ts.LogMark("Check that there are no challenges")
+		// ------------------------------------------------------------
+		{
+			r, err := ts.client.GetGameChallenges(ctx, connect.NewRequest(&model.GetGameChallengesRequest{}))
+			if err != nil {
+				t.Fatalf("Get Game challenges failed %s", strErr(err))
+			}
+			testza.AssertEqual(t, 0, len(r.Msg.Challenges), "Expecting there to be zero challenges at start")
+		}
+
+		// ------------------------------------------------------------
+		ts.LogMark("Insert some challenges")
+		// ------------------------------------------------------------
+
+		payloads := []model.CreateGameChallengeRequest{
+			{
+				ChallengeNumber: 100,
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            3,
+				Name:            "Simply a test",
+				Description:     "Please dont fail me",
+				Cells: toModalCells(cellCreator(
+					3, 1, 3,
+					6, 6, 6,
+					9, 6, 3,
+				)),
+			},
+			{
+				ChallengeNumber: 200,
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            3,
+				Name:            "Simply another test",
+				Description:     "Please dont fail me now",
+				Cells: toModalCells(cellCreator(
+					2, 5, 5,
+					8, 2, 4,
+					2, 4, 4,
+				)),
+			},
+		}
+		for i := 0; i < len(payloads); i++ {
+
+			{
+				// This should fail, as we cannot restart a game that has no moves
+				res, err := ts.client.CreateGameChallenge(ctx, connect.NewRequest(&payloads[i]))
+				if err != nil {
+					t.Errorf("CreateGameChallengeRequest %d failed: %v", i, err)
+				}
+				if res == nil {
+					t.Errorf("CreateGameChallengeRequest %d result was nil for paylaod %v", i, &payloads[i])
+				}
+				t.Log(res.Msg)
+				testza.AssertEqual(t, payloads[i].ChallengeNumber, res.Msg.ChallengeNumber, fmt.Sprintf("ChallengeNumber for CreateGameChallenge-Response %d should match payload", i))
+				testza.AssertNotZero(t, res.Msg.Id, fmt.Sprintf("ID for CreateGameChallenge-Response %d should have an ID", i))
+			}
+		}
+		// ------------------------------------------------------------
+		ts.LogMark("Check that we can query for the same set of challenges")
+		// ------------------------------------------------------------
+		{
+			r, err := ts.client.GetGameChallenges(ctx, connect.NewRequest(&model.GetGameChallengesRequest{}))
+			if err != nil {
+				t.Fatalf("Get Game challenges failed %s", strErr(err))
+			}
+			testza.AssertEqual(t, 2, len(r.Msg.Challenges), "Expecting api to return the newly created challenges")
+			for i := 0; i < len(payloads); i++ {
+				// t.Logf("Payload %d:\n%s", i, pretty(&payloads[i]))
+				testza.AssertEqual(t, payloads[i].ChallengeNumber, payloads[i].ChallengeNumber, fmt.Sprintf("Expected the %d challenge to match on ChallengeNumber", i))
+				testza.AssertEqual(t, payloads[i].Name, payloads[i].Name, fmt.Sprintf("Expected the %d challenge to match on Name", i))
+				testza.AssertEqual(t, payloads[i].Description, payloads[i].Description, fmt.Sprintf("Expected the %d challenge to match on Description", i))
+				testza.AssertEqual(t, payloads[i].Cells, payloads[i].Cells, fmt.Sprintf("Expected the %d challenge to match on Cells", i))
+				testza.AssertEqual(t, payloads[i].Rows, payloads[i].Rows, fmt.Sprintf("Expected the %d challenge to match on Rows", i))
+				testza.AssertEqual(t, payloads[i].Columns, payloads[i].Columns, fmt.Sprintf("Expected the %d challenge to match on Columns", i))
+				testza.AssertEqual(t, payloads[i].TargetCellValue, payloads[i].TargetCellValue, fmt.Sprintf("Expected the %d challenge to match on TargetCellValue", i))
+				testza.AssertEqual(t, payloads[i].IdealMoves, payloads[i].IdealMoves, fmt.Sprintf("Expected the %d challenge to match on IdealMoves", i))
+			}
+		}
+		ts.LogMark("Check for invalid payload")
+		invalidPayloads := []model.CreateGameChallengeRequest{
+			{
+				ChallengeNumber: 100,
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            3,
+				Name:            "Should not be able to insert at the same challengeNumber",
+				Description:     "Faile me",
+				Cells: toModalCells(cellCreator(
+					3, 1, 3,
+					6, 6, 6,
+					9, 6, 3,
+				)),
+			},
+			{
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            3,
+				Name:            "Should not be able to submit cells with an invalid number",
+				Cells: toModalCells(cellCreator(
+					2, 5, 5,
+				)),
+			},
+			{
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            0,
+				Name:            "Rows must be positive",
+				Cells: toModalCells(cellCreator(
+					2, 5, 5,
+				)),
+			},
+			{
+				IdealMoves:      5,
+				TargetCellValue: 8,
+				Columns:         0,
+				Rows:            3,
+				Name:            "Columns must be positive",
+				Cells: toModalCells(cellCreator(
+					2, 5, 5,
+				)),
+			},
+		}
+		for i := 0; i < len(invalidPayloads); i++ {
+
+			{
+				// This should fail, as we cannot restart a game that has no moves
+				_, err := ts.client.CreateGameChallenge(ctx, connect.NewRequest(&invalidPayloads[i]))
+				if err == nil {
+					t.Errorf("Request %d should have failed but did not for payload with name '%s'", i, invalidPayloads[i].Name)
+				}
+			}
+		}
+		// ------------------------------------------------------------
+		ts.LogMark("Check that the database was not modified under the bad requests")
+		// ------------------------------------------------------------
+		{
+			dump := ts.GetDBDump()
+			if len(dump.Templates) != 2 {
+			outer:
+				for i, template := range dump.Templates {
+					for j := 0; j < len(payloads); j++ {
+						if payloads[j].Name == template.Name {
+							continue outer
+						}
+
+					}
+					t.Logf("Extra template %d:  Name='%s'", i, template.Name)
+				}
+				testza.AssertEqual(t, len(dump.Templates), 2, "Expected the db-dump of templates to to return 2 items")
+
 			}
 		}
 
