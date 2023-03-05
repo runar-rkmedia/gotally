@@ -35,6 +35,8 @@ type BoardServiceClient interface {
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
 	GenerateGame(context.Context, *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error)
 	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
+	GetGameChallenges(context.Context, *connect_go.Request[v1.GetGameChallengesRequest]) (*connect_go.Response[v1.GetGameChallengesResponse], error)
+	CreateGameChallenge(context.Context, *connect_go.Request[v1.CreateGameChallengeRequest]) (*connect_go.Response[v1.CreateGameChallengeResponse], error)
 }
 
 // NewBoardServiceClient constructs a client for the tally.v1.BoardService service. By default, it
@@ -87,19 +89,31 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+"/tally.v1.BoardService/VoteBoard",
 			opts...,
 		),
+		getGameChallenges: connect_go.NewClient[v1.GetGameChallengesRequest, v1.GetGameChallengesResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/GetGameChallenges",
+			opts...,
+		),
+		createGameChallenge: connect_go.NewClient[v1.CreateGameChallengeRequest, v1.CreateGameChallengeResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/CreateGameChallenge",
+			opts...,
+		),
 	}
 }
 
 // boardServiceClient implements BoardServiceClient.
 type boardServiceClient struct {
-	newGame      *connect_go.Client[v1.NewGameRequest, v1.NewGameResponse]
-	getHint      *connect_go.Client[v1.GetHintRequest, v1.GetHintResponse]
-	restartGame  *connect_go.Client[v1.RestartGameRequest, v1.RestartGameResponse]
-	getSession   *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
-	swipeBoard   *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
-	combineCells *connect_go.Client[v1.CombineCellsRequest, v1.CombineCellsResponse]
-	generateGame *connect_go.Client[v1.GenerateGameRequest, v1.GenerateGameResponse]
-	voteBoard    *connect_go.Client[v1.VoteBoardRequest, v1.VoteBoardResponse]
+	newGame             *connect_go.Client[v1.NewGameRequest, v1.NewGameResponse]
+	getHint             *connect_go.Client[v1.GetHintRequest, v1.GetHintResponse]
+	restartGame         *connect_go.Client[v1.RestartGameRequest, v1.RestartGameResponse]
+	getSession          *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
+	swipeBoard          *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
+	combineCells        *connect_go.Client[v1.CombineCellsRequest, v1.CombineCellsResponse]
+	generateGame        *connect_go.Client[v1.GenerateGameRequest, v1.GenerateGameResponse]
+	voteBoard           *connect_go.Client[v1.VoteBoardRequest, v1.VoteBoardResponse]
+	getGameChallenges   *connect_go.Client[v1.GetGameChallengesRequest, v1.GetGameChallengesResponse]
+	createGameChallenge *connect_go.Client[v1.CreateGameChallengeRequest, v1.CreateGameChallengeResponse]
 }
 
 // NewGame calls tally.v1.BoardService.NewGame.
@@ -142,6 +156,16 @@ func (c *boardServiceClient) VoteBoard(ctx context.Context, req *connect_go.Requ
 	return c.voteBoard.CallUnary(ctx, req)
 }
 
+// GetGameChallenges calls tally.v1.BoardService.GetGameChallenges.
+func (c *boardServiceClient) GetGameChallenges(ctx context.Context, req *connect_go.Request[v1.GetGameChallengesRequest]) (*connect_go.Response[v1.GetGameChallengesResponse], error) {
+	return c.getGameChallenges.CallUnary(ctx, req)
+}
+
+// CreateGameChallenge calls tally.v1.BoardService.CreateGameChallenge.
+func (c *boardServiceClient) CreateGameChallenge(ctx context.Context, req *connect_go.Request[v1.CreateGameChallengeRequest]) (*connect_go.Response[v1.CreateGameChallengeResponse], error) {
+	return c.createGameChallenge.CallUnary(ctx, req)
+}
+
 // BoardServiceHandler is an implementation of the tally.v1.BoardService service.
 type BoardServiceHandler interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
@@ -152,6 +176,8 @@ type BoardServiceHandler interface {
 	CombineCells(context.Context, *connect_go.Request[v1.CombineCellsRequest]) (*connect_go.Response[v1.CombineCellsResponse], error)
 	GenerateGame(context.Context, *connect_go.Request[v1.GenerateGameRequest]) (*connect_go.Response[v1.GenerateGameResponse], error)
 	VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error)
+	GetGameChallenges(context.Context, *connect_go.Request[v1.GetGameChallengesRequest]) (*connect_go.Response[v1.GetGameChallengesResponse], error)
+	CreateGameChallenge(context.Context, *connect_go.Request[v1.CreateGameChallengeRequest]) (*connect_go.Response[v1.CreateGameChallengeResponse], error)
 }
 
 // NewBoardServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -201,6 +227,16 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 		svc.VoteBoard,
 		opts...,
 	))
+	mux.Handle("/tally.v1.BoardService/GetGameChallenges", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/GetGameChallenges",
+		svc.GetGameChallenges,
+		opts...,
+	))
+	mux.Handle("/tally.v1.BoardService/CreateGameChallenge", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/CreateGameChallenge",
+		svc.CreateGameChallenge,
+		opts...,
+	))
 	return "/tally.v1.BoardService/", mux
 }
 
@@ -237,4 +273,12 @@ func (UnimplementedBoardServiceHandler) GenerateGame(context.Context, *connect_g
 
 func (UnimplementedBoardServiceHandler) VoteBoard(context.Context, *connect_go.Request[v1.VoteBoardRequest]) (*connect_go.Response[v1.VoteBoardResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.VoteBoard is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) GetGameChallenges(context.Context, *connect_go.Request[v1.GetGameChallengesRequest]) (*connect_go.Response[v1.GetGameChallengesResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GetGameChallenges is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) CreateGameChallenge(context.Context, *connect_go.Request[v1.CreateGameChallengeRequest]) (*connect_go.Response[v1.CreateGameChallengeResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.CreateGameChallenge is not implemented"))
 }

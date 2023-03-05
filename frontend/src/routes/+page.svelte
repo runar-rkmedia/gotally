@@ -448,7 +448,7 @@
 </script>
 
 <div class="errors">
-	{#each $httpErrorStore.errors as err}
+	{#each $httpErrorStore?.errors as err}
 		<div
 			class="error"
 			on:click={() =>

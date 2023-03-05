@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -133,7 +134,7 @@ func generateGame() {
 	if err != nil {
 		panic("gb: " + err.Error())
 	}
-	game, solutions, err := gb.GenerateGame()
+	game, solutions, err := gb.GenerateGame(context.TODO())
 	quit <- struct{}{}
 	if err != nil {
 		panic(err.Error())

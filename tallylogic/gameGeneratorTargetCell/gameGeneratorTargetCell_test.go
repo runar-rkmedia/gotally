@@ -1,6 +1,7 @@
 package gamegenerator_target_cell
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -126,7 +127,7 @@ func Test_gameGeneratorTargetCell_GenerateGame(t *testing.T) {
 
 			}
 
-			_, solutions, err := gen.GenerateGame()
+			_, solutions, err := gen.GenerateGame(context.TODO())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("gameGeneratorTargetCell.GenerateGame() error = %v, wantErr %v", err, tt.wantErr)
 				return

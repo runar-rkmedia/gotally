@@ -18,6 +18,11 @@ INSERT INTO rule
 (id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
+-- name: InserTemplate :one
+INSERT INTO game_template
+(id, created_at, rule_id, created_by, name, description, challenge_number, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING *;
 
 -- name: InsertGameHistory :one
 insert into game_history
@@ -28,6 +33,16 @@ RETURNING *;
 -- name: GetGameHistoryByMoveNumber :one
 select * from game_history
 where game_id = ? and move == ?;
+-- name: GetGameTemplate :one
+select * from game_template
+where id = ?;
+-- name: GetGameTemplateByChallengeNumber :one
+select * from game_template
+where challenge_number = ?;
+-- name: GetGameChallengesTemplates :many
+select * from game_template
+where challenge_number is not null
+order by challenge_number;
 -- name: GetRule :one
 select * from rule
 where id == ? or slug == ?;
@@ -74,6 +89,8 @@ SELECT * from rule;
 SELECT * from session;
 -- name: GetAllUsers :many
 SELECT * from user;
+-- name: GetAllTemplates :many
+SELECT * from game_template;
 -- name: UpdateGame :one
 UPDATE game
 SET updated_at = ?,

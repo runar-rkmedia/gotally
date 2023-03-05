@@ -1,10 +1,11 @@
 <script lang="ts">
 	import type { PartialMessage } from '@bufbuild/protobuf'
+	import { onMount } from 'svelte'
 
 	import { Difficulty, GameMode, type NewGameRequest } from '../connect-web/proto/tally/v1/board_pb'
 	export let open: boolean
 
-	import { storeHandler, store } from '../connect-web/store'
+	import { storeHandler, store, type Challenge } from '../connect-web/store'
 	import BoardPreview from './BoardPreview.svelte'
 	import ChallengeCard from './ChallengeCard.svelte'
 	import Icon from './Icon.svelte'
@@ -28,7 +29,19 @@
 			view = 'main'
 		}
 	}
-	const challenges = [
+	let challenges: Challenge[] = []
+	onMount(async () => {
+		const r = await storeHandler.commit(storeHandler.getChallenges({}))
+		if (r.error) {
+			console.error(r)
+			return
+		}
+		if (!r.result) {
+			return
+		}
+		challenges = r.result
+	})
+	const challenges_ = [
 		{
 			id: 'a',
 			name: 'Starter challenge',

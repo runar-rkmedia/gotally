@@ -38,6 +38,7 @@ deps_go:
 
 generate:
 	buf generate
+	$(MAKE) sqlc
 sqlc:
 	sqlc generate
 	echo -e "-- This file is generated\n-- Please do not edit.\n-- The file to edit should be ../schema-sqlite.sql" > ./sqlite/schema.sql

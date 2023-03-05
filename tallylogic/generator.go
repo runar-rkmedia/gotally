@@ -137,13 +137,19 @@ func (gb GameGenerator) isUnsolvableQuickCheck(values []uint64, targetValue uint
 
 	return false
 }
+
+// deprecated
+// DEV-hack for now, see #23 at https://github.com/runar-rkmedia/gotally/issues/23
 func send[T any](name string, ch chan T, msg T) bool {
-	select {
-	case ch <- msg:
-		return true
-	default:
-		return false
-	}
+	ch <- msg
+	return true
+	// Originial non-blocking send:
+	// select {
+	// case ch <- msg:
+	// 	return true
+	// default:
+	// 	return false
+	// }
 
 }
 
