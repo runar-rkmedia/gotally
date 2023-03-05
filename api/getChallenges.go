@@ -32,6 +32,12 @@ func (s *TallyServer) CreateGameChallenge(
 	if req.Msg.Columns <= 2 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("columns must be above 2"))
 	}
+	if req.Msg.TargetCellValue == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("TargetCellValue must be set"))
+	}
+	if req.Msg.IdealMoves == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("IdealMoves must be set"))
+	}
 	expectedCells := int(req.Msg.Columns * req.Msg.Rows)
 	if expectedCells != len(req.Msg.Cells) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("The number of cells must match Rows*Columns"))
@@ -42,6 +48,8 @@ func (s *TallyServer) CreateGameChallenge(
 		CreatedAt:   time.Now(),
 		CreatedByID: session.UserID,
 		Description: req.Msg.Description,
+		IdealMoves:  int(req.Msg.IdealMoves),
+		IdealScore:  int(req.Msg.IdealScore),
 		Name:        req.Msg.Name,
 		Cells:       make([]cell.Cell, req.Msg.Rows*req.Msg.Columns),
 		Rules: types.Rules{
@@ -75,7 +83,7 @@ func (s *TallyServer) CreateGameChallenge(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	fmt.Printf("fofofofofo %#v", template.ChallengeNumber)
+	fmt.Printf("\n\nfofofofofo %d %d", template.ChallengeNumber, template.Rules.TargetCellValue)
 	response := &model.CreateGameChallengeResponse{
 		Id:              template.ID,
 		ChallengeNumber: intPointerUint32(template.ChallengeNumber),

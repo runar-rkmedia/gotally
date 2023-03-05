@@ -54,6 +54,8 @@ type CreateGameTemplatePayload struct {
 	UpdatedBy       string
 	Description     string
 	ChallengeNumber *int
+	IdealMoves      int
+	IdealScore      int
 	Name            string
 	Cells           []cell.Cell
 	Rules
@@ -72,10 +74,15 @@ func (p CreateGameTemplatePayload) Validate() error {
 	if p.Rules.Mode == RuleModeChallenge && p.Rules.TargetCellValue == 0 {
 		return fmt.Errorf("%w: Game.Rules.TargetCellValue for Game.Rules.Mode=%v (%#v)", ErrArgumentMissing, p.Rules.Mode, p.Rules)
 	}
+	if p.IdealMoves == 0 && p.IdealScore == 0 {
+		return fmt.Errorf("%w: IdealMoves or IdealScore must be set", ErrArgumentMissing)
+	}
 	expectedCellCount := p.Rows * p.Columns
-	fmt.Println("\n\n\n\nfoobar", expectedCellCount, p.Rows, p.Columns)
 	if len(p.Cells) != int(expectedCellCount) {
 		return fmt.Errorf("%w: Number of cells must match Rows*Columns", ErrArgumentInvalid)
+	}
+	if p.TargetCellValue == 0 {
+		return fmt.Errorf("%w: Target cell value must be set", ErrArgumentInvalid)
 	}
 
 	return nil

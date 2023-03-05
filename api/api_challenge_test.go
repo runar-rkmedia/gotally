@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/MarvinJWendt/testza"
+	"github.com/bufbuild/connect-go"
 	"github.com/pelletier/go-toml/v2"
 	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/generated"
@@ -20,7 +21,8 @@ func TestApi_Challange_Solving(t *testing.T) {
 
 			ts := newTestApi(t)
 
-			newGame := ts.NewGame(tallyv1.GameMode_GAME_MODE_RANDOM_CHALLENGE)
+			challenge := ts.CreateDefaultChallenge()
+			newGame := ts.NewGameChallenge(challenge.Msg.Id)
 			t.Logf("Attempting to solve the game '%s' '%s'\n%s",
 				newGame.Msg.Board.Name,
 				newGame.Msg.Description,
@@ -47,12 +49,32 @@ func TestApi_Challange_Restart(t *testing.T) {
 	generated.ReadGeneratedBoardsFromDisk(generated.Options{MaxItems: 3})
 	t.Run("Should be able to restart", func(t *testing.T) {
 		ts := newTestApi(t)
-		ts.NewGame(tallyv1.GameMode_GAME_MODE_RANDOM_CHALLENGE)
+
+		// ------------------------------------------------------------
+		ts.LogMark("Creating an initial challenge for testing")
+		// ------------------------------------------------------------
+		payload := tallyv1.CreateGameChallengeRequest{
+			ChallengeNumber: 100,
+			IdealMoves:      5,
+			TargetCellValue: 5,
+			Columns:         3,
+			Rows:            3,
+			Name:            "Simple challenge",
+			Cells: toModalCells(cellCreator(
+				1, 0, 0,
+				0, 1, 0,
+				0, 0, 1,
+			)),
+		}
+		res, err := ts.client.CreateGameChallenge(ts.context, connect.NewRequest(&payload))
+		testza.AssertNil(t, err, "Expected no errors from CreateGameChallenge")
+
+		// ------------------------------------------------------------
+		ts.LogMark("Attempting to play the challenge with id '%s'", res.Msg.Id)
+		// ------------------------------------------------------------
+		ts.NewGameChallenge(res.Msg.Id)
 
 		{
-			// This direction is a bit flaky. I don' actually care about swiping, I just need to perform any move.
-			// for now, this just works because of a fluke. If it ever fails here, we should probably
-			// have the api return a hint first, and then just perform thatn hint
 			res := ts.SwipeDown()
 			testza.AssertGreater(t, res.Msg.Moves, int64(0), "Moves should be 1")
 		}

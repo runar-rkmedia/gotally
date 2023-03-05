@@ -75,9 +75,12 @@ func TestApi_GameModes(t *testing.T) {
 			t.Fatalf("the initial game-mode should not be 0: %s", prettyJson(ts.initialSession))
 		}
 		want := model.GameMode_GAME_MODE_RANDOM_CHALLENGE
+		challenge := ts.CreateDefaultChallenge()
 		newGameResponse, err := ts.client.NewGame(ctx, connect.NewRequest(&model.NewGameRequest{
-			Mode:    want,
-			Variant: nil,
+			Mode: want,
+			Variant: &model.NewGameRequest_Id{
+				Id: challenge.Msg.Id,
+			},
 		}))
 		if err != nil {
 			t.Fatalf("New game failed failed %v", strErr(err))
@@ -395,14 +398,14 @@ func TestApi_Challenges(t *testing.T) {
 			testza.AssertEqual(t, 2, len(r.Msg.Challenges), "Expecting api to return the newly created challenges")
 			for i := 0; i < len(payloads); i++ {
 				// t.Logf("Payload %d:\n%s", i, pretty(&payloads[i]))
-				testza.AssertEqual(t, payloads[i].ChallengeNumber, payloads[i].ChallengeNumber, fmt.Sprintf("Expected the %d challenge to match on ChallengeNumber", i))
-				testza.AssertEqual(t, payloads[i].Name, payloads[i].Name, fmt.Sprintf("Expected the %d challenge to match on Name", i))
-				testza.AssertEqual(t, payloads[i].Description, payloads[i].Description, fmt.Sprintf("Expected the %d challenge to match on Description", i))
-				testza.AssertEqual(t, payloads[i].Cells, payloads[i].Cells, fmt.Sprintf("Expected the %d challenge to match on Cells", i))
-				testza.AssertEqual(t, payloads[i].Rows, payloads[i].Rows, fmt.Sprintf("Expected the %d challenge to match on Rows", i))
-				testza.AssertEqual(t, payloads[i].Columns, payloads[i].Columns, fmt.Sprintf("Expected the %d challenge to match on Columns", i))
-				testza.AssertEqual(t, payloads[i].TargetCellValue, payloads[i].TargetCellValue, fmt.Sprintf("Expected the %d challenge to match on TargetCellValue", i))
-				testza.AssertEqual(t, payloads[i].IdealMoves, payloads[i].IdealMoves, fmt.Sprintf("Expected the %d challenge to match on IdealMoves", i))
+				testza.AssertEqual(t, payloads[i].ChallengeNumber, r.Msg.Challenges[i].ChallengeNumber, fmt.Sprintf("Expected the %d challenge to match on ChallengeNumber", i))
+				testza.AssertEqual(t, payloads[i].Name, r.Msg.Challenges[i].Name, fmt.Sprintf("Expected the %d challenge to match on Name", i))
+				testza.AssertEqual(t, payloads[i].Description, r.Msg.Challenges[i].Description, fmt.Sprintf("Expected the %d challenge to match on Description", i))
+				testza.AssertEqual(t, payloads[i].Cells, r.Msg.Challenges[i].Cells, fmt.Sprintf("Expected the %d challenge to match on Cells", i))
+				testza.AssertEqual(t, payloads[i].Rows, r.Msg.Challenges[i].Rows, fmt.Sprintf("Expected the %d challenge to match on Rows", i))
+				testza.AssertEqual(t, payloads[i].Columns, r.Msg.Challenges[i].Columns, fmt.Sprintf("Expected the %d challenge to match on Columns", i))
+				testza.AssertEqual(t, payloads[i].TargetCellValue, r.Msg.Challenges[i].TargetCellValue, fmt.Sprintf("Expected the %d challenge to match on TargetCellValue", i))
+				testza.AssertEqual(t, payloads[i].IdealMoves, r.Msg.Challenges[i].IdealMoves, fmt.Sprintf("Expected the %d challenge to match on IdealMoves", i))
 			}
 		}
 		ts.LogMark("Check for invalid payload")
@@ -451,15 +454,35 @@ func TestApi_Challenges(t *testing.T) {
 					2, 5, 5,
 				)),
 			},
+			{
+				IdealMoves: 8,
+				Columns:    3,
+				Rows:       3,
+				Name:       "Target Cell Value must be set",
+				Cells: toModalCells(cellCreator(
+					3, 1, 3,
+					6, 6, 6,
+					9, 6, 3,
+				)),
+			},
+			{
+				TargetCellValue: 8,
+				Columns:         3,
+				Rows:            3,
+				Name:            "Ideal moves must be set",
+				Cells: toModalCells(cellCreator(
+					3, 1, 3,
+					6, 6, 6,
+					9, 6, 3,
+				)),
+			},
 		}
 		for i := 0; i < len(invalidPayloads); i++ {
 
 			{
 				// This should fail, as we cannot restart a game that has no moves
 				_, err := ts.client.CreateGameChallenge(ctx, connect.NewRequest(&invalidPayloads[i]))
-				if err == nil {
-					t.Errorf("Request %d should have failed but did not for payload with name '%s'", i, invalidPayloads[i].Name)
-				}
+				testza.AssertNotNil(t, err, "Request %d should have failed but did not for payload with name '%s'", i, invalidPayloads[i].Name)
 			}
 		}
 		// ------------------------------------------------------------
@@ -478,7 +501,7 @@ func TestApi_Challenges(t *testing.T) {
 					}
 					t.Logf("Extra template %d:  Name='%s'", i, template.Name)
 				}
-				testza.AssertEqual(t, len(dump.Templates), 2, "Expected the db-dump of templates to to return 2 items")
+				testza.AssertEqual(t, len(dump.Templates), 2, "Expected the database to not have any of the invalid templates")
 
 			}
 		}

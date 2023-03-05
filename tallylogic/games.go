@@ -1,6 +1,10 @@
 package tallylogic
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
+)
 
 // These are a collection of constructed gamepositions that are intended to
 // give a challenge
@@ -201,6 +205,10 @@ func (t *GameTemplate) SetStartingLayout(brickValue ...int64) *GameTemplate {
 }
 func (t *GameTemplate) SetStartingLayoutUints(brickValue ...uint64) *GameTemplate {
 	t.Board.cells = cellCreatorUints(brickValue...)
+	return t
+}
+func (t *GameTemplate) SetStartingCells(cells []cell.Cell) *GameTemplate {
+	t.Board.cells = cells
 	return t
 }
 func (t *GameTemplate) Create() GameTemplate {

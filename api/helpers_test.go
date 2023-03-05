@@ -159,7 +159,7 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 	ts.t.Logf("response %#v", res.Msg)
 	if !res.Msg.DidChange {
 		game := ts.Game()
-		ts.t.Fatalf("%s board should have changed during swipe '%s', but did not. Perhaps you meant a differen swipe-direction? %v", logError, direction, game.Print())
+		ts.t.Fatalf("%s board should have changed during swipe '%s', but did not. Perhaps you meant a different swipe-direction? %v", logError, direction, game.Print())
 	}
 	ts.t.Logf("%s Board Swiped %s", logSuccess, direction)
 	return res
@@ -240,6 +240,49 @@ func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[mo
 	testza.AssertEqual(ts.t, mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
 	return newGameResponse
 }
+func (ts *testApi) NewGameChallenge(id string) (response *connect.Response[model.NewGameResponse]) {
+	ts.t.Helper()
+	newGameResponse, err := ts.client.NewGame(ts.context, connect.NewRequest(&model.NewGameRequest{
+		Mode: tallyv1.GameMode_GAME_MODE_RANDOM_CHALLENGE,
+		Variant: &tallyv1.NewGameRequest_Id{
+			Id: id,
+		},
+	}))
+	if err != nil {
+		ts.t.Fatalf("new game-challenge failed for id %s: %v", id, err)
+	}
+	return newGameResponse
+}
+
+func (ts *testApi) CreateDefaultChallenge() (response *connect.Response[model.CreateGameChallengeResponse]) {
+	ts.t.Helper()
+
+	payload := &tallyv1.CreateGameChallengeRequest{
+		ChallengeNumber: 100,
+		IdealMoves:      5,
+		TargetCellValue: 79,
+		Columns:         3,
+		Rows:            3,
+		Name:            "Simple challenge",
+		Cells: toModalCells(cellCreator(
+			0, 0, 4,
+			0, 0, 10,
+			4, 5, 20,
+		)),
+	}
+	return ts.CreateGameChallenge(payload)
+}
+func (ts *testApi) CreateGameChallenge(payload *tallyv1.CreateGameChallengeRequest) (response *connect.Response[model.CreateGameChallengeResponse]) {
+	ts.t.Helper()
+
+	// ------------------------------------------------------------
+	ts.LogMark("Creating an initial challenge for testing")
+	// ------------------------------------------------------------
+	res, err := ts.client.CreateGameChallenge(ts.context, connect.NewRequest(payload))
+	testza.AssertNil(ts.t, err, "Expected no errors from CreateGameChallenge")
+	return res
+}
+
 func (ts *testApi) RestartGame() (response *connect.Response[model.RestartGameResponse]) {
 	ts.t.Helper()
 	res, err := ts.client.RestartGame(ts.context, connect.NewRequest(&model.RestartGameRequest{}))

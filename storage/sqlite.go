@@ -252,6 +252,8 @@ func (p *sqliteStorage) CreateGameTemplate(ctx context.Context, payload types.Cr
 		CreatedBy:   payload.CreatedByID,
 		Name:        payload.Name,
 		Description: sqlString(payload.Description),
+		IdealMoves:  toNullInt64(uint64(payload.IdealMoves)),
+		IdealScore:  toNullInt64(uint64(payload.IdealScore)),
 		Data:        data,
 	}
 	if payload.ChallengeNumber != nil {

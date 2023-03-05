@@ -241,8 +241,8 @@
 							newGame({
 								mode: GameMode.RANDOM_CHALLENGE,
 								variant: {
-									case: 'id',
-									id: c.id
+									value: c.id,
+									case: 'id'
 								}
 							})
 							close()
