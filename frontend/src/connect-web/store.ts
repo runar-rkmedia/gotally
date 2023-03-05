@@ -229,6 +229,7 @@ class ApiStore implements ApiType {
 	}
 	newGame: ApiType['newGame'] = async (options) => {
 		const [result, err] = await go(client.newGame(options))
+		console.log('newing up game', { options, result, err })
 		if (err) {
 			handleError('newGame', err)
 			return [null, null, err]

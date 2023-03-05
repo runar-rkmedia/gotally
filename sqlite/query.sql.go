@@ -501,8 +501,8 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 
 const inserTemplate = `-- name: InserTemplate :one
 INSERT INTO game_template
-(id, created_at, rule_id, created_by, name, description, challenge_number, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, rule_id, created_by, name, description, challenge_number, ideal_moves, ideal_score, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, created_at, updated_at, rule_id, created_by, updated_by, name, description, challenge_number, ideal_moves, ideal_score, data
 `
 
@@ -514,6 +514,8 @@ type InserTemplateParams struct {
 	Name            string
 	Description     sql.NullString
 	ChallengeNumber sql.NullInt64
+	IdealMoves      sql.NullInt64
+	IdealScore      sql.NullInt64
 	Data            []byte
 }
 
@@ -526,6 +528,8 @@ func (q *Queries) InserTemplate(ctx context.Context, arg InserTemplateParams) (G
 		arg.Name,
 		arg.Description,
 		arg.ChallengeNumber,
+		arg.IdealMoves,
+		arg.IdealScore,
 		arg.Data,
 	)
 	var i GameTemplate

@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 
 	"github.com/bufbuild/connect-go"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
-	"github.com/runar-rkmedia/gotally/generated"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
@@ -38,12 +36,44 @@ func (s *TallyServer) NewGame(
 		mode = logic.GameModeRandom
 	case model.GameMode_GAME_MODE_RANDOM_CHALLENGE:
 		mode = logic.GameModeRandomChallenge
-		if len(generated.GeneratedTemplates) == 0 {
-			s.l.Error().Msg("No challanges are available at this time. Please ensure that GeneratedTemplates has been initialized.")
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("No challanges are available at this time"))
+		if variant, ok := req.Msg.Variant.(*model.NewGameRequest_Id); ok {
+			id := variant.Id
+			if id == "" {
+				return nil, fmt.Errorf("ID is required for Variatn with id %s", id)
+			}
+			// TODO: Get by id
+			challenges, err := s.storage.GetGameChallenges(ctx)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to retrieve game-challenges %w", err))
+			}
+			fmt.Println("\n\n hello", id, len(challenges))
+			var challenge types.GameTemplate
+			for _, c := range challenges {
+				if c.ID == id {
+					challenge = c
+				}
+				break
+			}
+			if challenge.ID != id {
+				return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("challenge not found: '%s'", id))
+
+			}
+			// TODO: this is tedious, fix it
+			template, err = challengeToTemplate(challenge)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge: %w", err))
+			}
+			fmt.Println("yaya", challenge.ID, challenge.Rules.ID, challenge.TargetCellValue, challenge.Cells, template.Board.PrintBoard(nil))
+		} else {
+
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("could not resolve challenge"))
 		}
-		index := rand.Intn(len(generated.GeneratedTemplates))
-		template = &generated.GeneratedTemplates[index]
+		// if len(generated.GeneratedTemplates) == 0 {
+		// 	s.l.Error().Msg("No challanges are available at this time. Please ensure that GeneratedTemplates has been initialized.")
+		// 	return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("No challanges are available at this time"))
+		// }
+		// index := rand.Intn(len(generated.GeneratedTemplates))
+		// template = &generated.GeneratedTemplates[index]
 	case model.GameMode_GAME_MODE_TUTORIAL:
 		mode = logic.GameModeTutorial
 		if _i, ok := req.Msg.Variant.(*model.NewGameRequest_LevelIndex); ok {
@@ -62,6 +92,14 @@ func (s *TallyServer) NewGame(
 		s.l.Error().Str("req.Msg.Mode", req.Msg.Mode.String()).Msg("Unhandled game-mode")
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create game, unhandled mode"))
 
+	}
+	// Some extra validation
+	switch req.Msg.Mode {
+	case model.GameMode_GAME_MODE_RANDOM_CHALLENGE:
+		if template.Rules.TargetCellValue == 0 {
+			fmt.Println("\n\nboom", template.Name, template.ID, template.Rules.TargetCellValue, template.Rules.ID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("There was an error mapping the challenge, expected TargetCellValue to be set, but it was not"))
+		}
 	}
 
 	game, err := logic.NewGame(mode, template)
@@ -104,4 +142,37 @@ func (s *TallyServer) NewGame(
 	}
 	res := connect.NewResponse(response)
 	return res, nil
+}
+
+func challengeToTemplate(challenge types.GameTemplate) (*logic.GameTemplate, error) {
+
+	template := logic.NewGameTemplate(logic.GameModeRandomChallenge, challenge.ID, challenge.Name, challenge.Description, int(challenge.Rows), int(challenge.Columns))
+	r := challenge.Rules
+	template.Rules = logic.GameRules{
+		ID:              r.ID,
+		GameMode:        logic.GameModeRandomChallenge,
+		SizeX:           int(r.Columns),
+		SizeY:           int(r.Rows),
+		TargetCellValue: r.TargetCellValue,
+		MaxMoves:        r.MaxMoves,
+		TargetScore:     r.TargetScore,
+		RecreateOnSwipe: r.RecreateOnSwipe,
+		// WithSuperPowers: r.WithSuperPowers,
+		// StartingBricks:  r.StartingBricks,
+		NoReswipe: r.NoReSwipe,
+		Options: logic.NewGameOptions{
+			TableBoardOptions: logic.TableBoardOptions{
+				EvaluateOptions: logic.EvaluateOptions{
+					NoMultiply: false,
+					NoAddition: false,
+				},
+				Cells: challenge.Cells,
+			},
+			Seed:  0,
+			State: 0,
+		},
+	}
+	template = template.SetGoalCheckerLargestValue(r.TargetCellValue)
+	template.SetStartingCells(challenge.Cells)
+	return template, nil
 }

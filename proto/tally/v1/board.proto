@@ -228,24 +228,26 @@ message GameChallenge {
   string id = 1;
   uint32 challenge_number = 2;
   uint32 ideal_moves = 3;
-  uint64 target_cell_value = 4;
-  uint32 columns = 5;
-  uint32 rows = 6;
-  string name = 7;
-  string description = 8;
-  repeated Cell cells = 9;
+  uint64 ideal_score = 4;
+  uint64 target_cell_value = 5;
+  uint32 columns = 6;
+  uint32 rows = 7;
+  string name = 8;
+  string description = 9;
+  repeated Cell cells = 10;
 }
 
 
 message CreateGameChallengeRequest {
   uint32 challenge_number = 1;
   uint32 ideal_moves = 2;
-  uint64 target_cell_value = 3;
-  uint32 columns = 4;
-  uint32 rows = 5;
-  string name = 6;
-  string description = 7;
-  repeated Cell cells = 8;
+  uint32 ideal_score = 3;
+  uint64 target_cell_value = 4;
+  uint32 columns = 5;
+  uint32 rows = 6;
+  string name = 7;
+  string description = 8;
+  repeated Cell cells = 9;
 }
 message CreateGameChallengeResponse {
   string id = 1;

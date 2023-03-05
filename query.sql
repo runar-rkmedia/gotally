@@ -20,8 +20,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InserTemplate :one
 INSERT INTO game_template
-(id, created_at, rule_id, created_by, name, description, challenge_number, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, rule_id, created_by, name, description, challenge_number, ideal_moves, ideal_score, data)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: InsertGameHistory :one
