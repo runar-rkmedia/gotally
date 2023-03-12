@@ -441,27 +441,6 @@
 	$: boardCellSize = Math.min(boardCellWidth, boardCellHeight)
 </script>
 
-<!-- content here -->
-<div class="errors">
-	{#each $httpErrorStore?.errors || [] as err}
-		<div
-			class="error"
-			on:click={() =>
-				httpErrorStore.update((e) => ({
-					...e,
-					errors: e.errors.filter((error) => error.time !== err.time && error.url !== err.url)
-				}))}
-		>
-			<!-- content here -->
-			<p>Sorry, an error occured:</p>
-			<p>
-				{err.error.message}
-			</p>
-
-			<p>Sorry for the inconvinience</p>
-		</div>
-	{/each}
-</div>
 {#if $store?.session?.game?.board}
 	<Dialog bind:open={$store.didWin} let:open>
 		<GameWon {open} />
@@ -713,11 +692,6 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		max-height: 100%;
 		display: flex;
 		flex-direction: column;
-	}
-	.errors {
-		position: fixed;
-		z-index: 1;
-		background: var(--color-red);
 	}
 
 	.boardContainer {
