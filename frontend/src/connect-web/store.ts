@@ -2,14 +2,10 @@ import type { ConnectError, CallOptions } from '@bufbuild/connect-web'
 import type Buf from '@bufbuild/protobuf'
 import { writable } from 'svelte/store'
 import { client, go, handleError, type GoPromise } from './client'
-import type {
-	CreateGameChallengesResponse,
-	Instruction,
-	SwipeDirection
-} from './proto/tally/v1/board_pb'
+import type { Instruction, SwipeDirection } from './proto/tally/v1/board_pb'
 import type Api from './proto/tally/v1/board_pb'
 import { objectKeys } from 'simplytyped'
-import type { PartialMessage } from '@bufbuild/protobuf'
+import type { Message, PartialMessage } from '@bufbuild/protobuf'
 // import type { Board } from './proto/tally/v1/board_pb'
 
 interface Store {
@@ -102,34 +98,42 @@ export const store = writable<Store>({
 	session: null as any,
 	usersVotes: {}
 })
-
+/** It is a bit annoying that the types include some extra methods, that I do not need
+ * This strips these away
+ * */
+type OnlyMessage<T extends Message> = Omit<
+	Replaced<PartialMessage<T>, bigint, number>,
+	keyof Message
+>
 export interface ApiType {
 	swipe: (
 		direction: SwipeDirection
 	) => CommitableGoResult<{ board: Board; moves: number; didChange: boolean }>
 	generateGame: (
-		payload: Replaced<PartialMessage<Api.GenerateGameRequest>, bigint, number>
+		payload: Replaced<OnlyMessage<Api.GenerateGameRequest>, bigint, number>
 	) => CommitableGoResult<GeneratedGame>
 	createTemplate: (
-		payload: Replaced<PartialMessage<Api.CreateGameChallengeRequest>, bigint, number>
+		payload: Omit<OnlyMessage<Api.CreateGameChallengeRequest>, 'cells'> & {
+			cells: OnlyMessage<Api.CreateGameChallengeRequest['cells'][0]>[]
+		}
 	) => CommitableGoResult<{ id: string; challengeNumber: number }>
 	getChallenges: (
-		payload: Replaced<PartialMessage<Api.GetGameChallengesRequest>, bigint, number>
+		payload: Replaced<OnlyMessage<Api.GetGameChallengesRequest>, bigint, number>
 	) => CommitableGoResult<Challenge[]>
-	vote: (options: PartialMessage<Api.VoteBoardRequest>) => CommitableGoResult<Vote>
+	vote: (options: OnlyMessage<Api.VoteBoardRequest>) => CommitableGoResult<Vote>
 	getSession: () => CommitableGoResult<Session>
 	combineCells: (
 		selection: number[]
 	) => CommitableGoResult<{ didWin: boolean; board: Board; moves: number; score: number }>
 	restartGame: () => CommitableGoResult<{ board: Board; moves: number; score: number }>
 	newGame: (
-		options: PartialMessage<Api.NewGameRequest>
+		options: OnlyMessage<Api.NewGameRequest>
 	) => CommitableGoResult<{ board: Board; moves: number; score: number }>
 	newGameFromTemplate: (
-		options: PartialMessage<Api.NewGameFromTemplateRequest>
+		options: OnlyMessage<Api.NewGameFromTemplateRequest>
 	) => CommitableGoResult<{ board: Board; moves: number; score: number }>
 	getHint: (
-		options?: PartialMessage<Api.GetHintRequest>
+		options?: OnlyMessage<Api.GetHintRequest>
 	) => CommitableGoResult<{ instructions: Api.Instruction[] }>
 	/** utility-function used along with CommitableGoResult-promises to auto-commit when the caller wishes to commit the result when it is ready */
 	commit: <T = any>(
@@ -264,19 +268,21 @@ class ApiStore implements ApiType {
 			description: result.description
 		}
 		const commit = async () => {
-			store.update((s) => ({
-				...s,
-				didWin: false,
-				hints: [],
-				hintDoneIndex: -1,
-				session: {
-					...s.session,
-					game: {
-						...s.session.game,
-						...res
+			store.update((s) => {
+				return {
+					...s,
+					didWin: false,
+					hints: [],
+					hintDoneIndex: -1,
+					session: {
+						...s.session,
+						game: {
+							...s.session?.game,
+							...res
+						}
 					}
 				}
-			}))
+			})
 		}
 		return [res, commit, null]
 	}

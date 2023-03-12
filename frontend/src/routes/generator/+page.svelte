@@ -3,10 +3,12 @@
 	import { storeHandler } from '../../connect-web/store'
 	import BoardPreview from '../../components/BoardPreview.svelte'
 	import type { ConnectError } from '@bufbuild/connect-web'
-	import { GeneratorAlgorithm, NewGameFromTemplateRequest } from '../../connect-web'
+	import { GeneratorAlgorithm } from '../../connect-web'
 	import { browser } from '$app/environment'
 	import { onDestroy, onMount } from 'svelte'
 	import { cellValue } from '../../components/board/cell'
+	import { coordToIndex, indexToCoord } from '../../logic'
+	import { Square } from 'lucide-svelte'
 
 	let result: Awaited<ReturnType<typeof storeHandler.generateGame>>[0]
 	let resErr: ConnectError | Error | null
@@ -18,7 +20,7 @@
 		generator = 1,
 		preview
 	}
-	let tab = tabs.generator
+	let tab = tabs.preview
 	const gen: Parameters<typeof storeHandler.generateGame>[0] = {
 		rows: 3,
 		columns: 3,
@@ -30,14 +32,18 @@
 		randomCellChance: 0,
 		algorithm: GeneratorAlgorithm.RANDOMIZED
 	}
+	const setCells = (rows: number, columns: number) =>
+		new Array(rows * columns).fill(null).map((_, i) => ({ base: i, twopow: 0 }))
 	const setAsTemplate: Parameters<typeof storeHandler.createTemplate>[0] = {
 		name: 'New Challenge',
 		description: '',
-		targetCellValue: 0,
+		targetCellValue: 64,
 		idealMoves: 0,
-		cells: undefined,
-		rows: 0,
-		columns: 0
+		cells: setCells(3, 3),
+		rows: 3,
+		columns: 3,
+		idealScore: 0,
+		challengeNumber: undefined
 	}
 	onMount(() => {
 		if (!browser) {
@@ -87,10 +93,10 @@
 			setAsTemplate.columns < 3 ||
 			(setAsTemplate.columns > 9 && 'Columns must be between 3 and 9'),
 		targetCellValue:
-			!setAsTemplate.targetCellValue ||
-			setAsTemplate.targetCellValue < 3 ||
-			(setAsTemplate.targetCellValue > 100_000_000 &&
-				'TargetCellValue must be between 3 and 100 million')
+			(!setAsTemplate.targetCellValue ||
+				setAsTemplate.targetCellValue < 3 ||
+				setAsTemplate.targetCellValue > 100_000_000) &&
+			'TargetCellValue must be between 3 and 100 million'
 	} as Partial<Record<keyof typeof setAsTemplate, boolean | string>>
 	$: hasError = Object.values(error).some(Boolean)
 
@@ -137,7 +143,7 @@
 		if (!setAsTemplate.rows) {
 			return
 		}
-		return storeHandler.commit(
+		const r = await storeHandler.commit(
 			storeHandler.newGameFromTemplate({
 				rows: setAsTemplate.rows,
 				columns: setAsTemplate.columns,
@@ -145,15 +151,67 @@
 				idealMoves: 0,
 				idealScore: 0,
 
-				targetCellValue: BigInt(setAsTemplate.targetCellValue || 0),
+				targetCellValue: setAsTemplate.targetCellValue,
 				name: setAsTemplate.name,
 				description: setAsTemplate.description,
 				cells: setAsTemplate.cells?.map((c) => ({
-					base: BigInt(c.base || 0),
-					twopow: BigInt(c.twopow || 0)
+					base: c.base,
+					twopow: c.twopow
 				}))
 			})
 		)
+		if (r.error) {
+			return
+		}
+		window.open('/', '_game_tab')
+	}
+	let previousColumns = 0
+	$: {
+		// When the board-size changes, we want to perform a resize
+		// Coming from React, I am amazed that this is possible
+		if (setAsTemplate.columns && setAsTemplate.rows && setAsTemplate.cells) {
+			setAsTemplate.cells = resizeCells(
+				previousColumns,
+				setAsTemplate.columns,
+				setAsTemplate.rows,
+				setAsTemplate.cells.map((c) => ({ base: c.base || 0, twopow: c.twopow || 0 }))
+			)
+		}
+		previousColumns = setAsTemplate.columns || 0
+	}
+	const resizeCells = (
+		prevColumns: number,
+		columns: number,
+		rows: number,
+		cells: { base: number; twopow: number }[]
+	) => {
+		const wantedCount = columns * rows
+		const currentCount = cells.length
+
+		if (wantedCount === currentCount) {
+			return cells
+		}
+		const coordMap: Record<number, number | null> = {}
+		for (let i = 0; i < currentCount; i++) {
+			i
+			const [x, y] = indexToCoord(i, prevColumns)
+			const newIndex = coordToIndex(x, y, columns, rows)
+			if (!newIndex) {
+				continue
+			}
+			coordMap[newIndex] = i
+		}
+		return new Array(wantedCount).fill(null).map((_, i) => {
+			const oldIndex = coordMap[i]
+			if (oldIndex === null || oldIndex === undefined) {
+				return { base: 0, twopow: 0 }
+			}
+			const cell = cells[oldIndex]
+			if (cell) {
+				return cell
+			}
+			return { base: 0, twopow: 0 }
+		})
 	}
 </script>
 
@@ -163,10 +221,8 @@
 	<button class:active={tab === tabs.generator} on:click={() => (tab = tabs.generator)}
 		>1. Generator</button
 	>
-	<button
-		class:active={tab === tabs.preview}
-		disabled={!result}
-		on:click={() => (tab = tabs.preview)}>2. Preview</button
+	<button class:active={tab === tabs.preview} on:click={() => (tab = tabs.preview)}
+		>2. Preview</button
 	>
 </div>
 
@@ -188,10 +244,10 @@
 		</Field>
 		<div class="set">
 			<Field error={error.rows} label="Rows">
-				<input min="3" max="80" type="number" bind:value={gen.rows} />
+				<input min="3" max="9" type="number" bind:value={gen.rows} />
 			</Field>
 			<Field error={error.columns} label="Column">
-				<input min="3" max="80" type="number" bind:value={gen.columns} />
+				<input min="3" max="9" type="number" bind:value={gen.columns} />
 			</Field>
 		</div>
 		<Field error={error.targetCellValue} label="Target Cell Value">
@@ -226,7 +282,7 @@
 		{/if}
 	</form>
 {/if}
-{#if result && tab === tabs.preview}
+{#if tab === tabs.preview}
 	<form on:submit|preventDefault={onSetAsTemplate}>
 		<Field error={setAsTemplateError.name} label="Name">
 			<input type="string" minlength="3" bind:value={setAsTemplate.name} />
@@ -234,12 +290,26 @@
 		<Field error={setAsTemplateError.description} label="description">
 			<input type="string" bind:value={setAsTemplate.description} />
 		</Field>
+		<div class="set">
+			<Field error={setAsTemplateError.rows} label="Rows">
+				<input min="3" max="9" type="number" bind:value={setAsTemplate.rows} />
+			</Field>
+			<Field error={setAsTemplateError.columns} label="Columns">
+				<input min="3" max="9" type="number" bind:value={setAsTemplate.columns} />
+			</Field>
+		</div>
 		<Field error={setAsTemplateError.challengeNumber} label="Challenge number">
 			<input min="0" max="100000000" type="number" bind:value={setAsTemplate.challengeNumber} />
 		</Field>
+		<Field error={setAsTemplateError.targetCellValue} label="targetCellValue">
+			<input type="string" bind:value={setAsTemplate.targetCellValue} />
+		</Field>
 
 		<button type="submit">Set as template</button>
-		<button on:click|preventDefault={newGameFromTemplate}>Play</button>
+		<button
+			on:click|preventDefault={newGameFromTemplate}
+			disabled={Object.values(setAsTemplateError).some(Boolean)}>Play (in tab)</button
+		>
 	</form>
 {/if}
 
@@ -250,13 +320,13 @@
 		<pre>{JSON.stringify({ error }, null, 2)}</pre>
 	</details>
 </div>
-{#if result && tab === tabs.preview}
+{#if tab === tabs.preview && setAsTemplate.cells && setAsTemplate.rows && setAsTemplate.columns}
 	<div class="games">
 		<div class="game">
 			<BoardPreview
 				on:cellclick={(e) => {
 					console.log('cellclick', e.detail)
-					if (!result) {
+					if (!setAsTemplate.cells.length) {
 						return
 					}
 					const n = Number(prompt('Change this cell', String(cellValue(e.detail.cell))))
@@ -265,24 +335,16 @@
 						alert('must be a number')
 						return
 					}
-					result.game.board.cells[e.detail.i] = { base: n, twopow: 0 }
+					setAsTemplate.cells[e.detail.i] = { base: n, twopow: 0 }
 				}}
-				cells={result.game.board.cells}
-				rows={result.game.board.rows}
-				columns={result.game.board.columns}
+				cells={setAsTemplate.cells.map((c) => ({ base: c.base || 0, twopow: c.twopow || 0 })) || []}
+				rows={setAsTemplate.rows}
+				columns={setAsTemplate.columns}
 			/>
+			<p>Cells: {setAsTemplate.cells.length}</p>
+			<p>Columns: {setAsTemplate.columns}</p>
+			<p>Rows: {setAsTemplate.rows}</p>
 		</div>
-		{#if result.solutions?.length}
-			{#each result.solutions as s}
-				{#if s.board}
-					<!-- content here -->
-					<div class="game">
-						<BoardPreview cells={s.board.cells} rows={s.board.rows} columns={s.board.columns} />
-						Score: {s.score} -- Moves: {s.moves}
-					</div>
-				{/if}
-			{/each}
-		{/if}
 	</div>
 {/if}
 
