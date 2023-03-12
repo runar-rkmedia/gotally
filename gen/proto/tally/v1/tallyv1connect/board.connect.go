@@ -28,6 +28,7 @@ const (
 // BoardServiceClient is a client for the tally.v1.BoardService service.
 type BoardServiceClient interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
+	NewGameFromTemplate(context.Context, *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameResponse], error)
 	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
 	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
@@ -52,6 +53,11 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 		newGame: connect_go.NewClient[v1.NewGameRequest, v1.NewGameResponse](
 			httpClient,
 			baseURL+"/tally.v1.BoardService/NewGame",
+			opts...,
+		),
+		newGameFromTemplate: connect_go.NewClient[v1.NewGameFromTemplateRequest, v1.NewGameResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/NewGameFromTemplate",
 			opts...,
 		),
 		getHint: connect_go.NewClient[v1.GetHintRequest, v1.GetHintResponse](
@@ -105,6 +111,7 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 // boardServiceClient implements BoardServiceClient.
 type boardServiceClient struct {
 	newGame             *connect_go.Client[v1.NewGameRequest, v1.NewGameResponse]
+	newGameFromTemplate *connect_go.Client[v1.NewGameFromTemplateRequest, v1.NewGameResponse]
 	getHint             *connect_go.Client[v1.GetHintRequest, v1.GetHintResponse]
 	restartGame         *connect_go.Client[v1.RestartGameRequest, v1.RestartGameResponse]
 	getSession          *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
@@ -119,6 +126,11 @@ type boardServiceClient struct {
 // NewGame calls tally.v1.BoardService.NewGame.
 func (c *boardServiceClient) NewGame(ctx context.Context, req *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error) {
 	return c.newGame.CallUnary(ctx, req)
+}
+
+// NewGameFromTemplate calls tally.v1.BoardService.NewGameFromTemplate.
+func (c *boardServiceClient) NewGameFromTemplate(ctx context.Context, req *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameResponse], error) {
+	return c.newGameFromTemplate.CallUnary(ctx, req)
 }
 
 // GetHint calls tally.v1.BoardService.GetHint.
@@ -169,6 +181,7 @@ func (c *boardServiceClient) CreateGameChallenge(ctx context.Context, req *conne
 // BoardServiceHandler is an implementation of the tally.v1.BoardService service.
 type BoardServiceHandler interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
+	NewGameFromTemplate(context.Context, *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameResponse], error)
 	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
 	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
@@ -190,6 +203,11 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 	mux.Handle("/tally.v1.BoardService/NewGame", connect_go.NewUnaryHandler(
 		"/tally.v1.BoardService/NewGame",
 		svc.NewGame,
+		opts...,
+	))
+	mux.Handle("/tally.v1.BoardService/NewGameFromTemplate", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/NewGameFromTemplate",
+		svc.NewGameFromTemplate,
 		opts...,
 	))
 	mux.Handle("/tally.v1.BoardService/GetHint", connect_go.NewUnaryHandler(
@@ -245,6 +263,10 @@ type UnimplementedBoardServiceHandler struct{}
 
 func (UnimplementedBoardServiceHandler) NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.NewGame is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) NewGameFromTemplate(context.Context, *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.NewGameFromTemplate is not implemented"))
 }
 
 func (UnimplementedBoardServiceHandler) GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error) {

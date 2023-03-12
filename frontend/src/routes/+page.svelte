@@ -4,13 +4,7 @@
 	import { GameMode, GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/environment'
-	import {
-		animateSwipe,
-		coordToIndex,
-		createSelectionDirectionMap,
-		ValidatePath,
-		type pathDirection
-	} from '../logic'
+	import { animateSwipe, coordToIndex, createSelectionDirectionMap, ValidatePath } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
@@ -447,8 +441,9 @@
 	$: boardCellSize = Math.min(boardCellWidth, boardCellHeight)
 </script>
 
+<!-- content here -->
 <div class="errors">
-	{#each $httpErrorStore?.errors as err}
+	{#each $httpErrorStore?.errors || [] as err}
 		<div
 			class="error"
 			on:click={() =>
@@ -491,6 +486,7 @@
 					</div>
 				</div>
 			</div>
+			<p>Hi, {$store.session.username} ({$store.session.sessionId})</p>
 			<button
 				class="icon-only"
 				data-testid="menu"
@@ -611,6 +607,27 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 						cell={c}
 						on:mouseup={(e) => {
 							e.preventDefault()
+							if (e.ctrlKey) {
+								resetSelection()
+
+								const val = cellValue(c)
+								const res = prompt('Change this value', String(val))
+								console.log('cccc', res, typeof res)
+								if (res === null) {
+									return
+								}
+								const n = Number(res)
+								if (isNaN(n)) {
+									alert('Must be a number')
+									return
+								}
+								if (val === n) {
+									return
+								}
+								$store.session.game.board.cells[i] = { base: n, twopow: 0 }
+
+								return
+							}
 							if (!didDrag) {
 								return
 							}

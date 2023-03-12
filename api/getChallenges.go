@@ -109,7 +109,6 @@ func (s *TallyServer) GetGameChallenges(
 	response.Challenges = make([]*model.GameChallenge, len(c))
 
 	for i := 0; i < len(c); i++ {
-		fmt.Printf("chal %d %#v %#v\n", i, c[i].Cells, c[i].Rules)
 		response.Challenges[i] = &model.GameChallenge{
 			Id:              c[i].ID,
 			ChallengeNumber: intPointerUint32(c[i].ChallengeNumber),
@@ -132,4 +131,11 @@ func intPointerUint32(i *int) uint32 {
 		return 0
 	}
 	return uint32(*i)
+}
+func uint32TointPointer(i uint32) *int {
+	if i == 0 {
+		return nil
+	}
+	n := int(i)
+	return &n
 }

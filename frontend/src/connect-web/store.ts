@@ -1,7 +1,7 @@
 import type { ConnectError, CallOptions } from '@bufbuild/connect-web'
 import type Buf from '@bufbuild/protobuf'
 import { writable } from 'svelte/store'
-import { client, go, handleError } from './client'
+import { client, go, handleError, type GoPromise } from './client'
 import type {
 	CreateGameChallengesResponse,
 	Instruction,
@@ -125,6 +125,9 @@ export interface ApiType {
 	newGame: (
 		options: PartialMessage<Api.NewGameRequest>
 	) => CommitableGoResult<{ board: Board; moves: number; score: number }>
+	newGameFromTemplate: (
+		options: PartialMessage<Api.NewGameFromTemplateRequest>
+	) => CommitableGoResult<{ board: Board; moves: number; score: number }>
 	getHint: (
 		options?: PartialMessage<Api.GetHintRequest>
 	) => CommitableGoResult<{ instructions: Api.Instruction[] }>
@@ -228,8 +231,23 @@ class ApiStore implements ApiType {
 		return [res, commit, null]
 	}
 	newGame: ApiType['newGame'] = async (options) => {
-		const [result, err] = await go(client.newGame(options))
-		console.log('newing up game', { options, result, err })
+		const s = await go(client.newGame(options))
+		return this._newGame(s, options)
+	}
+	newGameFromTemplate: ApiType['newGameFromTemplate'] = async (options) => {
+		const s = await go(client.newGameFromTemplate(options))
+		return this._newGame(s, options)
+	}
+	/** Takes in the response from the api, validates for error and retuns as needed */
+	_newGame = (
+		s: Awaited<GoPromise<Api.NewGameResponse>>,
+		options: any
+	): Awaited<
+		CommitableGoResult<{ board: Board; moves: number; score: number; description: string }>
+	> => {
+		const [result, err] = s
+
+		console.debug('Creating new game', { options, result, err })
 		if (err) {
 			handleError('newGame', err)
 			return [null, null, err]

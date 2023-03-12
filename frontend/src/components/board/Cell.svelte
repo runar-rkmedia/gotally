@@ -122,7 +122,7 @@
 	.cell:empty,
 	.cell.blank {
 		opacity: 0;
-		visibility: hidden;
+		// visibility: hidden;
 	}
 	.cell.hinted:not(.selected) {
 		background-color: var(--color-blue-500);

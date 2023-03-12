@@ -135,9 +135,7 @@ export const handleError = (key: keyof ApiType, err: ConnectError | Error) => {
 takes in any promise never throws, but instead returns a tuple with 
 either the result in the first item, or an error in the second.
 */
-export const go = async <P = any>(
-	promise: Promise<P>
-): Promise<[P, null] | [null, ConnectError | Error]> => {
+export const go = async <P = any>(promise: Promise<P>): GoPromise<P> => {
 	try {
 		const result = await promise
 		return [result, null]
@@ -146,3 +144,5 @@ export const go = async <P = any>(
 		return [null, err as any]
 	}
 }
+
+export type GoPromise<P> = Promise<[P, null] | [null, ConnectError | Error]>

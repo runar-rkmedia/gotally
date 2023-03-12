@@ -8,7 +8,7 @@
 	let clientWidth: number
 
 	// visibility-observer
-	import { onMount } from 'svelte'
+	import { createEventDispatcher, onMount } from 'svelte'
 
 	export let top = 0
 	export let bottom = 0
@@ -17,19 +17,19 @@
 
 	export let steps = 100
 
-	let element
-	let percent
-	let observer
+	let element: HTMLDivElement
+	let percent: number
+	let observer: IntersectionObserver
 	let unobserve = () => {}
 	let intersectionObserverSupport = false
 
-	function intersectPercent(entries) {
+	const intersectPercent: IntersectionObserverCallback = (entries) => {
 		entries.forEach((entry) => {
 			percent = Math.round(Math.ceil(entry.intersectionRatio * 100))
 		})
 	}
 
-	function stepsToThreshold(steps) {
+	function stepsToThreshold(steps: number) {
 		return [...Array(steps).keys()].map((n) => n / steps)
 	}
 
@@ -53,6 +53,9 @@
 		return unobserve
 	})
 	//
+	const dispatch = createEventDispatcher<{
+		cellclick: { cell: { base: number; twopow: number }; i: number }
+	}>()
 </script>
 
 <div
@@ -66,7 +69,7 @@ height: ${clientWidth * heightRatio}px;
 grid-template-columns: repeat(${columns}, 1fr); grid-template-rows: repeat(${rows}, 1fr)`}
 >
 	{#each cells as c, i}
-		<CellComp cell={c} />
+		<CellComp on:mouseup={(e) => dispatch('cellclick', { cell: c, i })} cell={c} />
 	{/each}
 </div>
 

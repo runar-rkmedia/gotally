@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/runar-rkmedia/go-common/logger"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	logic "github.com/runar-rkmedia/gotally/tallylogic"
@@ -23,6 +25,49 @@ func devpretty(j any) string {
 	return string(b)
 }
 
+func (s *TallyServer) NewGameFromTemplate(
+	ctx context.Context,
+	req *connect.Request[model.NewGameFromTemplateRequest],
+) (*connect.Response[model.NewGameResponse], error) {
+	session := ContextGetUserState(ctx)
+
+	rule := logic.DefaultChallengeGameRules(int(req.Msg.Columns), int(req.Msg.Rows), logic.GameModeRandomChallenge)
+	challenge := types.GameTemplate{
+		ID:              s.UidGenerator(),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       nil,
+		ChallengeNumber: nil,
+		IdealMoves:      uint32TointPointer(req.Msg.IdealMoves),
+		CreatedByID:     session.UserID,
+		UpdatedBy:       "",
+		Description:     req.Msg.Description,
+		Name:            req.Msg.Name,
+		Cells:           fromModalCells(req.Msg.Cells),
+		Rules: types.Rules{
+			ID:              rule.ID,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       &time.Time{},
+			Description:     "",
+			Mode:            types.RuleModeChallenge,
+			TargetCellValue: req.Msg.TargetCellValue,
+			Rows:            uint8(req.Msg.Rows),
+			Columns:         uint8(req.Msg.Columns),
+			RecreateOnSwipe: rule.RecreateOnSwipe,
+			NoReSwipe:       rule.NoReswipe,
+			NoMultiply:      rule.Options.NoMultiply,
+			NoAddition:      rule.Options.NoAddition,
+		},
+	}
+	t, err := challengeToTemplate(challenge)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge from input: %w", err))
+	}
+
+	res, err := s.newGame(ctx, session, t.Rules.GameMode, t)
+	return res, err
+}
+
+// TODO: refactor into multiple verbs, like NewGameFromID, NewGameFromTemplate, etc.
 func (s *TallyServer) NewGame(
 	ctx context.Context,
 	req *connect.Request[model.NewGameRequest],
@@ -46,7 +91,6 @@ func (s *TallyServer) NewGame(
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to retrieve game-challenges %w", err))
 			}
-			fmt.Println("\n\n hello", id, len(challenges))
 			var challenge types.GameTemplate
 			for _, c := range challenges {
 				if c.ID == id {
@@ -63,7 +107,6 @@ func (s *TallyServer) NewGame(
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge: %w", err))
 			}
-			fmt.Println("yaya", challenge.ID, challenge.Rules.ID, challenge.TargetCellValue, challenge.Cells, template.Board.PrintBoard(nil))
 		} else {
 
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("could not resolve challenge"))
@@ -97,10 +140,33 @@ func (s *TallyServer) NewGame(
 	switch req.Msg.Mode {
 	case model.GameMode_GAME_MODE_RANDOM_CHALLENGE:
 		if template.Rules.TargetCellValue == 0 {
-			fmt.Println("\n\nboom", template.Name, template.ID, template.Rules.TargetCellValue, template.Rules.ID)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("There was an error mapping the challenge, expected TargetCellValue to be set, but it was not"))
 		}
 	}
+
+	return s.newGame(ctx, session, mode, template)
+}
+
+func (s TallyServer) logForUser(session *UserState) logger.AppLogger {
+
+	return logger.With(
+		s.l.With().
+			Str("UserID", session.UserID).
+			Logger(),
+	)
+
+}
+
+// newgame creates a new game for the user, including saving to database etc, updating session etc.
+func (s TallyServer) newGame(ctx context.Context, session *UserState, mode logic.GameMode, template *logic.GameTemplate) (*connect.Response[model.NewGameResponse], error) {
+	l := s.logForUser(session)
+	l2 := l.Info().
+		Str("mode", toTypeMode(mode))
+	if template != nil {
+		l2 = l2.
+			Str("templateName", template.Name)
+	}
+	l2.Msg("Creating new game for user")
 
 	game, err := logic.NewGame(mode, template)
 	if err != nil {
@@ -111,7 +177,7 @@ func (s *TallyServer) NewGame(
 	}
 	tg, err := s.storage.NewGameForUser(ctx, payload)
 	if err != nil {
-		s.l.Error().Err(err).Msg("failed to create new game")
+		l.Error().Err(err).Msg("failed to create new game")
 		return nil, fmt.Errorf("internal error while creating new game")
 	}
 	if template != nil {
@@ -124,7 +190,7 @@ func (s *TallyServer) NewGame(
 	game, err = tallylogic.RestoreGame(&tg)
 	if err != nil {
 
-		s.l.Error().Err(err).Msg("failed to restore game during call to newgame")
+		l.Error().Err(err).Msg("failed to restore game during call to newgame")
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("failed to restore game: %w", err))
 	}
 
@@ -146,6 +212,9 @@ func (s *TallyServer) NewGame(
 
 func challengeToTemplate(challenge types.GameTemplate) (*logic.GameTemplate, error) {
 
+	if challenge.TargetCellValue == 0 {
+		return nil, fmt.Errorf("TargetCellValue is required")
+	}
 	template := logic.NewGameTemplate(logic.GameModeRandomChallenge, challenge.ID, challenge.Name, challenge.Description, int(challenge.Rows), int(challenge.Columns))
 	r := challenge.Rules
 	template.Rules = logic.GameRules{
