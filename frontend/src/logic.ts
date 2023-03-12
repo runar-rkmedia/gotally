@@ -136,6 +136,11 @@ export const coordToIndex = (x: number, y: number, maxColumns: number, maxRows: 
 
 	return y * maxColumns + x
 }
+export const indexToCoord = (index: number, maxColumns: number) => {
+	const x = index % maxColumns
+	const y = Math.floor(index / maxColumns)
+	return [x, y] as [x: number, y: number]
+}
 
 type invalidPathError = {
 	message: string
