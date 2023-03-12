@@ -60,6 +60,13 @@ func toModalCells(cells []cell.Cell) []*model.Cell {
 	}
 	return c
 }
+func fromModalCells(cells []*model.Cell) []cell.Cell {
+	c := make([]cell.Cell, len(cells))
+	for i := 0; i < len(cells); i++ {
+		c[i] = cell.NewCell(cells[i].Base, int(cells[i].Twopow))
+	}
+	return c
+}
 
 func toModelGameMode(mode tallylogic.GameMode) model.GameMode {
 	switch mode {
@@ -101,15 +108,20 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 			TargetCellValue: Game.Rules.TargetCellValue,
 			TargetScore:     Game.Rules.TargetScore,
 			MaxMoves:        Game.Rules.MaxMoves,
+			Mode:            toTypeMode(Game.Rules.GameMode),
 		},
 	}
-	switch Game.Rules.GameMode {
-	case tallylogic.GameModeRandom:
-		g.Rules.Mode = types.RuleModeInfiniteNormal
-	case tallylogic.GameModeRandomChallenge:
-		g.Rules.Mode = types.RuleModeChallenge
-	case tallylogic.GameModeTutorial:
-		g.Rules.Mode = types.RuleModeTutorial
-	}
 	return g
+}
+
+func toTypeMode(mode logic.GameMode) types.RuleMode {
+	switch mode {
+	case tallylogic.GameModeRandom:
+		return types.RuleModeInfiniteNormal
+	case tallylogic.GameModeRandomChallenge:
+		return types.RuleModeChallenge
+	case tallylogic.GameModeTutorial:
+		return types.RuleModeTutorial
+	}
+	return ""
 }

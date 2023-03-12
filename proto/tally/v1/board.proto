@@ -100,6 +100,16 @@ message NewGameRequest {
     string id = 4;
   }
 }
+message NewGameFromTemplateRequest {
+  uint32 ideal_moves = 1;
+  uint32 ideal_score = 2;
+  uint64 target_cell_value = 3;
+  uint32 columns = 4;
+  uint32 rows = 5;
+  string name = 6;
+  string description = 7;
+  repeated Cell cells = 8;
+}
 message RestartGameResponse {
   Board board = 1;
   int64 score = 2;
@@ -256,6 +266,7 @@ message CreateGameChallengeResponse {
 
 service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
+  rpc NewGameFromTemplate(NewGameFromTemplateRequest) returns (NewGameResponse) {}
   rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
   rpc RestartGame(RestartGameRequest) returns (RestartGameResponse) {}
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {}

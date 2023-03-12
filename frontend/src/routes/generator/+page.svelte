@@ -3,9 +3,10 @@
 	import { storeHandler } from '../../connect-web/store'
 	import BoardPreview from '../../components/BoardPreview.svelte'
 	import type { ConnectError } from '@bufbuild/connect-web'
-	import { GeneratorAlgorithm } from '../../connect-web'
+	import { GeneratorAlgorithm, NewGameFromTemplateRequest } from '../../connect-web'
 	import { browser } from '$app/environment'
 	import { onDestroy, onMount } from 'svelte'
+	import { cellValue } from '../../components/board/cell'
 
 	let result: Awaited<ReturnType<typeof storeHandler.generateGame>>[0]
 	let resErr: ConnectError | Error | null
@@ -13,6 +14,11 @@
 	let requestEnd: Date | null = null
 	let timerMs = 0
 	let loading = false
+	enum tabs {
+		generator = 1,
+		preview
+	}
+	let tab = tabs.generator
 	const gen: Parameters<typeof storeHandler.generateGame>[0] = {
 		rows: 3,
 		columns: 3,
@@ -109,6 +115,7 @@
 			localStorage.setItem('gotally_generator', JSON.stringify(gen))
 		}
 		if (result) {
+			tab = tabs.preview
 			setAsTemplate.idealMoves = Infinity
 			for (const s of result.solutions) {
 				if (s.moves < setAsTemplate.idealMoves) {
@@ -126,64 +133,100 @@
 		const r = await storeHandler.commit(storeHandler.createTemplate(setAsTemplate))
 		resErr = r.error
 	}
+	const newGameFromTemplate = async () => {
+		if (!setAsTemplate.rows) {
+			return
+		}
+		return storeHandler.commit(
+			storeHandler.newGameFromTemplate({
+				rows: setAsTemplate.rows,
+				columns: setAsTemplate.columns,
+
+				idealMoves: 0,
+				idealScore: 0,
+
+				targetCellValue: BigInt(setAsTemplate.targetCellValue || 0),
+				name: setAsTemplate.name,
+				description: setAsTemplate.description,
+				cells: setAsTemplate.cells?.map((c) => ({
+					base: BigInt(c.base || 0),
+					twopow: BigInt(c.twopow || 0)
+				}))
+			})
+		)
+	}
 </script>
 
 <h1>Game generator</h1>
+
+<div class="tabs">
+	<button class:active={tab === tabs.generator} on:click={() => (tab = tabs.generator)}
+		>1. Generator</button
+	>
+	<button
+		class:active={tab === tabs.preview}
+		disabled={!result}
+		on:click={() => (tab = tabs.preview)}>2. Preview</button
+	>
+</div>
 
 {#if resErr}
 	<div>{resErr.message}</div>
 	<!-- content here -->
 {/if}
-<form on:submit|preventDefault={onSubmitForGeneration}>
-	<Field error={error.algorithm} label="algorithm">
-		<select name="algorithm" bind:value={gen.algorithm}>
-			<option value={GeneratorAlgorithm.RANDOMIZED}
-				>Randomized - Slow, but gives more varied results</option
-			>
-			<option value={GeneratorAlgorithm.REVERSE}>Reverse - Fast, but very monotomous results</option
-			>
-		</select>
-	</Field>
-	<div class="set">
-		<Field error={error.rows} label="Rows">
-			<input min="3" max="80" type="number" bind:value={gen.rows} />
+{#if tab === tabs.generator}
+	<form on:submit|preventDefault={onSubmitForGeneration}>
+		<Field error={error.algorithm} label="algorithm">
+			<select name="algorithm" bind:value={gen.algorithm}>
+				<option value={GeneratorAlgorithm.RANDOMIZED}
+					>Randomized - Slow, but gives more varied results</option
+				>
+				<option value={GeneratorAlgorithm.REVERSE}
+					>Reverse - Fast, but very monotomous results</option
+				>
+			</select>
 		</Field>
-		<Field error={error.columns} label="Column">
-			<input min="3" max="80" type="number" bind:value={gen.columns} />
+		<div class="set">
+			<Field error={error.rows} label="Rows">
+				<input min="3" max="80" type="number" bind:value={gen.rows} />
+			</Field>
+			<Field error={error.columns} label="Column">
+				<input min="3" max="80" type="number" bind:value={gen.columns} />
+			</Field>
+		</div>
+		<Field error={error.targetCellValue} label="Target Cell Value">
+			<input min="3" max="100000000" type="number" bind:value={gen.targetCellValue} />
 		</Field>
-	</div>
-	<Field error={error.targetCellValue} label="Target Cell Value">
-		<input min="3" max="100000000" type="number" bind:value={gen.targetCellValue} />
-	</Field>
-	<Field error={error.maxAdditionalCells} label="Max Additional cells">
-		<input min="-1" max="100000000" type="number" bind:value={gen.maxAdditionalCells} />
-	</Field>
-	<Field error={error.maxBricks} label="Max Bricks">
-		<input min="3" max="100000000" type="number" bind:value={gen.maxBricks} />
-	</Field>
-	{#if gen.algorithm == GeneratorAlgorithm.REVERSE}
-		<Field error={error.randomCellChance} label="Random cell chance">
-			<input min="-1" max="120" type="number" bind:value={gen.randomCellChance} />
+		<Field error={error.maxAdditionalCells} label="Max Additional cells">
+			<input min="-1" max="100000000" type="number" bind:value={gen.maxAdditionalCells} />
 		</Field>
-	{/if}
-	<div class="set">
-		<Field error={error.minMoves} label="Min moves">
-			<input min="3" max="100000000" type="number" bind:value={gen.minMoves} />
+		<Field error={error.maxBricks} label="Max Bricks">
+			<input min="3" max="100000000" type="number" bind:value={gen.maxBricks} />
 		</Field>
-		<Field error={error.maxMoves} label="Max moves">
-			<input min={gen.minMoves} max="100000000" type="number" bind:value={gen.maxMoves} />
-		</Field>
-	</div>
-	<button type="submit" disabled={hasError || loading}>Send</button>
-	{#if loading}
-		{#if timerMs}
-			<p>Waiting for game-generation {timerMs}ms</p>
+		{#if gen.algorithm == GeneratorAlgorithm.REVERSE}
+			<Field error={error.randomCellChance} label="Random cell chance">
+				<input min="-1" max="120" type="number" bind:value={gen.randomCellChance} />
+			</Field>
 		{/if}
-	{:else if timerMs}
-		<p>Game generated in {timerMs}ms</p>
-	{/if}
-</form>
-{#if result}
+		<div class="set">
+			<Field error={error.minMoves} label="Min moves">
+				<input min="3" max="100000000" type="number" bind:value={gen.minMoves} />
+			</Field>
+			<Field error={error.maxMoves} label="Max moves">
+				<input min={gen.minMoves} max="100000000" type="number" bind:value={gen.maxMoves} />
+			</Field>
+		</div>
+		<button type="submit" disabled={hasError || loading}>Send</button>
+		{#if loading}
+			{#if timerMs}
+				<p>Waiting for game-generation {timerMs}ms</p>
+			{/if}
+		{:else if timerMs}
+			<p>Game generated in {timerMs}ms</p>
+		{/if}
+	</form>
+{/if}
+{#if result && tab === tabs.preview}
 	<form on:submit|preventDefault={onSetAsTemplate}>
 		<Field error={setAsTemplateError.name} label="Name">
 			<input type="string" minlength="3" bind:value={setAsTemplate.name} />
@@ -196,17 +239,34 @@
 		</Field>
 
 		<button type="submit">Set as template</button>
+		<button on:click|preventDefault={newGameFromTemplate}>Play</button>
 	</form>
 {/if}
 
 <div class="tmpFlexy">
-	<pre>{JSON.stringify({ options: gen, setAsTemplate }, null, 2)}</pre>
-	<pre>{JSON.stringify({ error }, null, 2)}</pre>
+	<details>
+		<summary>Details</summary>
+		<pre>{JSON.stringify({ options: gen, setAsTemplate }, null, 2)}</pre>
+		<pre>{JSON.stringify({ error }, null, 2)}</pre>
+	</details>
 </div>
-{#if result}
+{#if result && tab === tabs.preview}
 	<div class="games">
 		<div class="game">
 			<BoardPreview
+				on:cellclick={(e) => {
+					console.log('cellclick', e.detail)
+					if (!result) {
+						return
+					}
+					const n = Number(prompt('Change this cell', String(cellValue(e.detail.cell))))
+					if (isNaN(n)) {
+						console.log('foobar n', n)
+						alert('must be a number')
+						return
+					}
+					result.game.board.cells[e.detail.i] = { base: n, twopow: 0 }
+				}}
 				cells={result.game.board.cells}
 				rows={result.game.board.rows}
 				columns={result.game.board.columns}
@@ -232,6 +292,12 @@
 		margin-top: 50px;
 		overflow: scroll;
 		max-height: 400px;
+		position: fixed;
+		top: 0;
+		right: 0;
+		background: var(--color-black);
+		z-index: 1;
+		color: var(--color-primary);
 	}
 	.set {
 		display: flex;
@@ -251,5 +317,35 @@
 	button {
 		background: var(--color-primary);
 		padding: var(--size-2) var(--size-3);
+	}
+	button:disabled {
+		background: var(--color-grey);
+		opacity: 0.4;
+	}
+	/* Terribly looking tabs, but its just for internal use */
+	.tabs {
+		display: flex;
+		position: relative;
+		width: min-content;
+	}
+	.tabs::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 4px;
+		background: var(--color-primary);
+	}
+	.tabs button {
+		background: var(--color-grey);
+		transition: all 300ms var(--easing-standard);
+		border-top-right-radius: 20px;
+		border-top-left-radius: 20px;
+		white-space: nowrap;
+	}
+	.tabs button.active {
+		transform: translateY(-4px);
+		background: var(--color-primary);
 	}
 </style>
