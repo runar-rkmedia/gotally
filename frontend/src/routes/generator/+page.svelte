@@ -397,6 +397,7 @@
 		right: 0;
 		bottom: 0;
 		height: 4px;
+		z-index: -1;
 		background: var(--color-primary);
 	}
 	.tabs button {

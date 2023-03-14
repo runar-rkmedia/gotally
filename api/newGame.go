@@ -95,8 +95,8 @@ func (s *TallyServer) NewGame(
 			for _, c := range challenges {
 				if c.ID == id {
 					challenge = c
+					break
 				}
-				break
 			}
 			if challenge.ID != id {
 				return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("challenge not found: '%s'", id))
