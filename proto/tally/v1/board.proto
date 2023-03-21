@@ -124,6 +124,13 @@ message NewGameResponse {
   string description = 4;
   GameMode mode = 5;
 }
+message NewGameFromTemplateResponse {
+  Board board = 1;
+  int64 score = 2;
+  int64 moves = 3;
+  string description = 4;
+  GameMode mode = 5;
+}
 
 message SwipeBoardRequest { SwipeDirection direction = 2; }
 message SwipeBoardResponse {
@@ -266,7 +273,7 @@ message CreateGameChallengeResponse {
 
 service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
-  rpc NewGameFromTemplate(NewGameFromTemplateRequest) returns (NewGameResponse) {}
+  rpc NewGameFromTemplate(NewGameFromTemplateRequest) returns (NewGameFromTemplateResponse) {}
   rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
   rpc RestartGame(RestartGameRequest) returns (RestartGameResponse) {}
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {}

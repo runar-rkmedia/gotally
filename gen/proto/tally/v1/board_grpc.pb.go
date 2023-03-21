@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BoardServiceClient interface {
 	NewGame(ctx context.Context, in *NewGameRequest, opts ...grpc.CallOption) (*NewGameResponse, error)
-	NewGameFromTemplate(ctx context.Context, in *NewGameFromTemplateRequest, opts ...grpc.CallOption) (*NewGameResponse, error)
+	NewGameFromTemplate(ctx context.Context, in *NewGameFromTemplateRequest, opts ...grpc.CallOption) (*NewGameFromTemplateResponse, error)
 	GetHint(ctx context.Context, in *GetHintRequest, opts ...grpc.CallOption) (*GetHintResponse, error)
 	RestartGame(ctx context.Context, in *RestartGameRequest, opts ...grpc.CallOption) (*RestartGameResponse, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
@@ -52,8 +52,8 @@ func (c *boardServiceClient) NewGame(ctx context.Context, in *NewGameRequest, op
 	return out, nil
 }
 
-func (c *boardServiceClient) NewGameFromTemplate(ctx context.Context, in *NewGameFromTemplateRequest, opts ...grpc.CallOption) (*NewGameResponse, error) {
-	out := new(NewGameResponse)
+func (c *boardServiceClient) NewGameFromTemplate(ctx context.Context, in *NewGameFromTemplateRequest, opts ...grpc.CallOption) (*NewGameFromTemplateResponse, error) {
+	out := new(NewGameFromTemplateResponse)
 	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/NewGameFromTemplate", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (c *boardServiceClient) CreateGameChallenge(ctx context.Context, in *Create
 // for forward compatibility
 type BoardServiceServer interface {
 	NewGame(context.Context, *NewGameRequest) (*NewGameResponse, error)
-	NewGameFromTemplate(context.Context, *NewGameFromTemplateRequest) (*NewGameResponse, error)
+	NewGameFromTemplate(context.Context, *NewGameFromTemplateRequest) (*NewGameFromTemplateResponse, error)
 	GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error)
 	RestartGame(context.Context, *RestartGameRequest) (*RestartGameResponse, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
@@ -166,7 +166,7 @@ type UnimplementedBoardServiceServer struct {
 func (UnimplementedBoardServiceServer) NewGame(context.Context, *NewGameRequest) (*NewGameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewGame not implemented")
 }
-func (UnimplementedBoardServiceServer) NewGameFromTemplate(context.Context, *NewGameFromTemplateRequest) (*NewGameResponse, error) {
+func (UnimplementedBoardServiceServer) NewGameFromTemplate(context.Context, *NewGameFromTemplateRequest) (*NewGameFromTemplateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewGameFromTemplate not implemented")
 }
 func (UnimplementedBoardServiceServer) GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error) {

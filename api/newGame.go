@@ -28,7 +28,7 @@ func devpretty(j any) string {
 func (s *TallyServer) NewGameFromTemplate(
 	ctx context.Context,
 	req *connect.Request[model.NewGameFromTemplateRequest],
-) (*connect.Response[model.NewGameResponse], error) {
+) (*connect.Response[model.NewGameFromTemplateResponse], error) {
 	session := ContextGetUserState(ctx)
 
 	rule := logic.DefaultChallengeGameRules(int(req.Msg.Columns), int(req.Msg.Rows), logic.GameModeRandomChallenge)
@@ -63,7 +63,15 @@ func (s *TallyServer) NewGameFromTemplate(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge from input: %w", err))
 	}
 
-	res, err := s.newGame(ctx, session, t.Rules.GameMode, t)
+	resN, err := s.newGame(ctx, session, t.Rules.GameMode, t)
+	res := connect.NewResponse(&model.NewGameFromTemplateResponse{
+		Board:       resN.Msg.Board,
+		Score:       resN.Msg.Score,
+		Moves:       resN.Msg.Moves,
+		Description: resN.Msg.Description,
+		Mode:        resN.Msg.Mode,
+	})
+
 	return res, err
 }
 
