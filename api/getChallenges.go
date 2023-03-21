@@ -83,7 +83,6 @@ func (s *TallyServer) CreateGameChallenge(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	fmt.Printf("\n\nfofofofofo %d %d", template.ChallengeNumber, template.Rules.TargetCellValue)
 	response := &model.CreateGameChallengeResponse{
 		Id:              template.ID,
 		ChallengeNumber: intPointerUint32(template.ChallengeNumber),

@@ -14,6 +14,7 @@ import (
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/generated"
 	"github.com/runar-rkmedia/gotally/sqlite"
+	"github.com/runar-rkmedia/gotally/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -319,6 +320,38 @@ func TestApi_NewGame(t *testing.T) {
 				t.Fatalf("Expected response to be nil, but it was: %#v", res)
 			}
 		}
+
+	})
+}
+func TestApi_ShouldWin(t *testing.T) {
+	t.Run("Should win game after solving it", func(t *testing.T) {
+		ts := newTestApi(t)
+		ts.NewGame(model.GameMode_GAME_MODE_TUTORIAL)
+		t.Logf("New game: %s", ts.Game().Print())
+		{
+			swipeResponse := ts.CombineCellsByIndexPath(2, 5, 8)
+			testza.AssertFalse(t, swipeResponse.Msg.DidWin, "Game should not have been won yet")
+			testza.AssertFalse(t, swipeResponse.Msg.DidLose, "Game should not have been game over yet")
+			t.Logf("After combine cells 1: %s", ts.Game().Print())
+		}
+		{
+			swipeResponse := ts.CombineCellsByIndexPath(6, 7, 8)
+			testza.AssertTrue(t, swipeResponse.Msg.DidWin, "Game should be won")
+			testza.AssertFalse(t, swipeResponse.Msg.DidLose, "Game should not have been lost")
+			t.Logf("After combine cells 2: %s", ts.Game().Print())
+		}
+
+		// Check that the game-property her also has been won
+		game := ts.Game()
+		testza.AssertTrue(t, game.IsGameWon(), "Game should be won")
+		testza.AssertFalse(t, game.IsGameOver(), "Game should not have been lost")
+
+		// Check that the database agrees
+		dump, err := ts.tally.storage.GetUserBySessionID(ts.context, types.GetUserPayload{
+			ID: ts.initialSession.Msg.Session.SessionId,
+		})
+		testza.AssertNoError(t, err)
+		testza.AssertEqual(t, dump.ActiveGame.PlayState, types.PlayStateWon)
 
 	})
 }

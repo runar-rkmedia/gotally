@@ -49,7 +49,7 @@ func (s *TallyServer) CombineCells(
 		return nil, cerr.ToConnectError()
 	}
 	gameCopy := session.Game.Copy()
-	ok := session.EvaluateForPath(path)
+	ok := session.Game.EvaluateForPath(path)
 	if !ok {
 		cerr := connect.NewError(connect.CodeNotFound, fmt.Errorf("path does evaluate to the final item the selection"))
 		details := &errdetails.BadRequest_FieldViolation{
@@ -61,7 +61,7 @@ func (s *TallyServer) CombineCells(
 		return nil, cerr
 	}
 	seed, state := session.Game.Seed()
-	err := s.storage.CombinePath(ctx, types.CombinePathPayload{
+	p := types.CombinePathPayload{
 		GameID: session.Game.ID,
 		Moves:  session.Game.Moves(),
 		Points: int(session.Game.Score() - gameCopy.Score()),
@@ -70,7 +70,15 @@ func (s *TallyServer) CombineCells(
 		Seed:   seed,
 		Path:   req.Msg.GetIndexes().Index,
 		Cells:  session.Game.Cells(),
-	})
+	}
+	didWin := session.Game.IsGameWon()
+	didLose := session.Game.IsGameOver()
+	if didWin {
+		p.PlayState = types.PlayStateWon
+	} else if didLose {
+		p.PlayState = types.PlayStateLost
+	}
+	err := s.storage.CombinePath(ctx, p)
 	if err != nil {
 		s.l.Error().Err(err).Msg("internal failure during CombinePath-operation")
 
@@ -78,10 +86,11 @@ func (s *TallyServer) CombineCells(
 		return nil, fmt.Errorf("internal failure during CombinePath-operation")
 	}
 	response := model.CombineCellsResponse{
-		Board:  toModalBoard(&session.Game),
-		Score:  session.Game.Score(),
-		Moves:  int64(session.Game.Moves()),
-		DidWin: session.Game.IsGameWon(),
+		Board:   toModalBoard(&session.Game),
+		Score:   session.Game.Score(),
+		Moves:   int64(session.Game.Moves()),
+		DidWin:  didWin,
+		DidLose: didLose,
 	}
 	res := connect.NewResponse(&response)
 	return res, nil

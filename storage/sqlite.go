@@ -737,6 +737,13 @@ func (p *sqliteStorage) CombinePath(ctx context.Context, payload types.CombinePa
 		Data:      dataGame,
 		ID:        g.ID,
 	}
+	if payload.PlayState != "" {
+		ps, err := fromPlayState(payload.PlayState)
+		if err != nil {
+			return fmt.Errorf("Failed converting playstate: %w", err)
+		}
+		updateGameArgs.PlayState = ps
+	}
 	updatedGame, err := q.UpdateGame(ctx, updateGameArgs)
 	if err != nil {
 		return fmt.Errorf("failed to update the game")
@@ -797,6 +804,13 @@ func (p *sqliteStorage) SwipeBoard(ctx context.Context, payload types.SwipePaylo
 		PlayState: g.PlayState,
 		Data:      gameData,
 		ID:        g.ID,
+	}
+	if payload.PlayState != "" {
+		ps, err := fromPlayState(payload.PlayState)
+		if err != nil {
+			return fmt.Errorf("Failed converting playstate: %w", err)
+		}
+		updateGameArgs.PlayState = ps
 	}
 	updatedGame, err := q.UpdateGame(ctx, updateGameArgs)
 	if err != nil {
