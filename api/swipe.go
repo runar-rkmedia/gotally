@@ -27,6 +27,8 @@ func (s *TallyServer) SwipeBoard(
 		Moves:     int64(session.Game.Moves()),
 	}
 	if response.DidChange {
+		didWin := session.Game.IsGameWon()
+		didLose := session.Game.IsGameOver()
 		seed, state := session.Game.Seed()
 		payload := types.SwipePayload{
 
@@ -36,6 +38,13 @@ func (s *TallyServer) SwipeBoard(
 			State:          state,
 			Seed:           seed,
 			Cells:          session.Cells(),
+		}
+		if didWin {
+			payload.PlayState = types.PlayStateWon
+			response.DidWin = true
+		} else if didLose {
+			payload.PlayState = types.PlayStateLost
+			response.DidWin = didLose
 		}
 		err := s.storage.SwipeBoard(ctx, payload)
 		if err != nil {

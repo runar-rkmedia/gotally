@@ -165,6 +165,7 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 	return res
 }
 
+// Game returns the game from the database.
 func (ta *testApi) Game() tallylogic.Game {
 	s, err := ta.tally.storage.GetUserBySessionID(context.TODO(), types.GetUserPayload{
 		ID: ta.initialSession.Msg.Session.SessionId,
@@ -239,6 +240,27 @@ func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[mo
 	}
 	testza.AssertEqual(ts.t, mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
 	return newGameResponse
+}
+func (ts *testApi) CombineCellsByIndexPath(indexes ...uint32) (response *connect.Response[model.CombineCellsResponse]) {
+	ts.t.Helper()
+	combineResponse, err := ts.client.CombineCells(ts.context, connect.NewRequest(&model.CombineCellsRequest{
+		Selection: &model.CombineCellsRequest_Indexes{
+			Indexes: &model.Indexes{
+				Index: indexes,
+			},
+		},
+	}))
+	ts.FatatErr("CombineCells failed", err, map[string]any{"input": indexes})
+	return combineResponse
+}
+func (ts *testApi) FatatErr(prefix string, err error, details ...any) {
+	ts.t.Helper()
+	if err != nil {
+		if cerr, ok := err.(*connect.Error); ok {
+			ts.t.Fatalf("%s: %s %v", prefix, cerr.Message(), details)
+		}
+		ts.t.Fatalf("%s: %s %v", prefix, err, details)
+	}
 }
 func (ts *testApi) NewGameChallenge(id string) (response *connect.Response[model.NewGameResponse]) {
 	ts.t.Helper()

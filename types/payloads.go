@@ -98,6 +98,7 @@ type SwipePayload struct {
 	//Seed of randomizer
 	Seed  uint64
 	Cells []cell.Cell
+	PlayState
 }
 
 func (p SwipePayload) Validate() error {
@@ -137,6 +138,7 @@ type CombinePathPayload struct {
 	Seed  uint64
 	Path  []uint32
 	Cells []cell.Cell
+	PlayState
 }
 
 func (payload CombinePathPayload) Validate() error {
