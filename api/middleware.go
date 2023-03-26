@@ -510,6 +510,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						InvalidAfter: now.Add(options.SessionLifeTime),
 						Username:     userState.UserName,
 						Game:         toTypeGame(userState.Game, ""),
+						TemplateID:   template.ID,
 					}
 					err := payload.Validate()
 					if err != nil {

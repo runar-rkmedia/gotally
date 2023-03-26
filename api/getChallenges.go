@@ -98,8 +98,9 @@ func (s *TallyServer) GetGameChallenges(
 	ctx context.Context,
 	req *connect.Request[model.GetGameChallengesRequest],
 ) (*connect.Response[model.GetGameChallengesResponse], error) {
+	session := ContextGetUserState(ctx)
 
-	c, err := s.storage.GetGameChallenges(ctx)
+	c, err := s.storage.GetGameChallenges(ctx, types.GetGameChallengePayload{StatsForUserID: session.UserID})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get game challenges: %w", err))
 	}
@@ -119,11 +120,60 @@ func (s *TallyServer) GetGameChallenges(
 			Description:     c[i].Description,
 			Cells:           toModalCells(c[i].Cells),
 		}
-
+		for _, s := range c[i].Stats {
+			if s.Score > 0 {
+				if response.Challenges[i].CurrentUsersBestScore < s.Score {
+					response.Challenges[i].CurrentUsersBestScore = s.Score
+				}
+			}
+			if s.Moves > 0 {
+				if response.Challenges[i].CurrentUsersFewestMoves == 0 {
+					response.Challenges[i].CurrentUsersFewestMoves = uint32(s.Moves)
+				}
+				if response.Challenges[i].CurrentUsersFewestMoves > uint32(s.Moves) {
+					response.Challenges[i].CurrentUsersFewestMoves = uint32(s.Moves)
+				}
+			}
+		}
+		response.Challenges[i].Rating = calculateRating(
+			response.Challenges[i].CurrentUsersBestScore,
+			response.Challenges[i].IdealScore,
+			response.Challenges[i].CurrentUsersFewestMoves,
+			response.Challenges[i].IdealMoves,
+		)
 	}
 
 	return connect.NewResponse(response), nil
 
+}
+
+func calculateRating(score, idealScore uint64, moves, idealMoves uint32) model.Rating {
+	if moves == 0 || score == 0 {
+		return model.Rating_RATING_UNPLAYED
+	}
+	if idealScore != 0 {
+		panic("ideal-score is not yet implemeted")
+	}
+	if idealMoves == 0 {
+		return model.Rating_RATING_UNSPECIFIED
+	}
+	diff := idealMoves - moves
+	if diff == 0 {
+		return model.Rating_RATING_SUPERB
+	}
+	if diff < 0 {
+		return model.Rating_RATING_SUPERB
+	}
+	switch diff {
+	case 1:
+		return model.Rating_RATING_GREAT
+	case 2:
+		return model.Rating_RATING_GOOD
+	case 3:
+		return model.Rating_RATING_WELL
+	}
+
+	return model.Rating_RATING_OK
 }
 func intPointerUint32(i *int) uint32 {
 	if i == nil {

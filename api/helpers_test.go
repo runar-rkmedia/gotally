@@ -165,14 +165,29 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 	return res
 }
 
-// Game returns the game from the database.
-func (ta *testApi) Game() tallylogic.Game {
+func (ta *testApi) Session() types.SessionUser {
 	s, err := ta.tally.storage.GetUserBySessionID(context.TODO(), types.GetUserPayload{
 		ID: ta.initialSession.Msg.Session.SessionId,
 	})
 	if err != nil {
-		ta.t.Error("failed to get game for debugging-purposes: %w", err)
+		ta.t.Error("failed to get session for debugging-purposes: %w", err)
 	}
+
+	return *s
+}
+
+// DbGame returns the current game from the database
+func (ta *testApi) DbGame() *sqlite.Game {
+	return ta.DbGameById(ta.initialGame.ID)
+}
+func (ta *testApi) DbGameById(id string) *sqlite.Game {
+	ddump := ta.GetDBDump()
+	return find(ddump.Games, func(t sqlite.Game) bool { return t.ID == id })
+}
+
+// Game returns the game from the database, as a tallylogic-game
+func (ta *testApi) Game() tallylogic.Game {
+	s := ta.Session()
 	game, err := tallylogic.RestoreGame(s.ActiveGame)
 	if err != nil {
 		ta.t.Error("failed to restore game for debugging-purposes: %w", err)

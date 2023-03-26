@@ -18,7 +18,8 @@
 	let loading = false
 	enum tabs {
 		generator = 1,
-		preview
+		preview,
+		tips
 	}
 	let tab = tabs.preview
 	const gen: Parameters<typeof storeHandler.generateGame>[0] = {
@@ -224,6 +225,7 @@
 	<button class:active={tab === tabs.preview} on:click={() => (tab = tabs.preview)}
 		>2. Preview</button
 	>
+	<button class:active={tab === tabs.tips} on:click={() => (tab = tabs.tips)}>Tips</button>
 </div>
 
 {#if resErr}
@@ -311,6 +313,25 @@
 			disabled={Object.values(setAsTemplateError).some(Boolean)}>Play (in tab)</button
 		>
 	</form>
+{/if}
+{#if tab === tabs.tips}
+	<div class="tips">
+		<p>
+			Try to create challenges that create a unique <i>kind</i> of solution, not just changing the numbers/order.
+			For instance, challenges vary by:
+		</p>
+		<ul>
+			<li>
+				The number of possible solutions, especially if the shortest solution is not too obvious.
+			</li>
+			<li>
+				The <code>variations</code> within a solution is high. By <code>variations</code>, it is
+				counted as the number of <i>different</i> actions are needed to solve the game, like
+				swiping, multiplying, adding, or serial use of bricks (<code>twopow</code>).
+			</li>
+		</ul>
+		<p>Use the generator with randomization for ideas.</p>
+	</div>
 {/if}
 
 <div class="tmpFlexy">
@@ -410,5 +431,8 @@
 	.tabs button.active {
 		transform: translateY(-4px);
 		background: var(--color-primary);
+	}
+	.tips {
+		padding: var(--size-4);
 	}
 </style>

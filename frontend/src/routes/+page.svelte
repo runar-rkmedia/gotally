@@ -20,6 +20,13 @@
 	import Icon from '../components/Icon.svelte'
 	import { findDOMParent } from '../utils/findDomParent'
 
+	$: {
+		// when user wins a game, refresh the challenge
+		if ($store.didWin) {
+			console.log('refreshing challenges')
+			storeHandler.commit(storeHandler.getChallenges({}))
+		}
+	}
 	let boardDiv: HTMLDivElement
 	let showGameMenu = false
 
