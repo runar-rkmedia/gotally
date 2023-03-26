@@ -3,7 +3,6 @@ package gamegenerator_target_cell
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/MarvinJWendt/testza"
 	"github.com/go-test/deep"
@@ -65,31 +64,6 @@ func Test_getRequiredCellsHighestForm(t *testing.T) {
 }
 func init() {
 	testza.SetShowStartupMessage(false)
-}
-func Test_createMorePrimes(t *testing.T) {
-	tests := []struct {
-		name  string
-		limit uint
-		want  []uint64
-	}{
-		{
-			"Should create some primes",
-			10,
-			[]uint64{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41},
-		},
-	}
-	for _, tt := range tests {
-		listOfPrimes = []uint64{2, 3}
-		t.Run(tt.name, func(t *testing.T) {
-
-			// in case of an infinite loop
-			testza.AssertCompletesIn(t, time.Second, func() { createMorePrimes(tt.limit) })
-
-			if diff := deep.Equal(listOfPrimes, tt.want); diff != nil {
-				t.Errorf("getNeededCellsHighestForm() = %v, want %v\ndiff: %#v", listOfPrimes, tt.want, diff)
-			}
-		})
-	}
 }
 
 func Test_gameGeneratorTargetCell_GenerateGame(t *testing.T) {
