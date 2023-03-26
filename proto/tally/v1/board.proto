@@ -255,7 +255,25 @@ message GameChallenge {
   string name = 8;
   string description = 9;
   repeated Cell cells = 10;
+  uint64 current_users_best_score = 11;
+  uint32 current_users_fewest_moves = 12;
+  // Current rating the user has for the challenge, if played and solved.
+  Rating rating = 13;
+  // Indicated that the challenge is locked.
+  bool locked = 14;
+
 }
+
+enum Rating {
+  RATING_UNSPECIFIED = 0;
+  RATING_UNPLAYED = 1;
+  RATING_OK= 20;
+  RATING_WELL = 40;
+  RATING_GOOD = 60;
+  RATING_GREAT = 80;
+  RATING_SUPERB = 100;
+  RATING_BEYOND = 120;
+  }
 
 
 message CreateGameChallengeRequest {

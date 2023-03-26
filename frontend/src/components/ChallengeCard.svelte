@@ -1,31 +1,30 @@
 <script lang="ts">
 	import type { PartialMessage } from '@bufbuild/protobuf'
-	import { GameMode, type NewGameRequest } from '../connect-web'
+	import { GameMode, Rating, type NewGameRequest } from '../connect-web'
 	import { storeHandler, type Challenge } from '../connect-web/store'
 	import BoardPreview from './BoardPreview.svelte'
 	import Icon from './Icon.svelte'
-	import Pyro from './Pyro.svelte'
 
 	const newGame = async (options: PartialMessage<NewGameRequest>) => {
 		return storeHandler.commit(storeHandler.newGame(options))
 	}
-	const getRating = (n: number) => {
-		switch (true) {
-			case !n:
-				return 'unplayed' as const
-			case n < 20:
-				return 'ok' as const
-			case n < 40:
-				return 'well' as const
-			case n < 60:
-				return 'good' as const
-			case n < 80:
-				return 'great' as const
-			case n <= 100:
-				return 'superb' as const
-			case n > 100:
-				return 'beyond' as const
+	const getRating = (r: Rating): keyof typeof Rating => {
+		const s = Rating[r] as keyof typeof Rating
+		if (s) {
+			return s
 		}
+		for (const ns of Object.values(Rating)) {
+			const n = Number(ns)
+			if (isNaN(n)) {
+				continue
+			}
+			if (r <= n) {
+				const rating = getRating(n)
+				console.log('ding', r, n, rating)
+				return rating
+			}
+		}
+		return getRating(0)
 	}
 	$: rating = getRating(challenge.rating)
 	export let challenge: Challenge
@@ -34,30 +33,31 @@
 <!-- svelte-ignore missing-declaration -->
 <div
 	class="rating"
-	class:unplayed={rating === 'unplayed'}
-	class:ok={rating === 'ok'}
-	class:well={rating === 'well'}
-	class:good={rating === 'good'}
-	class:great={rating === 'great'}
-	class:superb={rating === 'superb'}
-	class:beyond={rating === 'beyond'}
+	class:unplayed={rating === 'UNPLAYED'}
+	class:ok={rating === 'OK'}
+	class:well={rating === 'WELL'}
+	class:good={rating === 'GOOD'}
+	class:great={rating === 'GREAT'}
+	class:superb={rating === 'SUPERB'}
+	class:beyond={rating === 'BEYOND'}
 	title={`Rating ${challenge.rating} ${rating}`}
 >
-	{#if rating === 'ok'}
+	{#if rating === 'OK'}
 		<Icon icon="star-half" />
-	{:else if rating === 'well'}
+	{:else if rating === 'WELL'}
 		<Icon icon="star" />
-	{:else if rating === 'good'}
-		<Icon icon="star" />
-		<Icon icon="star-half" />
-	{:else if rating === 'great'}
+	{:else if rating === 'GOOD'}
 		<Icon icon="star" />
 		<Icon icon="star" />
-	{:else if rating === 'superb'}
+	{:else if rating === 'GREAT'}
 		<Icon icon="star" />
 		<Icon icon="star" />
 		<Icon icon="star-half" />
-	{:else if rating === 'beyond'}
+	{:else if rating === 'SUPERB'}
+		<Icon icon="star" />
+		<Icon icon="star" />
+		<Icon icon="star" />
+	{:else if rating === 'BEYOND'}
 		<img src={'/trophy-64.png'} alt="trophy" />
 	{:else}
 		<!-- else content here -->
@@ -66,13 +66,13 @@
 <button
 	disabled={challenge.locked}
 	class={'card'}
-	class:unplayed={rating === 'unplayed'}
-	class:rating-ok={rating === 'ok'}
-	class:rating-well={rating === 'well'}
-	class:rating-good={rating === 'good'}
-	class:rating-great={rating === 'great'}
-	class:rating-superb={rating === 'superb'}
-	class:rating-beyond={rating === 'beyond'}
+	class:unplayed={rating === 'UNPLAYED'}
+	class:rating-ok={rating === 'OK'}
+	class:rating-well={rating === 'WELL'}
+	class:rating-good={rating === 'GOOD'}
+	class:rating-great={rating === 'GREAT'}
+	class:rating-superb={rating === 'SUPERB'}
+	class:rating-beyond={rating === 'BEYOND'}
 	on:click
 >
 	<div class="title">
@@ -110,7 +110,8 @@
 	{/if}
 </div>
 <div class="score">
-	Score: {challenge.score}
+	Score: {challenge.currentUsersBestScore}
+	Least moves: {challenge.currentUsersFewestMoves}
 </div>
 
 <style lang="scss">
@@ -141,7 +142,8 @@
 			background: var(--color-green-700);
 		}
 		&.rating-great .title {
-			background: var(--color-purple-300);
+			background: var(--color-green-300);
+			color: var(--color-black);
 		}
 		&.rating-good .title {
 			background: var(--color-orange-500);

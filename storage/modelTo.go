@@ -3,10 +3,12 @@ package storage
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/sqlite"
+	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 	"github.com/runar-rkmedia/gotally/types"
 )
 
@@ -83,6 +85,33 @@ func toTypeRule(rule sqlite.Rule) (types.Rules, error) {
 		NoMultiply:      rule.NoMultiply,
 		NoAddition:      rule.NoAddition,
 	}, nil
+}
+func toTypeGame(createdGame *sqlite.Game, r *sqlite.Rule, seed, state uint64, cells []cell.Cell, playState string) (types.Game, error) {
+
+	tRule, err := toTypeRule(*r)
+	if err != nil {
+		return types.Game{}, fmt.Errorf("failed to map rule %w", err)
+	}
+	tg := types.Game{
+		ID:          createdGame.ID,
+		CreatedAt:   createdGame.CreatedAt,
+		Description: createdGame.Description.String,
+		Name:        createdGame.Name.String,
+		// session does not have an UpdatedAt-field, so the suffix-count is off by one
+		UpdatedAt: &createdGame.UpdatedAt.Time,
+		UserID:    createdGame.UserID,
+		Seed:      seed,
+		State:     state,
+		Score:     uint64(createdGame.Score),
+		Moves:     uint(createdGame.Moves),
+		Cells:     cells,
+		PlayState: playState,
+		Rules:     tRule,
+	}
+	if err := tg.Validate(); err != nil {
+		return tg, err
+	}
+	return tg, nil
 }
 
 var (

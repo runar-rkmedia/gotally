@@ -41,6 +41,15 @@ type GameTemplate struct {
 	Name            string
 	Cells           []cell.Cell
 	Rules
+	Stats []PlayStats
+}
+
+type PlayStats struct {
+	GameID   string
+	UserID   string
+	Username string
+	Score    uint64
+	Moves    uint64
 }
 type SessionUser struct {
 	Session

@@ -162,7 +162,7 @@ func toFloat64(v any) (float64, error) {
 	}
 }
 
-func (p *sqliteStorage) GetGameChallenges(ctx context.Context) (response []types.GameTemplate, err error) {
+func (p *sqliteStorage) GetGameChallenges(ctx context.Context, payload types.GetGameChallengePayload) (response []types.GameTemplate, err error) {
 	ctx, span := tracerSqlite.Start(ctx, "GetGameChallenges")
 	defer func() {
 		AnnotateSpanError(span, err)
@@ -177,7 +177,11 @@ func (p *sqliteStorage) GetGameChallenges(ctx context.Context) (response []types
 	}()
 	list, err := q.GetGameChallengesTemplates(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get game-challenges")
+		return nil, fmt.Errorf("failed to get game-challenges: %w", err)
+	}
+	stats, err := q.GetChallengeStatsForUser(ctx, payload.StatsForUserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stats for game-challenges")
 	}
 	response = make([]types.GameTemplate, len(list))
 	p.fetchRules(ctx)
@@ -211,6 +215,22 @@ func (p *sqliteStorage) GetGameChallenges(ctx context.Context) (response []types
 			Name:            list[i].Name,
 			Cells:           cells,
 			Rules:           rule,
+		}
+		for j := 0; j < len(stats); j++ {
+			if stats[j].TemplateID.String != list[i].ID {
+				continue
+			}
+			if response[i].Stats == nil {
+				response[i].Stats = []types.PlayStats{}
+			}
+			response[i].Stats = append(response[i].Stats, types.PlayStats{
+				GameID:   stats[j].GameID,
+				UserID:   stats[j].UserID,
+				Username: stats[j].Username,
+				Score:    uint64(stats[j].Score),
+				Moves:    uint64(stats[j].Moves),
+			})
+
 		}
 
 	}
@@ -289,6 +309,9 @@ func (p *sqliteStorage) CreateGameTemplate(ctx context.Context, payload types.Cr
 // Creates a user, session, game and makes sure the rule exists.
 // This should only be used for new users, not to log in existing users.
 func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (sess *types.SessionUser, err error) {
+	if payload.TemplateID == "" {
+		panic("TODO: add templateid to all CreateUserSession-calls")
+	}
 	ctx, span := tracerSqlite.Start(ctx, "CreateUserSession")
 	defer func() {
 		AnnotateSpanError(span, err)
@@ -371,6 +394,7 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		Description: sqlString(payload.Game.Description),
 		PlayState:   playState,
 		Data:        data,
+		TemplateID:  toNullString(payload.TemplateID),
 	}
 	createdGame, err := q.InsertGame(ctx, insertGameParams)
 	if err != nil {
@@ -392,25 +416,11 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert gameHistory: %w", err)
 	}
-	typeRule, err := toTypeRule(rule)
+	activeGame, err := toTypeGame(&createdGame, &rule, payload.Game.Seed, payload.Game.State, payload.Game.Cells, payload.Game.PlayState)
 	if err != nil {
-		return nil, fmt.Errorf("failed to map rule: %w", err)
+		return nil, err
 	}
-	sessionUser.ActiveGame = &types.Game{
-		ID:          createdGame.ID,
-		CreatedAt:   createdGame.CreatedAt,
-		UpdatedAt:   &createdGame.UpdatedAt.Time,
-		UserID:      createdGame.UserID,
-		Name:        createdGame.Name.String,
-		Description: createdGame.Description.String,
-		Seed:        payload.Game.Seed,
-		State:       payload.Game.State,
-		Score:       uint64(createdGame.Score),
-		Moves:       uint(createdGame.Moves),
-		Cells:       payload.Game.Cells,
-		PlayState:   payload.Game.PlayState,
-		Rules:       typeRule,
-	}
+	sessionUser.ActiveGame = &activeGame
 	if err := sessionUser.ActiveGame.Validate(); err != nil {
 		return nil, err
 	}
@@ -625,7 +635,9 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		return nil, fmt.Errorf("the rule '%s' from the user-session was not found", sess.RuleID)
 	}
 	playState, err := toPlayState(sess.PlayState)
-	mode, err := toMode(rule.Mode)
+	if err != nil {
+		return nil, err
+	}
 	cells, seed, state, err := UnmarshalInternalDataGame(ctx, sess.Data)
 	if err != nil {
 		return nil, err
@@ -641,21 +653,9 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		UserName:  sess.Username,
 	}
 
-	tRule := types.Rules{
-		ID:              rule.ID,
-		CreatedAt:       rule.CreatedAt,
-		UpdatedAt:       &rule.UpdatedAt.Time,
-		Description:     rule.Description.String,
-		Mode:            mode,
-		Rows:            uint8(rule.SizeX),
-		Columns:         uint8(rule.SizeY),
-		RecreateOnSwipe: rule.RecreateOnSwipe,
-		NoReSwipe:       rule.NoReswipe,
-		NoMultiply:      rule.NoMultiply,
-		NoAddition:      rule.NoAddition,
-		MaxMoves:        nullIntToUint(rule.MaxMoves),
-		TargetCellValue: nullIntToUint(rule.TargetCellValue),
-		TargetScore:     nullIntToUint(rule.TargetScore),
+	tRule, err := toTypeRule(*rule)
+	if err != nil {
+		return su, fmt.Errorf("failed to map rule %w", err)
 	}
 
 	tGame := &types.Game{
@@ -965,14 +965,11 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 		Name:        g.Name,
 		PlayState:   PlayStateCurrent,
 		Data:        newData,
+		TemplateID:  g.TemplateID,
 	}
 	playstate, err := toPlayState(gameParams.PlayState)
 	if err != nil {
 		return tg, fmt.Errorf("invalid gameParams.PlayState: %w", err)
-	}
-	mode, err := toMode(rule.Mode)
-	if err != nil {
-		return tg, fmt.Errorf("invalid rule.mode: %w", err)
 	}
 
 	createdGame, err := q.InsertGame(ctx, gameParams)
@@ -984,7 +981,7 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 		ActiveGameID: createdGame.ID,
 		ID:           g.UserID,
 	}
-	updatedUser, err := q.SetActiveGameFormUser(ctx, updateUserParams)
+	_, err = q.SetActiveGameFormUser(ctx, updateUserParams)
 	if err != nil {
 		return tg, fmt.Errorf("failed to update userut: %w", err)
 	}
@@ -1005,42 +1002,7 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 	if err != nil {
 		return tg, err
 	}
-	tg = types.Game{
-		ID:          createdGame.ID,
-		CreatedAt:   createdGame.CreatedAt,
-		Description: createdGame.Description.String,
-		Name:        createdGame.Name.String,
-		// session does not have an UpdatedAt-field, so the suffix-count is off by one
-		UpdatedAt: &createdGame.UpdatedAt.Time,
-		UserID:    updatedUser.ID,
-		Seed:      seed,
-		State:     state,
-		Score:     uint64(createdGame.Score),
-		Moves:     uint(createdGame.Moves),
-		Cells:     cells,
-		PlayState: playstate,
-		Rules: types.Rules{
-			ID:              rule.ID,
-			CreatedAt:       rule.CreatedAt,
-			UpdatedAt:       &rule.UpdatedAt.Time,
-			Description:     rule.Description.String,
-			Mode:            mode,
-			Rows:            uint8(rule.SizeY),
-			Columns:         uint8(rule.SizeX),
-			RecreateOnSwipe: rule.RecreateOnSwipe,
-			NoReSwipe:       rule.NoReswipe,
-			NoMultiply:      rule.NoMultiply,
-			NoAddition:      rule.NoAddition,
-			TargetCellValue: uint64(rule.TargetCellValue.Int64),
-			TargetScore:     uint64(rule.TargetScore.Int64),
-			MaxMoves:        uint64(rule.MaxMoves.Int64),
-		},
-	}
-	if err := tg.Validate(); err != nil {
-		return tg, err
-	}
-
-	return tg, err
+	return toTypeGame(&createdGame, &rule, seed, state, cells, playstate)
 }
 func (p *sqliteStorage) NewGameForUser(ctx context.Context, payload types.NewGamePayload) (tg types.Game, err error) {
 	ctx, span := tracerSqlite.Start(ctx, "NewGameForUser")
@@ -1120,10 +1082,7 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 		Description: sqlString(payload.Game.Description),
 		PlayState:   playState,
 		Data:        data,
-	}
-	mode, err := toMode(r.Mode)
-	if err != nil {
-		return tg, fmt.Errorf("failed to map rule: %w", err)
+		TemplateID:  toNullString(payload.TemplateID),
 	}
 	createdGame, err := q.InsertGame(ctx, gameParams)
 	if err != nil {
@@ -1138,7 +1097,7 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 		ActiveGameID: createdGame.ID,
 		ID:           u.ID,
 	}
-	updatedUser, err := q.UpdateUser(ctx, updateUserParams)
+	_, err = q.UpdateUser(ctx, updateUserParams)
 	if err != nil {
 		return tg, fmt.Errorf("failed to update userut: %w", err)
 	}
@@ -1162,39 +1121,7 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 	if err != nil {
 		return tg, err
 	}
-	tg = types.Game{
-		ID:          createdGame.ID,
-		CreatedAt:   createdGame.CreatedAt,
-		Description: createdGame.Description.String,
-		Name:        createdGame.Name.String,
-		// session does not have an UpdatedAt-field, so the suffix-count is off by one
-		UpdatedAt: &createdGame.UpdatedAt.Time,
-		UserID:    updatedUser.ID,
-		Seed:      payload.Game.Seed,
-		State:     payload.Game.State,
-		Score:     uint64(createdGame.Score),
-		Moves:     uint(createdGame.Moves),
-		Cells:     payload.Game.Cells,
-		PlayState: payload.Game.PlayState,
-		Rules: types.Rules{
-			ID:              r.ID,
-			CreatedAt:       r.CreatedAt,
-			UpdatedAt:       &r.UpdatedAt.Time,
-			Description:     r.Description.String,
-			Mode:            mode,
-			Rows:            uint8(r.SizeY),
-			Columns:         uint8(r.SizeX),
-			RecreateOnSwipe: r.RecreateOnSwipe,
-			NoReSwipe:       r.NoReswipe,
-			NoMultiply:      r.NoMultiply,
-			NoAddition:      r.NoAddition,
-		},
-	}
-	if err := tg.Validate(); err != nil {
-		return tg, err
-	}
-
-	return tg, err
+	return toTypeGame(&createdGame, &r, payload.Game.Seed, payload.Game.State, payload.Game.Cells, payload.Game.PlayState)
 }
 
 // ensures the date is set

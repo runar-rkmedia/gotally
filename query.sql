@@ -10,8 +10,8 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, template_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertRule :one
 INSERT INTO rule
@@ -43,6 +43,22 @@ where challenge_number = ?;
 select * from game_template
 where challenge_number is not null
 order by challenge_number;
+
+-- name: GetChallengeStatsForUser :many
+SELECT
+	g.id as game_id
+	, g.template_id
+	, g.score
+	, g.moves
+	, u.id as user_id
+	, u.username 
+FROM
+	game AS g
+	JOIN user AS u ON u.id = g.user_id 
+WHERE
+	template_id IS NOT NULL
+  AND user_id = ?
+	;
 -- name: GetRule :one
 select * from rule
 where id == ? or slug == ?;

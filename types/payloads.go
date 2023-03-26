@@ -17,6 +17,7 @@ type CreateUserSessionPayload struct {
 	UserID       string
 	Username     string
 	Game         Game
+	TemplateID   string
 }
 
 func (p CreateUserSessionPayload) Validate() error {
@@ -45,7 +46,10 @@ func (p CreateUserSessionPayload) Validate() error {
 	return nil
 }
 
-type GetGameTemplatePayload struct{}
+type GetGameChallengePayload struct {
+	// Optionally include stats for a user, from previous games
+	StatsForUserID string
+}
 type CreateGameTemplatePayload struct {
 	ID              string
 	CreatedAt       time.Time
@@ -170,7 +174,8 @@ func (payload CombinePathPayload) Validate() error {
 }
 
 type NewGamePayload struct {
-	Game Game
+	Game       Game
+	TemplateID string
 }
 type RestartGamePayload struct {
 	UserID string

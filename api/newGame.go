@@ -75,12 +75,41 @@ func (s *TallyServer) NewGameFromTemplate(
 	return res, err
 }
 
+func (s *TallyServer) getChallenge(ctx context.Context, id string, userID string) (*tallylogic.GameTemplate, error) {
+	// TODO: Get by id
+	challenges, err := s.storage.GetGameChallenges(ctx, types.GetGameChallengePayload{
+		StatsForUserID: userID,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to retrieve game-challenges %w", err))
+	}
+	var challenge types.GameTemplate
+	for _, c := range challenges {
+		if c.ID == id {
+			challenge = c
+			break
+		}
+	}
+	if challenge.ID != id {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("challenge not found: '%s'", id))
+
+	}
+	// TODO: this is tedious, fix it
+	template, err := challengeToTemplate(challenge)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge: %w", err))
+	}
+	return template, err
+
+}
+
 // TODO: refactor into multiple verbs, like NewGameFromID, NewGameFromTemplate, etc.
 func (s *TallyServer) NewGame(
 	ctx context.Context,
 	req *connect.Request[model.NewGameRequest],
 ) (*connect.Response[model.NewGameResponse], error) {
 	session := ContextGetUserState(ctx)
+	var err error
 	var mode logic.GameMode
 	var template *logic.GameTemplate
 
@@ -95,23 +124,7 @@ func (s *TallyServer) NewGame(
 				return nil, fmt.Errorf("ID is required for Variatn with id %s", id)
 			}
 			// TODO: Get by id
-			challenges, err := s.storage.GetGameChallenges(ctx)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to retrieve game-challenges %w", err))
-			}
-			var challenge types.GameTemplate
-			for _, c := range challenges {
-				if c.ID == id {
-					challenge = c
-					break
-				}
-			}
-			if challenge.ID != id {
-				return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("challenge not found: '%s'", id))
-
-			}
-			// TODO: this is tedious, fix it
-			template, err = challengeToTemplate(challenge)
+			template, err = s.getChallenge(ctx, id, session.UserID)
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map challenge: %w", err))
 			}
@@ -183,16 +196,20 @@ func (s TallyServer) newGame(ctx context.Context, session *UserState, mode logic
 	payload := types.NewGamePayload{
 		Game: toTypeGame(game, session.UserID),
 	}
+	if template != nil {
+		payload.TemplateID = template.ID
+	}
 	tg, err := s.storage.NewGameForUser(ctx, payload)
 	if err != nil {
 		l.Error().Err(err).Msg("failed to create new game")
 		return nil, fmt.Errorf("internal error while creating new game")
 	}
 	if template != nil {
-		tg.Rules.TargetCellValue = template.Rules.TargetCellValue
-		tg.Rules.TargetScore = template.Rules.TargetScore
-		tg.Rules.TargetScore = template.Rules.TargetScore
-		tg.Rules.MaxMoves = template.Rules.MaxMoves
+		// TODO: why are we overriding this here? shouldn't the db have set these values already?
+		// tg.Rules.TargetCellValue = template.Rules.TargetCellValue
+		// tg.Rules.TargetScore = template.Rules.TargetScore
+		// tg.Rules.TargetScore = template.Rules.TargetScore
+		// tg.Rules.MaxMoves = template.Rules.MaxMoves
 	}
 	game.ID = tg.ID
 	game, err = tallylogic.RestoreGame(&tg)

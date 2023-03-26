@@ -35,6 +35,8 @@ func TestApi_Restart(t *testing.T) {
 		if res.Msg.Board.Id == "" {
 			t.Fatalf("expected board.id to not be empty: %#v", res)
 		}
+		dbGame := ts.DbGameById(res.Msg.Board.Id)
+		testza.AssertNotEqual(t, "", dbGame.TemplateID.String, "TemplateID should have been set after restart")
 	})
 }
 
@@ -87,16 +89,11 @@ func TestApi_GameModes(t *testing.T) {
 			t.Fatalf("New game failed failed %v", strErr(err))
 		}
 		got := newGameResponse.Msg.Mode
+		game := ts.DbGameById(newGameResponse.Msg.Board.Id)
+		testza.AssertNotEqual(t, "", game.TemplateID.String, "TemplateID should be set for challenge")
 		if got != want {
 			dump := ts.GetDBDump()
 			var rule *sqlite.Rule
-			var game *sqlite.Game
-			for _, g := range dump.Games {
-				if g.ID == newGameResponse.Msg.Board.Id {
-					game = &g
-					break
-				}
-			}
 			if game == nil {
 				t.Fatalf("failed to find the game in the database during error-checking")
 			}
@@ -131,8 +128,8 @@ func TestApi_Consistent_State(t *testing.T) {
 		if ts.initialSession.Msg.Session.Game.Moves != 0 {
 			t.Fatalf("Expected Game.Moves to be exactly 0, but was %d", ts.initialSession.Msg.Session.Game.Moves)
 		}
-		ddump := ts.GetDBDump()
-		dbGame := find(ddump.Games, func(t sqlite.Game) bool { return t.ID == ts.initialGame.ID })
+		dbGame := ts.DbGame()
+		testza.AssertNotEqual(t, "", dbGame.TemplateID.String, "TemplateID should be set for a new session")
 		// Check the data-base entry:
 		if dbGame.Name.String == "" {
 			t.Fatalf("Expected Session.Game.Board.Name to be non-empty, but was %s", dbGame.Name.String)
