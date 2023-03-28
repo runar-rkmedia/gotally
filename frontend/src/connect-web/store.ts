@@ -44,44 +44,59 @@ type Primitive = string | number | bigint | boolean | null | undefined
 
 type Replaced<T, TReplace, TWith, TKeep = Primitive> = T extends TReplace | TKeep
 	? T extends TReplace
-		? TWith | Exclude<T, TReplace>
-		: T
+	? TWith | Exclude<T, TReplace>
+	: T
 	: {
-			[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
-	  }
+		[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
+	}
 
-const strip = <ReturnType>({
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	equals,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	clone,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	fromBinary,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	fromJson,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	fromJsonString,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	toBinary,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	toJson,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	toJsonString,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	getType,
-	//eslint-enable
-	...rest
-}: any): ReturnType => {
+const strip = <ReturnType>(obj: any): ReturnType => {
+	console.log('stripping thing', obj)
+	const {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		equals,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		clone,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		fromBinary,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		fromJson,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		fromJsonString,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		toBinary,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		toJson,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		toJsonString,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		getType,
+		//eslint-enable
+		...rest
+	} = obj
 	const deep = objectKeys(rest).reduce((r, k) => {
 		const v = rest[k]
 		switch (typeof v) {
 			case 'function':
 				return r
 			case 'bigint':
+				// console.log('stripping bigint', v, Number(v))
 				return { ...r, [k]: Number(v) }
 			case 'object':
 				if (Array.isArray(v)) {
-					return { ...r, [k]: v.map(strip) }
+					return {
+						...r,
+						[k]: v.map((vv) => {
+							switch (typeof vv) {
+								case 'string':
+								case 'number':
+									return vv
+								case 'bigint':
+									return Number(vv)
+							}
+							return strip(vv)
+						})
+					}
 				}
 				return { ...r, [k]: strip(v as any) }
 			default:
@@ -157,6 +172,9 @@ class ApiStore implements ApiType {
 		await commit()
 		return { result, error }
 	}
+	// sigh, I really dislike this mapping and stripping...
+	// there should be a better way to automate this...
+	// For now, this type is not really important, it is only used internallly
 	generateGame: ApiType['generateGame'] = async (options) => {
 		const [result, err] = await go(client.generateGame(options as any))
 		if (err) {
@@ -172,7 +190,8 @@ class ApiStore implements ApiType {
 			idealMoves: Number(result.idealMoves),
 			idealScore: Number(result.idealScore),
 			highestScore: Number(result.highestScore),
-			solutions: result.solutions.map((g) => strip<Game>(g))
+			solutions: result.solutions.map((g) => strip<Game>(g)),
+			stats: strip<any>(result.stats)
 		}
 		const commit = async () => {
 			// TODO: commit the result to the store

@@ -43,33 +43,23 @@ func (s *TallyServer) GetHint(
 		hints := session.GetHint()
 		if len(hints) > 0 {
 
-			response.Instructions = make([]*model.Instruction, 1)
 			s.l.Debug().
 				Bool("deep", false).
 				Int("hintsFound", len(hints)).
 				Msg("Returning hints")
-			// TODO: sort these better
-			for _, h := range hints {
+			// TODO: sort these better.
+			best := map[string]tallylogic.Hint{}
+			for k, h := range hints {
 				if h.Method != tallylogic.EvalMethodProduct {
 					continue
 				}
-				response.Instructions[0] = &model.Instruction{
-					InstructionOneof: &model.Instruction_Combine{
-						Combine: &model.Indexes{
-							Index: intsTouInt32s(h.Path),
-						},
-					},
-				}
+				best[k] = h
+				response.Instructions = toModelHint(best)
 				return connect.NewResponse(response), nil
 			}
-			for _, h := range hints {
-				response.Instructions[0] = &model.Instruction{
-					InstructionOneof: &model.Instruction_Combine{
-						Combine: &model.Indexes{
-							Index: intsTouInt32s(h.Path),
-						},
-					},
-				}
+			for k, h := range hints {
+				best[k] = h
+				response.Instructions = toModelHint(best)
 				return connect.NewResponse(response), nil
 			}
 		}
@@ -185,25 +175,11 @@ func (s *TallyServer) GetHint(
 		length = int(req.Msg.MaxLength)
 	}
 	response.Instructions = make([]*model.Instruction, length)
-	for i := 0; i < length; i++ {
-		h := bestInstructions[i]
-		switch t := h.(type) {
-		case tallylogic.SwipeDirection:
-			response.Instructions[i] = &model.Instruction{
-				InstructionOneof: &model.Instruction_Swipe{
-					Swipe: toModalDirection(t),
-				},
-			}
-		case []int:
-			response.Instructions[i] = &model.Instruction{
-				InstructionOneof: &model.Instruction_Combine{
-					Combine: &model.Indexes{
-						Index: intsTouInt32s(t),
-					},
-				},
-			}
-		}
+	ins, err := toModelInstruction(bestInstructions)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map instructions: %#v", err))
 	}
+	response.Instructions = ins
 	res := connect.NewResponse(response)
 	return res, nil
 }

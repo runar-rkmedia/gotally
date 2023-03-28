@@ -8,7 +8,8 @@
 	import { onDestroy, onMount } from 'svelte'
 	import { cellValue } from '../../components/board/cell'
 	import { coordToIndex, indexToCoord } from '../../logic'
-	import { Square } from 'lucide-svelte'
+	import merge from 'lodash.merge'
+	import GeneratedGameStats from './GeneratedGameStats.svelte'
 
 	let result: Awaited<ReturnType<typeof storeHandler.generateGame>>[0]
 	let resErr: ConnectError | Error | null
@@ -21,17 +22,24 @@
 		preview,
 		tips
 	}
-	let tab = tabs.preview
-	const gen: Parameters<typeof storeHandler.generateGame>[0] = {
-		rows: 3,
-		columns: 3,
-		targetCellValue: 64,
-		maxBricks: 9,
-		minMoves: 3,
-		maxMoves: 9,
-		withSolutions: true,
-		randomCellChance: 0,
-		algorithm: GeneratorAlgorithm.RANDOMIZED
+	let state: {
+		gen: Parameters<typeof storeHandler.generateGame>[0]
+		tab: tabs
+		autoChangeTab: boolean
+	} = {
+		tab: tabs.generator,
+		autoChangeTab: false,
+		gen: {
+			rows: 3,
+			columns: 3,
+			targetCellValue: 64,
+			maxBricks: 9,
+			minMoves: 3,
+			maxMoves: 9,
+			withSolutions: true,
+			randomCellChance: 0,
+			algorithm: GeneratorAlgorithm.RANDOMIZED
+		}
 	}
 	const setCells = (rows: number, columns: number) =>
 		new Array(rows * columns).fill(null).map((_, i) => ({ base: i, twopow: 0 }))
@@ -55,10 +63,9 @@
 		if (!v) {
 			return
 		}
-		const json = JSON.parse(v) as typeof gen
-		for (const [k, v] of Object.entries(json)) {
-			;(gen as any)[k] = v
-		}
+		const json = JSON.parse(v) as typeof state
+		merge(state, json)
+		state = state
 	})
 
 	const interval = setInterval(() => {
@@ -76,14 +83,20 @@
 		clearInterval(interval)
 	})
 	$: error = {
-		rows: !gen.rows || gen.rows < 3 || (gen.rows > 9 && 'Rows must be between 3 and 9'),
+		rows:
+			!state.gen.rows ||
+			state.gen.rows < 3 ||
+			(state.gen.rows > 9 && 'Rows must be between 3 and 9'),
 		columns:
-			!gen.columns || gen.columns < 3 || (gen.columns > 9 && 'Columns must be between 3 and 9'),
+			!state.gen.columns ||
+			state.gen.columns < 3 ||
+			(state.gen.columns > 9 && 'Columns must be between 3 and 9'),
 		targetCellValue:
-			!gen.targetCellValue ||
-			gen.targetCellValue < 3 ||
-			(gen.targetCellValue > 100_000_000 && 'TargetCellValue must be between 3 and 100 million')
-	} as Partial<Record<keyof typeof gen, boolean | string>>
+			!state.gen.targetCellValue ||
+			state.gen.targetCellValue < 3 ||
+			(state.gen.targetCellValue > 100_000_000 &&
+				'TargetCellValue must be between 3 and 100 million')
+	} as Partial<Record<keyof typeof state.gen, boolean | string>>
 	$: setAsTemplateError = {
 		rows:
 			!setAsTemplate.rows ||
@@ -101,6 +114,10 @@
 	} as Partial<Record<keyof typeof setAsTemplate, boolean | string>>
 	$: hasError = Object.values(error).some(Boolean)
 
+	function saveState() {
+		localStorage.setItem('gotally_generator', JSON.stringify(state))
+	}
+
 	const onSubmitForGeneration = async () => {
 		if (hasError || loading) {
 			return
@@ -111,7 +128,7 @@
 		requestStart = new Date()
 		requestEnd = null
 		loading = true
-		const r = await storeHandler.commit(storeHandler.generateGame(gen))
+		const r = await storeHandler.commit(storeHandler.generateGame(state.gen))
 		loading = false
 		requestEnd = new Date()
 		timerMs = requestStart.getTime() - requestEnd.getTime()
@@ -119,20 +136,22 @@
 		result = r.result
 		resErr = r.error
 		if (!r.error && browser) {
-			localStorage.setItem('gotally_generator', JSON.stringify(gen))
+			saveState()
 		}
 		if (result) {
-			tab = tabs.preview
+			if (state.autoChangeTab) {
+				state.tab = tabs.preview
+			}
 			setAsTemplate.idealMoves = Infinity
 			for (const s of result.solutions) {
 				if (s.moves < setAsTemplate.idealMoves) {
 					setAsTemplate.idealMoves = s.moves
 				}
 			}
-			setAsTemplate.targetCellValue = gen.targetCellValue
+			setAsTemplate.targetCellValue = state.gen.targetCellValue
 			setAsTemplate.description = `Get a target cell to a value of ${setAsTemplate.targetCellValue}. The game can be solved in ${setAsTemplate.idealMoves} moves`
-			setAsTemplate.rows = gen.rows
-			setAsTemplate.columns = gen.columns
+			setAsTemplate.rows = state.gen.rows
+			setAsTemplate.columns = state.gen.columns
 			setAsTemplate.cells = result.game.board.cells
 		}
 	}
@@ -219,59 +238,76 @@
 <h1>Game generator</h1>
 
 <div class="tabs">
-	<button class:active={tab === tabs.generator} on:click={() => (tab = tabs.generator)}
+	<button class:active={state.tab === tabs.generator} on:click={() => (state.tab = tabs.generator)}
 		>1. Generator</button
 	>
-	<button class:active={tab === tabs.preview} on:click={() => (tab = tabs.preview)}
+	<button class:active={state.tab === tabs.preview} on:click={() => (state.tab = tabs.preview)}
 		>2. Preview</button
 	>
-	<button class:active={tab === tabs.tips} on:click={() => (tab = tabs.tips)}>Tips</button>
+	<button class:active={state.tab === tabs.tips} on:click={() => (state.tab = tabs.tips)}
+		>Tips</button
+	>
 </div>
 
 {#if resErr}
 	<div>{resErr.message}</div>
 	<!-- content here -->
 {/if}
-{#if tab === tabs.generator}
+{#if state.tab === tabs.generator}
 	<form on:submit|preventDefault={onSubmitForGeneration}>
-		<Field error={error.algorithm} label="algorithm">
-			<select name="algorithm" bind:value={gen.algorithm}>
-				<option value={GeneratorAlgorithm.RANDOMIZED}
-					>Randomized - Slow, but gives more varied results</option
-				>
-				<option value={GeneratorAlgorithm.REVERSE}
-					>Reverse - Fast, but very monotomous results</option
-				>
-			</select>
-		</Field>
+		<div class="set">
+			<label>
+				Randomized - Slow, but gives more varied results
+				<input
+					name="algorithm"
+					type="radio"
+					bind:group={state.gen.algorithm}
+					value={GeneratorAlgorithm.RANDOMIZED}
+				/>
+			</label>
+			<label>
+				Reverse - Fast, but very monotomous results
+				<input
+					name="algorithm"
+					type="radio"
+					bind:group={state.gen.algorithm}
+					value={GeneratorAlgorithm.REVERSE}
+				/>
+			</label>
+		</div>
 		<div class="set">
 			<Field error={error.rows} label="Rows">
-				<input min="3" max="9" type="number" bind:value={gen.rows} />
+				<input min="3" max="9" type="number" bind:value={state.gen.rows} />
 			</Field>
 			<Field error={error.columns} label="Column">
-				<input min="3" max="9" type="number" bind:value={gen.columns} />
+				<input min="3" max="9" type="number" bind:value={state.gen.columns} />
 			</Field>
 		</div>
 		<Field error={error.targetCellValue} label="Target Cell Value">
-			<input min="3" max="100000000" type="number" bind:value={gen.targetCellValue} />
+			<input min="3" max="100000000" type="number" bind:value={state.gen.targetCellValue} />
 		</Field>
 		<Field error={error.maxAdditionalCells} label="Max Additional cells">
-			<input min="-1" max="100000000" type="number" bind:value={gen.maxAdditionalCells} />
+			<input min="-1" max="100000000" type="number" bind:value={state.gen.maxAdditionalCells} />
 		</Field>
 		<Field error={error.maxBricks} label="Max Bricks">
-			<input min="3" max="100000000" type="number" bind:value={gen.maxBricks} />
+			<input min="3" max="100000000" type="number" bind:value={state.gen.maxBricks} />
 		</Field>
-		{#if gen.algorithm == GeneratorAlgorithm.REVERSE}
+		{#if state.gen.algorithm == GeneratorAlgorithm.REVERSE}
 			<Field error={error.randomCellChance} label="Random cell chance">
-				<input min="-1" max="120" type="number" bind:value={gen.randomCellChance} />
+				<input min="-1" max="120" type="number" bind:value={state.gen.randomCellChance} />
 			</Field>
 		{/if}
 		<div class="set">
 			<Field error={error.minMoves} label="Min moves">
-				<input min="3" max="100000000" type="number" bind:value={gen.minMoves} />
+				<input min="3" max="100000000" type="number" bind:value={state.gen.minMoves} />
 			</Field>
 			<Field error={error.maxMoves} label="Max moves">
-				<input min={gen.minMoves} max="100000000" type="number" bind:value={gen.maxMoves} />
+				<input
+					min={state.gen.minMoves}
+					max="100000000"
+					type="number"
+					bind:value={state.gen.maxMoves}
+				/>
 			</Field>
 		</div>
 		<button type="submit" disabled={hasError || loading}>Send</button>
@@ -283,8 +319,11 @@
 			<p>Game generated in {timerMs}ms</p>
 		{/if}
 	</form>
+	{#if result?.stats}
+		<GeneratedGameStats stats={result.stats} />
+	{/if}
 {/if}
-{#if tab === tabs.preview}
+{#if state.tab === tabs.preview}
 	<form on:submit|preventDefault={onSetAsTemplate}>
 		<Field error={setAsTemplateError.name} label="Name">
 			<input type="string" minlength="3" bind:value={setAsTemplate.name} />
@@ -314,7 +353,7 @@
 		>
 	</form>
 {/if}
-{#if tab === tabs.tips}
+{#if state.tab === tabs.tips}
 	<div class="tips">
 		<p>
 			Try to create challenges that create a unique <i>kind</i> of solution, not just changing the numbers/order.
@@ -337,11 +376,18 @@
 <div class="tmpFlexy">
 	<details>
 		<summary>Details</summary>
-		<pre>{JSON.stringify({ options: gen, setAsTemplate }, null, 2)}</pre>
+		<pre>{JSON.stringify({ options: state, setAsTemplate }, null, 2)}</pre>
 		<pre>{JSON.stringify({ error }, null, 2)}</pre>
 	</details>
+	<div class="set">
+		<label>
+			Auto change tabs
+			<input type="checkbox" bind:checked={state.autoChangeTab} on:change={saveState} />
+		</label>
+	</div>
+	<button style="color: var(--color-white)" on:click={saveState}>Save state</button>
 </div>
-{#if tab === tabs.preview && setAsTemplate.cells && setAsTemplate.rows && setAsTemplate.columns}
+{#if state.tab === tabs.preview && setAsTemplate.cells && setAsTemplate.rows && setAsTemplate.columns}
 	<div class="games">
 		<div class="game">
 			<BoardPreview
@@ -372,6 +418,7 @@
 <style>
 	.tmpFlexy {
 		display: flex;
+		flex-direction: column;
 		margin-top: 50px;
 		overflow: scroll;
 		max-height: 400px;

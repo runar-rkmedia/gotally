@@ -89,25 +89,7 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 				tb.cells[i] = cell.NewCell(int64(i), 0) // int64(i)
 			}
 			got, got1 := tb.NeighboursForCellIndex(tt.args.index)
-			t.Log(tb.PrintBoard(func(c CellValuer, index int, padded string) string {
-				p := color.Yellow
-				if index == tt.args.index {
-					p = color.BgGray
-				} else {
-					for i := 0; i < len(tt.want); i++ {
-						if tt.want[i] == index {
-							p = color.BgRed
-							for j := 0; j < len(got); j++ {
-								if got[j] == index {
-									p = color.Blue
-								}
-							}
-						}
-
-					}
-				}
-				return p.Sprintf("[ %s ]", padded)
-			}))
+			t.Log(tb.PrintBoard(neighbourHighlighter(tt.args.index, tt.want, got)))
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TableBoard.neighboursForCellIndex(%d) got = %v, want %v", tt.args.index, got, tt.want)
 			}
@@ -115,6 +97,28 @@ func TestTableBoard_neighboursForCellIndex(t *testing.T) {
 				t.Errorf("TableBoard.neighboursForCellIndex() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
+	}
+}
+
+func neighbourHighlighter(target int, want []int, got []int) func(c CellValuer, index int, padded string) string {
+	return func(c CellValuer, index int, padded string) string {
+		p := color.Yellow
+		if index == target {
+			p = color.BgGray
+		} else {
+			for i := 0; i < len(want); i++ {
+				if want[i] == target {
+					p = color.BgRed
+					for j := 0; j < len(got); j++ {
+						if got[j] == index {
+							p = color.Blue
+						}
+					}
+				}
+
+			}
+		}
+		return p.Sprintf("[ %s ]", padded)
 	}
 }
 
