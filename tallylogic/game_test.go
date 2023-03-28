@@ -112,7 +112,7 @@ func TestGame_Play(t *testing.T) {
 				}
 				h := BoardHightlighter(g)
 				for i, v := range instructions {
-					ok := g.instruct(v)
+					ok := g.Instruct(v)
 					// t.Logf("Performed isntruction %d %v \n%s", i, v, g.board.PrintBoard(h))
 					if !ok {
 						t.Errorf("Failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
@@ -157,13 +157,13 @@ func TestGame_Play(t *testing.T) {
 					descCopy := g.DescribeInstruction(v)
 					var ok bool
 
-					ok = g.instruct(v)
+					ok = g.Instruct(v)
 					if !ok {
 						t.Errorf("Original game failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
 						return
 					}
 					got := g.Print()
-					ok = gCopy.instruct(v)
+					ok = gCopy.Instruct(v)
 					if !ok {
 						t.Errorf("Copy failed at instruction %d %#v\n%s", i, v, gCopy.board.PrintBoard(hCopy))
 						return

@@ -9,7 +9,8 @@ import (
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic"
-	"github.com/runar-rkmedia/gotally/tallylogic/gameGeneratorTargetCell"
+	gamegenerator_target_cell "github.com/runar-rkmedia/gotally/tallylogic/gameGeneratorTargetCell"
+	"github.com/runar-rkmedia/gotally/tallylogic/gamestats"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 
@@ -114,6 +115,10 @@ func (s *TallyServer) GenerateGame(
 			maxScore = s.Score()
 		}
 	}
+	gameStats, solutionStats, err := calculateStats(game, solutions)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	response := &model.GenerateGameResponse{
 		Game: &model.Game{
 			Board:       toModalBoard(&game),
@@ -125,7 +130,40 @@ func (s *TallyServer) GenerateGame(
 		IdealMoves:   uint32(ideal),
 		IdealScore:   uint64(score),
 		HighestScore: uint64(maxScore),
+		Stats: &model.GameStats{
+			UniqueFactors:           gameStats.UniqueFactors,
+			UniqueValues:            gameStats.UniqueValues,
+			DuplicateFactors:        uint64(gameStats.DuplicateFactors),
+			DuplicateValues:         uint64(gameStats.DuplicateValues),
+			WithValueCount:          uint64(gameStats.WithValueCount),
+			CellCount:               uint64(gameStats.CellCount),
+			UniqueHints:             uint64(gameStats.UniqueHints),
+			Hints:                   toModelHint(gameStats.Hints),
+			IdealMovesSolutionIndex: uint32(solutionStats.IdealMovesSolutionIndex),
+			MaxScoreSolutionIndex:   uint32(solutionStats.MaxScoreSolutionIndex),
+			IdealMoves:              uint32(solutionStats.IdealMoves),
+			ScoreOnIdeal:            solutionStats.ScoreOnIdeal,
+			MaxScore:                solutionStats.MaxScore,
+			SolutionStats:           make([]*model.SolutionStat, len(solutionStats.Stats)),
+		},
 	}
+	for i, stat := range solutionStats.Stats {
+		response.Stats.SolutionStats[i] = &model.SolutionStat{
+			Moves:          uint32(stat.Moves),
+			Score:          stat.Score,
+			InstructionTag: make([]*model.InstructionTag, len(stat.InstructionTags)),
+		}
+		for j, t := range stat.InstructionTags {
+			response.Stats.SolutionStats[i].InstructionTag[j] = &model.InstructionTag{
+				Ok:               t.Ok,
+				IsMultiplication: t.IsMultiplication,
+				IsAddition:       t.IsAddition,
+				IsSwipe:          t.IsSwipe,
+				TwoPow:           t.TwoPow,
+			}
+		}
+	}
+
 	if req.Msg.WithSolutions {
 		max := len(solutions)
 		response.Solutions = make([]*model.Game, max)
@@ -144,4 +182,25 @@ func (s *TallyServer) GenerateGame(
 	}
 	res := connect.NewResponse(response)
 	return res, nil
+}
+
+func calculateStats(game tallylogic.Game, solutions []tallylogic.Game) (gamestats.GameStats, gamestats.SolutionStats, error) {
+	stats, err := gamestats.NewGameStats(game)
+	if err != nil {
+		return stats, gamestats.SolutionStats{}, fmt.Errorf("failed to calculate stats for game %w", err)
+	}
+
+	solutionStats, err := gamestats.NewSolutionsStats(game, solutions)
+	if err != nil {
+		return stats, solutionStats, fmt.Errorf("failed to calculate stats for solutions %w", err)
+	}
+
+	fmt.Printf("Game can ideally be solved in %d moves, for %d points (solution index %d)\n", solutionStats.IdealMoves, solutionStats.ScoreOnIdeal, solutionStats.IdealMovesSolutionIndex)
+	fmt.Printf("The best score found was %d (solution index %d)\n", solutionStats.MaxScore, solutionStats.MaxScoreSolutionIndex)
+
+	fmt.Printf("game has %d unique factors with %d unique values\n", len(stats.UniqueFactors), len(stats.UniqueValues))
+	fmt.Printf("game has %d duplicate factors with %d duplicate values\n", stats.DuplicateFactors, stats.DuplicateValues)
+	fmt.Printf("game has %d hints available (%d unique)\n", len(stats.Hints), stats.UniqueHints)
+	fmt.Printf("game has %d non-empty cells %2f%%\n", stats.WithValueCount, float64(stats.WithValueCount)/float64(stats.CellCount)*100)
+	return stats, solutionStats, nil
 }

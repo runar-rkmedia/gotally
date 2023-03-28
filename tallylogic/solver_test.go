@@ -223,7 +223,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 					}
 				}
 				t.Log(desc, gg.board.PrintBoard(BoardHightlighter(&gg)))
-				ok := gg.instruct(instr)
+				ok := gg.Instruct(instr)
 				if !ok {
 					t.Errorf("Failed to run instruction for game at positon %d %s", i, desc)
 					return

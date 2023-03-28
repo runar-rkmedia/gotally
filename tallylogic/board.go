@@ -160,6 +160,25 @@ func (tb TableBoard) PrintBoard(highlighter func(c CellValuer, index int, padded
 	}
 	return s
 }
+func (b TableBoard) PrintForSelection(selection []int) string {
+	return b.PrintBoard(SelectionHightlighter(selection))
+}
+func SelectionHightlighter(path []int) func(c CellValuer, index int, padded string) string {
+	lastIndex := len(path) - 1
+	return func(c CellValuer, index int, padded string) string {
+		p := color.Gray
+		for i, v := range path {
+			if index == v {
+				if i == lastIndex {
+					p = color.Blue
+				} else {
+					p = color.Yellow
+				}
+			}
+		}
+		return p.Sprintf("[ %s ]", padded)
+	}
+}
 
 // Uniqely identifies the board by its value. ID's etc are ignored.
 // The string is likely to not be printable

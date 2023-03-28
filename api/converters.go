@@ -125,3 +125,41 @@ func toTypeMode(mode logic.GameMode) types.RuleMode {
 	}
 	return ""
 }
+func toModelInstruction(instructions tallylogic.Instruction) ([]*model.Instruction, error) {
+	ins := make([]*model.Instruction, len(instructions))
+	for i := 0; i < len(instructions); i++ {
+		h := instructions[i]
+		switch t := h.(type) {
+		case tallylogic.SwipeDirection:
+			ins[i] = &model.Instruction{
+				InstructionOneof: &model.Instruction_Swipe{
+					Swipe: toModalDirection(t),
+				},
+			}
+		case []int:
+			ins[i] = &model.Instruction{
+				InstructionOneof: &model.Instruction_Combine{
+					Combine: &model.Indexes{
+						Index: intsTouInt32s(t),
+					},
+				},
+			}
+		default:
+			return ins, fmt.Errorf("failed to resolve instruction %s %#v", instructions.DescribeShort(), instructions)
+		}
+	}
+	return ins, nil
+}
+func toModelHint(hints map[string]tallylogic.Hint) []*model.Instruction {
+	ins := make([]*model.Instruction, len(hints))
+	i := -1
+	for _, h := range hints {
+		i++
+		ins[i] = &model.Instruction{
+			InstructionOneof: &model.Instruction_Combine{
+				Combine: &model.Indexes{Index: intsTouInt32s(h.Path)},
+			},
+		}
+	}
+	return ins
+}
