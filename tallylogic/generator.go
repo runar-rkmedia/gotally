@@ -28,6 +28,7 @@ type GameGeneratorOptions struct {
 	MinGames            int
 	GameSolutionChannel chan SolvableGame `toml:"-"`
 }
+
 type GameGenerator struct {
 	GameGeneratorOptions
 }

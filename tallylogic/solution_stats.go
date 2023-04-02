@@ -1,13 +1,11 @@
-package gamestats
+package tallylogic
 
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/runar-rkmedia/gotally/tallylogic"
 )
 
-func NewSolutionsStats(game tallylogic.Game, solutions []tallylogic.Game) (SolutionStats, error) {
+func NewSolutionsStats(game Game, solutions []Game) (SolutionStats, error) {
 	solutionStats := SolutionStats{Stats: make([]SolutionStat, len(solutions))}
 
 	for i, s := range solutions {
@@ -42,7 +40,7 @@ func String(list []int) []string {
 	}
 	return s
 }
-func calculateStat(original tallylogic.Game, solution tallylogic.Game) (SolutionStat, error) {
+func calculateStat(original Game, solution Game) (SolutionStat, error) {
 	if len(original.History) > 0 {
 		return SolutionStat{}, fmt.Errorf("Not implemented. CalculateState currently only supports calculating Games where the original haz no History")
 	}
@@ -57,15 +55,15 @@ func calculateStat(original tallylogic.Game, solution tallylogic.Game) (Solution
 
 		for i, ins := range solution.History {
 
-			t := tallylogic.GetInstructionType(ins)
+			t := GetInstructionType(ins)
 			switch t {
-			case tallylogic.InstructionTypeSwipe:
+			case InstructionTypeSwipe:
 				s.InstructionTags[i] = InstructionTag{IsSwipe: true, Ok: true}
 				if !gameCopy.Instruct(ins) {
 					return s, fmt.Errorf("failed to instuct game to swipe")
 				}
-			case tallylogic.InstructionTypeCombinePath, tallylogic.InstructionTypeSelectCoord, tallylogic.InstructionTypeSelectIndex:
-				path, ok := tallylogic.GetInstructionAsPath(ins)
+			case InstructionTypeCombinePath, InstructionTypeSelectCoord, InstructionTypeSelectIndex:
+				path, ok := GetInstructionAsPath(ins)
 				if !ok {
 					return s, fmt.Errorf("failed to get instruction as path for instuction")
 				}
@@ -74,9 +72,9 @@ func calculateStat(original tallylogic.Game, solution tallylogic.Game) (Solution
 					return s, err
 				}
 				switch method {
-				case tallylogic.EvalMethodSum:
+				case EvalMethodSum:
 					s.InstructionTags[i] = InstructionTag{IsAddition: true, Ok: true}
-				case tallylogic.EvalMethodProduct:
+				case EvalMethodProduct:
 					s.InstructionTags[i] = InstructionTag{IsMultiplication: true, Ok: true}
 				}
 				if !gameCopy.Instruct(ins) {

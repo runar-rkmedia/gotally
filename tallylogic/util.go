@@ -1,4 +1,4 @@
-package gamestats
+package tallylogic
 
 func unique[T comparable](list []T) []T {
 	m := map[T]struct{}{}
