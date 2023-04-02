@@ -10,7 +10,6 @@ import (
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	gamegenerator_target_cell "github.com/runar-rkmedia/gotally/tallylogic/gameGeneratorTargetCell"
-	"github.com/runar-rkmedia/gotally/tallylogic/gamestats"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 
@@ -184,13 +183,13 @@ func (s *TallyServer) GenerateGame(
 	return res, nil
 }
 
-func calculateStats(game tallylogic.Game, solutions []tallylogic.Game) (gamestats.GameStats, gamestats.SolutionStats, error) {
-	stats, err := gamestats.NewGameStats(game)
+func calculateStats(game tallylogic.Game, solutions []tallylogic.Game) (tallylogic.GameStats, tallylogic.SolutionStats, error) {
+	stats, err := game.Stats()
 	if err != nil {
-		return stats, gamestats.SolutionStats{}, fmt.Errorf("failed to calculate stats for game %w", err)
+		return stats, tallylogic.SolutionStats{}, fmt.Errorf("failed to calculate stats for game %w", err)
 	}
 
-	solutionStats, err := gamestats.NewSolutionsStats(game, solutions)
+	solutionStats, err := tallylogic.NewSolutionsStats(game, solutions)
 	if err != nil {
 		return stats, solutionStats, fmt.Errorf("failed to calculate stats for solutions %w", err)
 	}
