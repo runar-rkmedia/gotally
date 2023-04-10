@@ -90,6 +90,7 @@ $RECYCLE.BIN/
 # Go workspace file
 go.work
 generated/games/**/*
+generated/**/*.toml
 *.pprof
 *.env*
 *.log

@@ -349,6 +349,8 @@ type GeneratedGame struct {
 	Preview          string `toml:",multiline,literal"`
 	Hash             string
 	Cells            []int64
+	Stats            GameStats
+	SolutionStats    SolutionStats
 }
 
 type GeneratedSolution struct {
@@ -356,4 +358,5 @@ type GeneratedSolution struct {
 	HighestCellValue int64
 	Score            int64
 	Moves            int
+	VisualSolution   string `toml:",multiline,literal"`
 }

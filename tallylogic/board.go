@@ -161,9 +161,28 @@ func (tb TableBoard) PrintBoard(highlighter func(c CellValuer, index int, padded
 	return s
 }
 func (b TableBoard) PrintForSelection(selection []int) string {
+	return b.PrintBoard(SelectionColoredHightlighter(selection))
+}
+func (b TableBoard) PrintForSelectionNoColor(selection []int) string {
 	return b.PrintBoard(SelectionHightlighter(selection))
 }
 func SelectionHightlighter(path []int) func(c CellValuer, index int, padded string) string {
+	lastIndex := len(path) - 1
+	return func(c CellValuer, index int, padded string) string {
+		// p := color.Gray
+		for i, v := range path {
+			if index == v {
+				if i == lastIndex {
+					return fmt.Sprintf("= %s =", padded)
+				} else {
+					return fmt.Sprintf("_ %s _", padded)
+				}
+			}
+		}
+		return fmt.Sprintf("  %s  ", padded)
+	}
+}
+func SelectionColoredHightlighter(path []int) func(c CellValuer, index int, padded string) string {
 	lastIndex := len(path) - 1
 	return func(c CellValuer, index int, padded string) string {
 		p := color.Gray

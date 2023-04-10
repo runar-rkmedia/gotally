@@ -153,6 +153,32 @@ func CompareInstrictionAreEqual(ins, ins2 any) (bool, InstructionType) {
 	return fmt.Sprintf("%v", ins) == fmt.Sprintf("%#v", ins2), InstructionTypeCombinePath
 }
 
+// 8, 12, 8
+func (g *Game) DescribePath(path []int) string {
+	values := make([]int64, len(path))
+	cells := g.Cells()
+	sum := int64(0)
+	product := int64(1)
+	for i := 0; i < len(path); i++ {
+		values[i] = cells[path[i]].Value()
+		if i != len(path)-1 {
+			sum += values[i]
+			product *= values[i]
+		}
+	}
+	targetValue := values[len(path)-1]
+	sep := " + "
+	if targetValue == product {
+		sep = " * "
+	}
+	s := strconv.FormatInt(values[0], 10)
+	for i := 1; i < len(path)-1; i++ {
+		s += sep + strconv.FormatInt(values[i], 10)
+	}
+	s += " = " + strconv.FormatInt(targetValue, 10)
+	fmt.Printf("Described %s, from values %v, for path %v and cells %s\n", s, values, path, cells)
+	return s
+}
 func (g *Game) DescribeInstruction(instruction any) string {
 	switch instruction {
 	case true:

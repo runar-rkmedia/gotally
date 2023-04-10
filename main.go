@@ -18,6 +18,7 @@ import (
 
 var log logger.AppLogger
 
+// used to generate games and save them to disk.
 func main() {
 	logger.InitLogger(logger.LogConfig{
 		Level:      "debug",
@@ -34,7 +35,6 @@ func main() {
 			Err(http.ListenAndServe(address, nil)).
 			Msg(("failed setting up listener"))
 	}()
-	// getCell()
 	generateGame()
 }
 
@@ -73,6 +73,16 @@ func generateGame() {
 					Hash:             sg.Hash(),
 					Cells:            make([]int64, len(cells)),
 				}
+				stats, err := sg.Stats()
+				if err != nil {
+					panic("Failed to generate gamestats: " + err.Error())
+				}
+				out.Stats = stats
+				solutionStats, err := tallylogic.NewSolutionsStats(sg.Game, sg.Solutions)
+				if err != nil {
+					panic("Failed to generate solutionStats: " + err.Error())
+				}
+				out.SolutionStats = solutionStats
 				for i, c := range cells {
 					out.Cells[i] = c.Value()
 				}
@@ -83,11 +93,35 @@ func generateGame() {
 						Score:            s.Score(),
 						Moves:            s.Moves(),
 					}
+					gameCopy := sg.Copy()
+					for _, ins := range s.History {
+						t := tallylogic.GetInstructionType(ins)
+						switch t {
+						case tallylogic.InstructionTypeCombinePath, tallylogic.InstructionTypeSelectCoord, tallylogic.InstructionTypeSelectIndex:
+							path, ok := tallylogic.GetInstructionAsPath(ins)
+							if !ok {
+								panic("The path was not the expected type")
+							}
+							s := "\n" + gameCopy.DescribePath(path)
+							s += gameCopy.PrintForSelectionNoColor(path) + "\n"
+							gameCopy.Instruct(ins)
+							out.Solutions[i].VisualSolution += s
+						case tallylogic.InstructionTypeSwipe:
+							dir, ok := tallylogic.GetInstructionAsSwipe(ins)
+							if !ok {
+								fmt.Printf("%#v\n", ins)
+								panic("invalid swipe-direction")
+							}
+							gameCopy.Instruct(ins)
+							out.Solutions[i].VisualSolution += "\n" + string(dir) + gameCopy.Print() + "\n"
+						}
+					}
+					out.Solutions[i].VisualSolution += "\nEnd: \n" + gameCopy.Print()
 				}
 				buf := bytes.Buffer{}
 				e := toml.NewEncoder(&buf)
 
-				err := e.Encode(out)
+				err = e.Encode(out)
 				if err != nil {
 					panic(err)
 				}
