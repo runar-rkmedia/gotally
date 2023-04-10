@@ -415,6 +415,9 @@ func (g Game) Print() string {
 func (g Game) PrintForSelection(selection []int) string {
 	return g.board.PrintForSelection(selection)
 }
+func (g Game) PrintForSelectionNoColor(selection []int) string {
+	return g.board.PrintForSelectionNoColor(selection)
+}
 func (g *Game) ForTemplate() map[string]any {
 	m := map[string]any{}
 	m["cells"] = g.board.Cells()

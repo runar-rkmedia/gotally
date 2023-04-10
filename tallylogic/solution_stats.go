@@ -80,6 +80,8 @@ func calculateStat(original Game, solution Game) (SolutionStat, error) {
 				if !gameCopy.Instruct(ins) {
 					return s, fmt.Errorf("failed to instuct game to combine")
 				}
+				_, twoPow := gameCopy.Cells()[path[len(path)-1]].Raw()
+				s.InstructionTags[i].TwoPow = twoPow
 			default:
 				return s, fmt.Errorf("Unhandled instructiontype %d with value %#v", t, ins)
 
@@ -114,5 +116,5 @@ type InstructionTag struct {
 	IsMultiplication bool
 	IsAddition       bool
 	IsSwipe          bool
-	TwoPow           uint64
+	TwoPow           int64
 }

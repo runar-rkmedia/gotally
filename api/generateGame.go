@@ -158,7 +158,7 @@ func (s *TallyServer) GenerateGame(
 				IsMultiplication: t.IsMultiplication,
 				IsAddition:       t.IsAddition,
 				IsSwipe:          t.IsSwipe,
-				TwoPow:           t.TwoPow,
+				TwoPow:           uint64(t.TwoPow),
 			}
 		}
 	}

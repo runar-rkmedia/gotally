@@ -14,6 +14,7 @@ type BoardController interface {
 	HighestValue() (cell.Cell, int)
 	PrintBoard(highlighter func(c CellValuer, index int, padded string) string) string
 	PrintForSelection(selection []int) string
+	PrintForSelectionNoColor(selection []int) string
 	ListEmptyCells() []int
 	// Uniqely identifies the board by its value. ID's etc are ignored.
 	Hash() string
