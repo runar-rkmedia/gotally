@@ -26,6 +26,7 @@ type BoardController interface {
 	// This method should ideally be as performant as possible, as it will be run in loops.
 	SoftEvaluatesTo(indexes []int, targetValue int64) (int64, EvalMethod, error)
 	SwipeDirection(direction SwipeDirection) bool
+	SwipeDirectionSoft(direction SwipeDirection) ([]cell.Cell, bool)
 	SwipeDirectionPreview(direction SwipeDirection) []cell.Cell
 	Cells() []cell.Cell
 	AreNeighboursByIndex(a, b int) bool

@@ -429,33 +429,38 @@ const (
 	SwipeDirectionLeft  SwipeDirection = "Left"
 )
 
-func (tb *TableBoard) SwipeDirection(direction SwipeDirection) bool {
-	newCells := tb.SwipeDirectionPreview(direction)
-	changed := false
-
-	// Find if anything actually changed, ignoring empty cells
-outer:
-	for i := 0; i < len(tb.cells); i++ {
-		if tb.cells[i].Value() == 0 {
+func cellsAreEqual(a, b []cell.Cell) bool {
+	for i := 0; i < len(a); i++ {
+		if a[i].Value() == 0 {
 			continue
 		}
-		for j := 0; j < len(newCells); j++ {
-			if tb.cells[j].Value() == 0 {
+		for j := 0; j < len(b); j++ {
+			if a[j].Value() == 0 {
 				continue
 			}
-			if tb.cells[i].Hash() != newCells[i].Hash() {
-				changed = true
-				break outer
+			if a[i].Hash() != b[i].Hash() {
+				return false
 			}
-
 		}
-
 	}
+	return true
+}
+
+// Swipes the cells in that direction, and updates the board
+func (tb *TableBoard) SwipeDirection(direction SwipeDirection) bool {
+	newCells, changed := tb.SwipeDirectionSoft(direction)
 	if !changed {
 		return false
 	}
 	tb.cells = newCells
 	return changed
+}
+
+// Swipes the cells in that direction, but does not update the board
+func (tb *TableBoard) SwipeDirectionSoft(direction SwipeDirection) ([]cell.Cell, bool) {
+	newCells := tb.SwipeDirectionPreview(direction)
+	changed := !cellsAreEqual(tb.cells, newCells)
+	return newCells, changed
 }
 func (tb *TableBoard) SwipeDirectionPreview(direction SwipeDirection) []cell.Cell {
 	switch direction {

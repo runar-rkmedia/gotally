@@ -1,6 +1,7 @@
 package tallylogic
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -310,6 +311,11 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 func (g *Game) GetHint() map[string]Hint {
 	return g.Hinter.GetHints()
 }
+
+// Returns hints in a consistant order, mostly useful for tests
+func (g *Game) GetHintConsistantly(ctx context.Context, max int) []Hint {
+	return g.Hinter.GetNHintsConsistant(ctx, max)
+}
 func (g *Game) BoardID() string {
 	return g.board.ID()
 }
@@ -328,6 +334,12 @@ func (g *Game) inceaseMoveCount() {
 }
 func (g *Game) increaseScore(points int64) {
 	g.score += points
+}
+
+func (g *Game) SoftSwipe(direction SwipeDirection) (wouldChange bool) {
+	_, wouldChange = g.board.SwipeDirectionSoft(direction)
+	return wouldChange
+
 }
 
 func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
