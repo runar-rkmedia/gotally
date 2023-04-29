@@ -1,7 +1,8 @@
-package tallylogiccompaction_test
+package triplets_test
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 func init() {
 	testza.SetShowStartupMessage(false)
 }
+
+// CAUTION: THERE IS CURRENTLY A RACE-CONDITION here.
+// This should be fixed with running t
 
 // This test is ment to check how long it would take to reacreate a previously
 // game, based on its starting-parameters, and the history of the game. As long
@@ -33,9 +37,19 @@ func TestGame_LongPlay(t *testing.T) {
 
 	t.Log(game.Print())
 
+	// the random source is used for swiping when there are no other valid moves.
+	// changing the seed affects how many moves is possible before one is game over.
+	rnd := rand.NewSource(133)
+	swipeDirections := []tallylogic.SwipeDirection{
+		tallylogic.SwipeDirectionUp,
+		tallylogic.SwipeDirectionRight,
+		tallylogic.SwipeDirectionDown,
+		tallylogic.SwipeDirectionLeft}
+	// 2531 is actually the number of moves until this game is game over
+	// it could probably go on a bit longer with a more tactical use of swipe-direction
+	expectedMoves := 2530
 outer:
-	// 1463 is actually the number of moves until this game is game over
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < expectedMoves; i++ {
 		// if game.Moves() <= 17 {
 		// 	t.Log(game.Moves(), game.Print())
 		// }
@@ -46,21 +60,29 @@ outer:
 		var hints []tallylogic.Hint
 		hints = game.GetHintConsistantly(context.TODO(), 1)
 		if len(hints) == 0 {
-			for _, dir := range []tallylogic.SwipeDirection{tallylogic.SwipeDirectionUp, tallylogic.SwipeDirectionRight, tallylogic.SwipeDirectionDown, tallylogic.SwipeDirectionLeft} {
+			swipes := map[int]struct{}{}
+			for len(swipes) < 4 {
+				diri := int(rnd.Int63()) % len(swipeDirections)
+				if _, existing := swipes[diri]; existing {
+					continue
+				}
+				swipes[diri] = struct{}{}
+				dir := swipeDirections[diri]
 				wouldChange := game.SoftSwipe(dir)
 				var changed bool
 				if wouldChange {
 					changed = game.Swipe(dir)
+					t.Logf("Swiped %s after %d attempts", dir, len(swipes))
 					if changed {
 						continue outer
 					}
 				}
+				// t.Logf("attemted to swipe in %v directions", len(swipes))
 			}
 			t.Log(game.Print())
 			t.Fatalf("Game is over after %d moves", game.Moves())
 		}
 		for _, v := range hints {
-			// fmt.Printf("%2d hint %d/%d %s\n", i, j, len(keys), h[v])
 			if v.Swipe != "" {
 				if game.Swipe(v.Swipe) {
 					break
@@ -75,8 +97,8 @@ outer:
 	t.Log(game.Print())
 
 	// Quick check to see if we have the expected game
-	testza.AssertEqual(t, 1000, game.Moves(), "The game should have the expected number of moves for consistency ")
-	testza.AssertEqual(t, int64(1665328), game.Score(), "The game should have the expected score for consistency")
+	testza.AssertEqual(t, expectedMoves, game.Moves(), "The game should have the expected number of moves for consistency ")
+	testza.AssertEqual(t, int64(2456090364), game.Score(), "The game should have the expected score for consistency")
 
 	// 2. Attempt to restart the game, and replay the game from history.
 	// This should ideally be fast
