@@ -30,7 +30,9 @@ import (
 // triplet 6: starts at byte 2, offset 2-4 (5-3)
 // triplet 7: starts at byte 2, offset 5-7 (2-0)
 
-func tripletsToByteSlice(triplets []byte) []byte {
+type CompactTriplets []byte
+
+func TripletsToByteSlice(triplets []byte) []byte {
 
 	tripletCount := len(triplets)
 	if tripletCount == 0 {
@@ -79,7 +81,7 @@ func byteSliceToTriplets(bytes []byte) ([]byte, error) {
 	// i is the triplets-count currently written
 	i := 0
 	byteCount := len(bytes)
-	triplets := make([]byte, maxTripletCount(byteCount))
+	triplets := make([]byte, MaxTripletCount(byteCount))
 	for j, b := range bytes {
 		ii := i % 8
 
@@ -135,78 +137,76 @@ func byteSliceToTriplets(bytes []byte) ([]byte, error) {
 
 // returns a triplet at the given position
 // the bounds-check is expected to be performed in advance
-func tripletAt(bytes []byte, index int) byte {
+func (c *CompactTriplets) TripletAt(index int) byte {
 	mod := index % 8
 	bMultiple := index / 8 * 3
 	switch mod {
 	case 0:
-		return bytes[bMultiple] >> 5
+		return (*c)[bMultiple] >> 5
 	case 1:
-		return bytes[bMultiple] << 3 >> 5
+		return (*c)[bMultiple] << 3 >> 5
 	case 2:
-		return bytes[bMultiple]<<6>>5 | bytes[bMultiple+1]>>7
+		return (*c)[bMultiple]<<6>>5 | (*c)[bMultiple+1]>>7
 	case 3:
-		return bytes[bMultiple+1] << 1 >> 5
+		return (*c)[bMultiple+1] << 1 >> 5
 	case 4:
-		return bytes[bMultiple+1] << 4 >> 5
+		return (*c)[bMultiple+1] << 4 >> 5
 	case 5:
-		return bytes[bMultiple+1]<<7>>5 | bytes[bMultiple+2]>>6
+		return (*c)[bMultiple+1]<<7>>5 | (*c)[bMultiple+2]>>6
 	case 6:
-		return bytes[bMultiple+2] << 2 >> 5
+		return (*c)[bMultiple+2] << 2 >> 5
 	case 7:
-		return bytes[bMultiple+2] << 5 >> 5
+		return (*c)[bMultiple+2] << 5 >> 5
 	}
 	return 0
 }
 
 // appends a triplet, ignoring any existing padding
-func appendTriplet(bytes *[]byte, triplets ...byte) int {
+func (c *CompactTriplets) Append(triplets ...byte) int {
 	// bl := len(*bytes)
-	l := tripletCount(*bytes)
+	l := c.Length()
 	byteCount := int(math.Ceil(float64(l) * 3 / 8))
 	newByteCount := int(math.Ceil(float64(l+len(triplets)) * 3 / 8))
 
 	bytesNeeded := newByteCount - byteCount
 	for i := 0; i < bytesNeeded; i++ {
-		*bytes = append(*bytes, 0)
+		*c = append(*c, 0)
 	}
 
 	for i := 0; i < len(triplets); i++ {
-		writeTripletAt(bytes, l+i, triplets[i])
+		c.WriteTripletAt(l+i, triplets[i])
 	}
 	return l
 }
 
 // Writes a triplet at the triplet-index into the compact []byte
-func writeTripletAt(bytes *[]byte, index int, triplet byte) {
+func (c *CompactTriplets) WriteTripletAt(index int, triplet byte) {
 	mod := index % 8
-	bMultiple := index / 8 * 3
-	if index == 17 {
-	}
+	bIndex := index / 8 * 3
 	switch mod {
 	case 0:
-		(*bytes)[bMultiple] ^= ((*bytes)[bMultiple] ^ triplet<<5) & 0b1110_0000
+		(*c)[bIndex] ^= ((*c)[bIndex] ^ triplet<<5) & 0b1110_0000
 	case 1:
-		(*bytes)[bMultiple] ^= ((*bytes)[bMultiple] ^ triplet<<2) & 0b0001_1100
+		(*c)[bIndex] ^= ((*c)[bIndex] ^ triplet<<2) & 0b0001_1100
 	case 2:
-		(*bytes)[bMultiple] ^= ((*bytes)[bMultiple] ^ triplet>>1) & 0b0000_0011
-		(*bytes)[bMultiple+1] ^= ((*bytes)[bMultiple+1] ^ triplet<<7) & 0b1000_0000
+		(*c)[bIndex] ^= ((*c)[bIndex] ^ triplet>>1) & 0b0000_0011
+		(*c)[bIndex+1] ^= ((*c)[bIndex+1] ^ triplet<<7) & 0b1000_0000
 	case 3:
-		(*bytes)[bMultiple+1] ^= ((*bytes)[bMultiple+1] ^ triplet<<4) & 0b0111_0000
+		(*c)[bIndex+1] ^= ((*c)[bIndex+1] ^ triplet<<4) & 0b0111_0000
 	case 4:
-		(*bytes)[bMultiple+1] ^= ((*bytes)[bMultiple+1] ^ triplet<<1) & 0b0000_1110
+		(*c)[bIndex+1] ^= ((*c)[bIndex+1] ^ triplet<<1) & 0b0000_1110
 	case 5:
-		(*bytes)[bMultiple+1] ^= ((*bytes)[bMultiple+1] ^ triplet>>2) & 0b0000_0001
-		(*bytes)[bMultiple+2] ^= ((*bytes)[bMultiple+2] ^ triplet<<6) & 0b1100_0000
+		(*c)[bIndex+1] ^= ((*c)[bIndex+1] ^ triplet>>2) & 0b0000_0001
+		(*c)[bIndex+2] ^= ((*c)[bIndex+2] ^ triplet<<6) & 0b1100_0000
 	case 6:
-		(*bytes)[bMultiple+2] ^= ((*bytes)[bMultiple+2] ^ triplet<<3) & 0b0011_1000
+		(*c)[bIndex+2] ^= ((*c)[bIndex+2] ^ triplet<<3) & 0b0011_1000
 	case 7:
-		(*bytes)[bMultiple+2] ^= ((*bytes)[bMultiple+2] ^ triplet) & 0b0000_0111
+		(*c)[bIndex+2] ^= ((*c)[bIndex+2] ^ triplet) & 0b0000_0111
 	}
 }
 
 // returns the maximum triplet-count that can be stored in a []byte of this length
-func maxTripletCount(byteCount int) int {
+func MaxTripletCount(byteCount int) int {
 	return byteCount * 8 / 3
 }
 func removeEmptyTripletsAtEnd(triplets []byte) []byte {
@@ -229,42 +229,24 @@ func removeEmptyTripletsAtEnd(triplets []byte) []byte {
 }
 
 // returns the triplet-count for a []byte, ignoring any 0-triplets at the end.
-func tripletCount(bytes []byte) int {
-	l := len(bytes) * 8 / 3
-	for l > 0 && tripletAt(bytes, l-1) == 0 {
+func (c *CompactTriplets) Length() int {
+	l := len(*c) * 8 / 3
+	for l > 0 && c.TripletAt(l-1) == 0 {
 		l--
 	}
 	return l
 }
 
-type CompactTriplets []byte
-
 func NewCompactTriplets(b []byte) CompactTriplets {
 	return CompactTriplets(b)
 }
 
-func (c *CompactTriplets) Append(triplets ...byte) int {
-	b := []byte(*c)
-	i := appendTriplet(&b, triplets...)
-	*c = CompactTriplets(b)
-
-	return i
-}
 func (c *CompactTriplets) WriteAt(index int, triplet byte) {
-	b := []byte(*c)
-	writeTripletAt(&b, index, triplet)
+	c.WriteTripletAt(index, triplet)
 }
-func (c CompactTriplets) At(index int) byte {
-	b := []byte(c)
-	return tripletAt(b, index)
+func (c *CompactTriplets) Size() int {
+	return len(*c)
 }
-func (c CompactTriplets) Length() int {
-	b := []byte(c)
-	return tripletCount(b)
-}
-func (c CompactTriplets) Size() int {
-	return len(c)
-}
-func (c CompactTriplets) Unpack() ([]byte, error) {
-	return byteSliceToTriplets(c)
+func (c *CompactTriplets) Unpack() ([]byte, error) {
+	return byteSliceToTriplets(*c)
 }

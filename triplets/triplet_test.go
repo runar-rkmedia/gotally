@@ -13,29 +13,29 @@ import (
 
 func TestWriteTripletAt(t *testing.T) {
 	rnd := rand.NewSource(123)
-	bytes := randomBytes(rnd, 30)
+	c := NewCompactTriplets(randomBytes(rnd, 30))
 	{
 		b := byte(0b101)
-		tCount := maxTripletCount(len(bytes))
+		tCount := MaxTripletCount(len(c))
 		for i := 0; i < tCount; i++ {
 			// t.Logf("bytes before %08b", bytes)
-			bytesBeforeStr := printb(bytes)
-			atBefore := tripletAt(bytes, i)
-			writeTripletAt(&bytes, i, b)
-			atAfter := tripletAt(bytes, i)
+			bytesBeforeStr := printb(c)
+			atBefore := c.TripletAt(i)
+			c.WriteTripletAt(i, b)
+			atAfter := c.TripletAt(i)
 			t.Logf("%d %03b\n", i, atAfter)
 			if atAfter != b {
-				bytesAfterStr := printb(bytes)
-				t.Logf("byteas after %08b", bytes)
+				bytesAfterStr := printb(c)
+				t.Logf("byteas after %08b", c)
 				t.Log("diff", highlightDiff(bytesBeforeStr, bytesAfterStr))
 				t.Fatalf("At index %d should have written %03b, but it was read back as %03b (before: %03b)", i, b, atAfter, atBefore)
 			}
 		}
 		// The error here can be ignored in this test, since we are producing random sets of bytes, which will probably not be correct
-		tr, _ := byteSliceToTriplets(bytes)
+		tr, _ := byteSliceToTriplets(c)
 		for i := 0; i < len(tr); i++ {
 			if tr[i] != b {
-				t.Log(printb(bytes))
+				t.Log(printb(c))
 				t.Errorf("Expected %03b at index %d, got  '%03b'\n %03b", b, i, tr[i], tr)
 				break
 			}
@@ -50,19 +50,19 @@ func TestAppendTripletAt(t *testing.T) {
 		length := int(rnd.Int63())%30 + 1
 		t.Run(fmt.Sprintf("Append length %d", length), func(t *testing.T) {
 
-			bytes := randomBytes(rnd, length)
-			t.Logf("Raw bytes before: %08b", bytes)
+			c := NewCompactTriplets(randomBytes(rnd, length))
+			t.Logf("Raw bytes before: %08b", c)
 
-			tBefore, err := byteSliceToTriplets(bytes)
+			tBefore, err := byteSliceToTriplets(c)
 			if err != nil {
 				return
 			}
 
 			tBefore = removeEmptyTripletsAtEnd(tBefore)
 			lenBefore := len(tBefore)
-			wroteAtIndex := appendTriplet(&bytes, triplet)
-			t.Logf("RRaw bytes after: %08b (%d)", bytes, wroteAtIndex)
-			tAfter, _ := byteSliceToTriplets(bytes)
+			wroteAtIndex := c.Append(triplet)
+			t.Logf("RRaw bytes after: %08b (%d)", c, wroteAtIndex)
+			tAfter, _ := byteSliceToTriplets(c)
 			t.Logf("RRaw triplets after: %03b", tAfter)
 			tAfter = removeEmptyTripletsAtEnd(tAfter)
 			t.Logf("RRaw triplets after: %03b", tAfter)
@@ -71,9 +71,9 @@ func TestAppendTripletAt(t *testing.T) {
 				t.Logf("before %03b", tBefore)
 				t.Logf("after  %03b", tAfter)
 				// t.Logf("after %08b", bytes)
-				t.Errorf("Exptected there to be one more triplet after append, but the count was %d(%d) ; append(bytes(%d), %d)", lenAfter, lenBefore, len(bytes), triplet)
+				t.Errorf("Exptected there to be one more triplet after append, but the count was %d(%d) ; append(bytes(%d), %d)", lenAfter, lenBefore, len(c), triplet)
 			}
-			at := tripletAt(bytes, wroteAtIndex)
+			at := c.TripletAt(wroteAtIndex)
 			if at != triplet {
 				t.Errorf("Expected the last triplet after append(bytes, %d) to be %d, but it was %d", triplet, triplet, at)
 			}
@@ -137,7 +137,8 @@ func TestByteSliceToTriplets(t *testing.T) {
 			fmt.Println("********************************************************************************")
 			fmt.Printf("** Start Read %s %s %08b\n", tt.name, printb(tt.bytes), tt.bytes)
 			fmt.Println("********************************************************************************")
-			got, err := byteSliceToTriplets(tt.bytes)
+			c := NewCompactTriplets(tt.bytes)
+			got, err := c.Unpack()
 			if err != tt.wantErr {
 				t.Errorf("expected error did not match: got %v wanted %v", err, tt.wantErr)
 			}
@@ -150,7 +151,7 @@ func TestByteSliceToTriplets(t *testing.T) {
 			}
 			for i := 0; i < len(got); i++ {
 				triplet := got[i]
-				atIndex := tripletAt(tt.bytes, i)
+				atIndex := c.TripletAt(i)
 				fmt.Printf("at: %d %03b %03b\n", i, triplet, atIndex)
 				if triplet != atIndex {
 					t.Errorf("atIndex mismatch at index %d, expected %03b but got %03b", i, triplet, atIndex)
@@ -222,7 +223,7 @@ func TestTripletsToByteSlice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tripletsToByteSlice(tt.bytes); !reflect.DeepEqual(got, tt.want) {
+			if got := TripletsToByteSlice(tt.bytes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("fv writeTriplets(%v) = %v, want %v", tt.bytes, got, tt.want)
 				t.Errorf("fp writeTriplets(%s) = \n%s want \n%s", printb(tt.bytes), printb(got), printb(tt.want))
 				t.Errorf("fb writeTriplets(%08b) = %08b, want %08b", tt.bytes, got, tt.want)
@@ -243,13 +244,13 @@ func TestWriteReadBackTriplets(t *testing.T) {
 	for n := 0; n < 100; n++ {
 		length := int(rnd.Int63()%120) + 1
 		t.Run(fmt.Sprintf("WriteReadBack %d length %d", n, length), func(t *testing.T) {
-			bytes := randomBytes(rnd, length)
-			t.Log("bytes", n, length, printb(bytes))
+			c := NewCompactTriplets(randomBytes(rnd, length))
+			t.Log("bytes", n, length, printb(c))
 			fmt.Println("********************************************************************************")
-			fmt.Printf("** Start Read %d %d %s %08b\n", n, length, printb(bytes), bytes)
+			fmt.Printf("** Start Read %d %d %s %08b\n", n, length, printb(c), c)
 			fmt.Println("********************************************************************************")
-			triplets, err := byteSliceToTriplets(bytes)
-			stringTriplets := strings.Split(printb(bytes), " ")
+			triplets, err := byteSliceToTriplets(c)
+			stringTriplets := strings.Split(printb(c), " ")
 			lastStringTriplet := stringTriplets[len(stringTriplets)-1]
 			if err != nil {
 				if len(lastStringTriplet) != 3 && err == ErrInvalidEnd {
@@ -259,31 +260,31 @@ func TestWriteReadBackTriplets(t *testing.T) {
 				t.Error("got unexpected err", err)
 				return
 			}
-			readBytes := tripletsToByteSlice(triplets)
-			t.Logf("written \nin bytes: %s\ntriplets: %03b\nback:     %s\n", printb(bytes), triplets, printb(readBytes))
-			t.Logf("written \nin bytes: %v\nback:     %v\n", bytes, readBytes)
-			t.Logf("written \nin bytes: %08b\nback:     %08b\n", bytes, readBytes)
-			if !reflect.DeepEqual(readBytes, bytes) {
-				t.Log("orig", printb(bytes))
+			readBytes := TripletsToByteSlice(triplets)
+			t.Logf("written \nin bytes: %s\ntriplets: %03b\nback:     %s\n", printb(c), triplets, printb(readBytes))
+			t.Logf("written \nin bytes: %v\nback:     %v\n", c, readBytes)
+			t.Logf("written \nin bytes: %08b\nback:     %08b\n", c, readBytes)
+			if !reflect.DeepEqual(readBytes, []byte(c)) {
+				t.Log("orig", printb(c))
 				t.Log("read", printb(readBytes))
-				t.Errorf("writing triplets and back to bytes mismatch \ngot:  %v, \nwant: %v", readBytes, bytes)
-				bdiff(t, readBytes, bytes)
+				t.Errorf("writing triplets and back to bytes mismatch \ngot:  '%v', \nwant: '%v'", readBytes, c)
+				bdiff(t, readBytes, c)
 			}
 			for i := 0; i < len(triplets); i++ {
 				triplet := triplets[i]
-				atIndex := tripletAt(bytes, i)
+				atIndex := c.TripletAt(i)
 				fmt.Printf("at: %d %03b %03b\n", i, triplet, atIndex)
 				if triplet != atIndex {
 					t.Errorf("atIndex mismatch at index %d, expected %03b but got %03b", i, triplet, atIndex)
 				}
 
 			}
-			tCount := maxTripletCount(len(bytes))
+			tCount := MaxTripletCount(len(c))
 			if tCount != len(triplets) {
-				t.Errorf("tripletCount(%d) mismatch, expected %d, but got %d", len(bytes), len(triplets), tCount)
+				t.Errorf("tripletCount(%d) mismatch, expected %d, but got %d", len(c), len(triplets), tCount)
 			}
 			trimmedTriplets := removeEmptyTripletsAtEnd(triplets)
-			tCountExcludingPadding := tripletCount(bytes)
+			tCountExcludingPadding := c.Length()
 			if tCountExcludingPadding != len(trimmedTriplets) {
 				t.Errorf("tripletCountExcludingPadding([%d bytes]) mismatch, expected %d, but got %d", len(trimmedTriplets), len(trimmedTriplets), tCountExcludingPadding)
 			}
