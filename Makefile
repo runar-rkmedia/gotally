@@ -14,10 +14,13 @@ ifeq (, $(shell which buf 2> /dev/null))
 $(error "No buf in PATH, consider adding the buf-cli from https://docs.buf.build/installation")
 endif
 
+# Starts The server, and the webserver.
+# Installs any dependecies first
 start:
 	$(MAKE) -s deps
 	$(MAKE) -s -j2 web server
 
+# Watchmode for server, web, tests and buf
 watch:
 ifeq (, $(shell which fd 2> /dev/null))
 $(error "No fd in PATH, which is required for watch-mode consider adding fd from https://github.com/sharkdp/fd ")
@@ -28,7 +31,7 @@ endif
 	$(MAKE) -s deps
 	$(MAKE) -s -j4 web server-watch test-watch buf-watch
 
-# Dependencies
+# Install dependencies
 deps:
 	$(MAKE) -s -j3 frontend/node_modules deps_go generate
 frontend/node_modules: frontend/package.json
@@ -36,9 +39,11 @@ frontend/node_modules: frontend/package.json
 deps_go:
 	go mod tidy
 
+# Runs buf generate
 generate:
 	buf generate
 	$(MAKE) sqlc
+# Runs sqc generation
 sqlc:
 	sqlc generate
 	echo -e "-- This file is generated\n-- Please do not edit.\n-- The file to edit should be ../schema-sqlite.sql" > ./sqlite/schema.sql
