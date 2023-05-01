@@ -65,9 +65,6 @@ func Benchmark_Instruction_Speed_Compact(b *testing.B) {
 		c.AddPath(path)
 		c.AddSwipe(SwipeDirectionUp)
 	}
-	// if c.c.Length() != b.N*2 {
-	// 	b.Fatalf("Expected history to be of length %d, but it was %d", b.N, c.c.Length())
-	// }
 }
 
 func compress(kind string, buf io.Writer, obj any) error {
@@ -195,6 +192,10 @@ func Test_InstructionCompression(t *testing.T) {
 					g2.History.AddPath(path)
 				},
 				func(helper helper, i int) {
+					fmt.Println("???", helper, i)
+					u, err := c.c.Unpack()
+					fmt.Println("???", u, err)
+					fmt.Println("???", c.Describe())
 					panic("no helper")
 				},
 			)
@@ -298,7 +299,7 @@ func TestCompactHistory(t *testing.T) {
 					t.Fatalf("Invalid History-string from test-arguments: %s", x)
 				}
 			}
-			_, err := c.c.Unpack()
+			unpacked, err := c.c.Unpack()
 			if err != nil {
 				t.Fatalf("failed to unpack: %v", err)
 			}
@@ -307,7 +308,7 @@ func TestCompactHistory(t *testing.T) {
 			t.Logf("size %d bytes length %d. %.2f%%", gotSize, gotLength, float64(gotSize)/float64(gotLength)*100)
 			described := c.Describe()
 			if diff := deep.Equal(described, tt.history); diff != nil {
-				t.Errorf("Described did not match %v\ngot:  %s\nwant: %s", diff, described, tt.history)
+				t.Errorf("Describe did not match %v\ngot:  %s\nwant: %s\nUnpacked: %v", diff, described, tt.history, unpacked)
 				d := strings.Split(described, ";")
 				h := strings.Split(tt.history, ";")
 				for i := 0; i < int(math.Min(float64(len(d)), float64(len(h)))); i++ {

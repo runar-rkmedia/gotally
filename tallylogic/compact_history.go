@@ -264,7 +264,7 @@ func (c *CompactHistory) Iterate(
 	var j int
 	path := []int{}
 	for i := 0; i < l; i++ {
-		current := history(c.c.At(i))
+		current := history(c.c.TripletAt(i))
 		switch mode {
 		case modeDefault:
 			switch current {
@@ -295,21 +295,21 @@ func (c *CompactHistory) Iterate(
 			if len(path) == 0 {
 				switch c.tripletsUsedForPathIndex {
 				case 1:
-					t := int(c.c.At(i))
+					t := int(c.c.TripletAt(i))
 					path = append(path, t)
 				case 2:
 					if alt {
-						t := int(c.c.At(i))
+						t := int(c.c.TripletAt(i))
 						path = append(path, t)
 
 					} else {
 
-						t := int(c.c.At(i)<<3 | c.c.At(i+1))
+						t := int(c.c.TripletAt(i)<<3 | c.c.TripletAt(i+1))
 						i++
 						path = append(path, t)
 					}
 				case 3:
-					t := int(c.c.At(i)<<6 | c.c.At(i+1)<<3 | c.c.At(i+2))
+					t := int(c.c.TripletAt(i)<<6 | c.c.TripletAt(i+1)<<3 | c.c.TripletAt(i+2))
 					i += 2
 					path = append(path, t)
 				default:
