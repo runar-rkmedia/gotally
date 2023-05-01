@@ -20,6 +20,7 @@ const (
 	bSwipeRight
 	bSwipeDown
 	bSwipeLeft
+	bModePathAlt
 )
 
 const (
@@ -140,17 +141,26 @@ func (c *CompactHistory) AddPath(path []int) error {
 	if length < 2 {
 		return fmt.Errorf("Path must be of at least of length 2")
 	}
+	first := byte(path[0])
+	lengthReduction := 0
+	if c.tripletsUsedForPathIndex == 2 && first < 8 {
+		lengthReduction = 1
+	}
 	// Start with a 0-byte(bModePath),
 	// followed by the first index path as triplet-count defined by c.tripletsUsedForPathIndex
-	toAppend := make([]byte, length+c.tripletsUsedForPathIndex)
+	toAppend := make([]byte, length+c.tripletsUsedForPathIndex-lengthReduction)
 
-	first := byte(path[0])
 	switch c.tripletsUsedForPathIndex {
 	case 1:
 		toAppend[1] = first
 	case 2:
-		toAppend[1] = first & 0b00111000 >> 3
-		toAppend[2] = first & 0b00000111
+		if first < 8 {
+			toAppend[1] = first
+			toAppend[0] = bModePathAlt
+		} else {
+			toAppend[1] = first & 0b00111000 >> 3
+			toAppend[2] = first & 0b00000111
+		}
 	case 3:
 		toAppend[1] = first & 0b11000000 >> 6
 		toAppend[2] = first & 0b00111000 >> 3
@@ -160,9 +170,9 @@ func (c *CompactHistory) AddPath(path []int) error {
 	}
 
 	for i := 1; i < length; i++ {
-		toAppend[i+c.tripletsUsedForPathIndex] = combinePathRelative(path[i-1], path[i])
+		toAppend[i+c.tripletsUsedForPathIndex-lengthReduction] = combinePathRelative(path[i-1], path[i])
 		if i == length-1 {
-			toAppend[i+c.tripletsUsedForPathIndex] += 4
+			toAppend[i+c.tripletsUsedForPathIndex-lengthReduction] += 4
 		}
 	}
 	c.c.Append(toAppend...)
@@ -250,6 +260,7 @@ func (c *CompactHistory) Iterate(
 ) error {
 	l := c.c.Length()
 	mode := modeDefault
+	alt := false
 	var j int
 	path := []int{}
 	for i := 0; i < l; i++ {
@@ -259,6 +270,10 @@ func (c *CompactHistory) Iterate(
 			switch current {
 			case bModePath:
 				mode = modePath
+				alt = false
+			case bModePathAlt:
+				mode = modePath
+				alt = true
 			case bModeHelpers:
 				mode = modeHelper
 			case bSwipeUp:
@@ -283,9 +298,16 @@ func (c *CompactHistory) Iterate(
 					t := int(c.c.At(i))
 					path = append(path, t)
 				case 2:
-					t := int(c.c.At(i)<<3 | c.c.At(i+1))
-					i++
-					path = append(path, t)
+					if alt {
+						t := int(c.c.At(i))
+						path = append(path, t)
+
+					} else {
+
+						t := int(c.c.At(i)<<3 | c.c.At(i+1))
+						i++
+						path = append(path, t)
+					}
 				case 3:
 					t := int(c.c.At(i)<<6 | c.c.At(i+1)<<3 | c.c.At(i+2))
 					i += 2

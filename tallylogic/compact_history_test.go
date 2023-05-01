@@ -24,81 +24,29 @@ func TestCompactHistory(t *testing.T) {
 		name          string
 		columns, rows int
 		// The test will append each of these
-		history string
+		history              string
+		wantSize, wantLength int
 	}
-	testCreator := func(name string, seed int64, columns, rows, historyLength int) testArgs {
+	testCreator := func(name string, seed int64, columns, rows, historyLength int, wantSize, wantLength int) testArgs {
 		rnd := rand.NewSource(seed)
-		return testArgs{name, columns, rows, historyStringCreator(t, columns, rows, rnd, historyLength)}
+		res := testArgs{name, columns, rows, historyStringCreator(t, columns, rows, rnd, historyLength), wantSize, wantLength}
+		hCount := strings.Count(res.history, ";")
+		res.name = fmt.Sprintf("%s %dx%d-%d-%d", name, columns, rows, hCount, seed)
+		return res
 	}
 	tests := []testArgs{
-		// TODO: Add test cases.
-		{
-			"Test simple history 5x5",
-			5,
-			5,
-			"U;R;6,1,2,7,12,11;L;H;D;",
-		},
-		testCreator(
-			"Test randomized history ",
-			1000,
-			5,
-			5,
-			8,
-		),
-		testCreator(
-			"Test randomized history",
-			1001,
-			5,
-			5,
-			4,
-		),
-		testCreator(
-			"Test randomized history",
-			1002,
-			5,
-			5,
-			30,
-		),
-		testCreator(
-			"Test randomized history",
-			1002,
-			5,
-			5,
-			30,
-		),
-		testCreator(
-			"Test randomized history",
-			1003,
-			4,
-			4,
-			3,
-		),
-		testCreator(
-			"Test randomized history",
-			1004,
-			4,
-			4,
-			400,
-		),
-		testCreator(
-			"Test randomized history on tiny board",
-			1005,
-			3,
-			2,
-			4,
-		),
-		testCreator(
-			"Test randomized history on bigger board",
-			1006,
-			8,
-			8,
-			4,
-		),
+		{"Test simple history 5x5", 5, 5, "U;R;6,1,2,7,12,11;L;H;D;", 5, 13},
+		testCreator("Test randomized history ", 1000, 5, 5, 8, 7, 17),
+		testCreator("Test randomized history", 1001, 5, 5, 4, 3, 8),
+		testCreator("Test randomized history", 1002, 5, 5, 30, 47, 123),
+		testCreator("Test randomized history", 1003, 4, 4, 3, 3, 6),
+		testCreator("Test randomized history", 1004, 4, 4, 400, 479, 1276),
+		testCreator("Test randomized history on tiny board", 1005, 3, 2, 4, 8, 19),
+		testCreator("Test randomized history on bigger board", 1006, 8, 8, 4, 12, 32),
 	}
 	pathRegex := regexp.MustCompile(`^[0-9,]{2,}$`)
 	for _, tt := range tests {
-		hCount := strings.Count(tt.history, ";")
-		t.Run(fmt.Sprintf("%s %dx%d-%d", tt.name, tt.columns, tt.rows, hCount), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompactHistory(tt.columns, tt.rows)
 			t.Log("input-history", tt.history)
 			tb := newTableBoard(t, tt.columns, tt.rows)
@@ -148,12 +96,13 @@ func TestCompactHistory(t *testing.T) {
 					t.Fatalf("Invalid History-string from test-arguments: %s", x)
 				}
 			}
-			unpacked, err := c.c.Unpack()
+			_, err := c.c.Unpack()
 			if err != nil {
 				t.Fatalf("failed to unpack: %v", err)
 			}
-			t.Logf("unpacked %v", unpacked)
-			t.Logf("size %d bytes length %d. tripletsUsedForPathIndex: %d", c.c.Size(), c.c.Length(), c.tripletsUsedForPathIndex)
+			gotSize := c.c.Size()
+			gotLength := c.c.Length()
+			t.Logf("size %d bytes length %d. %.2f%%", gotSize, gotLength, float64(gotSize)/float64(gotLength)*100)
 			described := c.Describe()
 			if diff := deep.Equal(described, tt.history); diff != nil {
 				t.Errorf("Described did not match %v\ngot:  %s\nwant: %s", diff, described, tt.history)
@@ -186,6 +135,12 @@ func TestCompactHistory(t *testing.T) {
 					break
 
 				}
+			}
+			if tt.wantSize != c.c.Size() {
+				t.Errorf("Expected Size to be %d, but it was %d", tt.wantSize, c.c.Size())
+			}
+			if tt.wantLength != c.c.Length() {
+				t.Errorf("Expected Length to be %d, but it was %d", tt.wantLength, c.c.Length())
 			}
 		})
 	}
