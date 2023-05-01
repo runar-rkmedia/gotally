@@ -1,4 +1,4 @@
-package tallylogiccompaction
+package triplets
 
 import (
 	"errors"
@@ -138,7 +138,6 @@ func byteSliceToTriplets(bytes []byte) ([]byte, error) {
 func tripletAt(bytes []byte, index int) byte {
 	mod := index % 8
 	bMultiple := index / 8 * 3
-	fmt.Println("tripleAt", bMultiple, len(bytes))
 	switch mod {
 	case 0:
 		return bytes[bMultiple] >> 5
@@ -161,19 +160,20 @@ func tripletAt(bytes []byte, index int) byte {
 }
 
 // appends a triplet, ignoring any existing padding
-func appendTriplet(bytes *[]byte, triplet byte) int {
-	bl := len(*bytes)
+func appendTriplet(bytes *[]byte, triplets ...byte) int {
+	// bl := len(*bytes)
 	l := tripletCount(*bytes)
-	lengthf := float64(l) * 3 / 8
-	byteCount := int(math.Ceil(lengthf))
-	mod := l % 8
-	if byteCount == bl {
-		switch mod {
-		case 0, 2, 5:
-			*bytes = append(*bytes, 0)
-		}
+	byteCount := int(math.Ceil(float64(l) * 3 / 8))
+	newByteCount := int(math.Ceil(float64(l+len(triplets)) * 3 / 8))
+
+	bytesNeeded := newByteCount - byteCount
+	for i := 0; i < bytesNeeded; i++ {
+		*bytes = append(*bytes, 0)
 	}
-	writeTripletAt(bytes, l, triplet)
+
+	for i := 0; i < len(triplets); i++ {
+		writeTripletAt(bytes, l+i, triplets[i])
+	}
 	return l
 }
 
@@ -182,7 +182,6 @@ func writeTripletAt(bytes *[]byte, index int, triplet byte) {
 	mod := index % 8
 	bMultiple := index / 8 * 3
 	if index == 17 {
-		fmt.Printf("writeTripletAt %08b, %d, %03b\n", *bytes, index, triplet)
 	}
 	switch mod {
 	case 0:
@@ -203,9 +202,6 @@ func writeTripletAt(bytes *[]byte, index int, triplet byte) {
 		(*bytes)[bMultiple+2] ^= ((*bytes)[bMultiple+2] ^ triplet<<3) & 0b0011_1000
 	case 7:
 		(*bytes)[bMultiple+2] ^= ((*bytes)[bMultiple+2] ^ triplet) & 0b0000_0111
-	}
-	if index == 17 {
-		fmt.Printf("wroteTripletAt %08b, %d, %03b | %d %d\n", *bytes, index, triplet, mod, bMultiple)
 	}
 }
 
@@ -243,9 +239,16 @@ func tripletCount(bytes []byte) int {
 
 type CompactTriplets []byte
 
-func (c *CompactTriplets) Append(triplet byte) int {
+func NewCompactTriplets(b []byte) CompactTriplets {
+	return CompactTriplets(b)
+}
+
+func (c *CompactTriplets) Append(triplets ...byte) int {
 	b := []byte(*c)
-	return appendTriplet(&b, triplet)
+	i := appendTriplet(&b, triplets...)
+	*c = CompactTriplets(b)
+
+	return i
 }
 func (c *CompactTriplets) WriteAt(index int, triplet byte) {
 	b := []byte(*c)
@@ -255,10 +258,13 @@ func (c CompactTriplets) At(index int) byte {
 	b := []byte(c)
 	return tripletAt(b, index)
 }
-func (c CompactTriplets) Length(index int) int {
+func (c CompactTriplets) Length() int {
 	b := []byte(c)
 	return tripletCount(b)
 }
 func (c CompactTriplets) Size() int {
 	return len(c)
+}
+func (c CompactTriplets) Unpack() ([]byte, error) {
+	return byteSliceToTriplets(c)
 }

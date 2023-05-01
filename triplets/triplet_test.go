@@ -1,4 +1,4 @@
-package tallylogiccompaction
+package triplets
 
 import (
 	"fmt"
