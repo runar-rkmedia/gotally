@@ -28,7 +28,11 @@ const (
 	bitgroupModePathRight
 	bitgroupModePathDown
 	bitgroupModePathLeft
-	bitgroupModePathEnd
+	// We have some extra bits available here, so we can do a combinator
+	bitgroupModePathUpEnd
+	bitgroupModePathRightEnd
+	bitgroupModePathDownEnd
+	bitgroupModePathLeftEnd
 )
 const (
 	// Mode Helper. After any of these, the mode is returned to Default
@@ -132,22 +136,21 @@ func (c *CompactHistory) AddSwipe(dir SwipeDirection) {
 	}
 }
 func (c *CompactHistory) AddPath(path []int) error {
-	if len(path) < 2 {
+	length := len(path)
+	if length < 2 {
 		return fmt.Errorf("Path must be of at least of length 2")
 	}
-	// Each will have a 0-byte, and c.tripletsUsedForPathIndex
-	toAppend := make([]byte, len(path)+c.tripletsUsedForPathIndex+1)
+	// Start with a 0-byte(bModePath),
+	// followed by the first index path as triplet-count defined by c.tripletsUsedForPathIndex
+	toAppend := make([]byte, length+c.tripletsUsedForPathIndex)
 
 	first := byte(path[0])
 	switch c.tripletsUsedForPathIndex {
 	case 1:
 		toAppend[1] = first
 	case 2:
-		// toAppend[1] = first << 2 >> 5
-		// toAppend[2] = first << 5 >> 5
 		toAppend[1] = first & 0b00111000 >> 3
 		toAppend[2] = first & 0b00000111
-
 	case 3:
 		toAppend[1] = first & 0b11000000 >> 6
 		toAppend[2] = first & 0b00111000 >> 3
@@ -155,10 +158,12 @@ func (c *CompactHistory) AddPath(path []int) error {
 	default:
 		panic(fmt.Sprintf("NotImplemeted:CompactHistory:AddPath tripletsUsedForPathIndex=%d (%d)", c.tripletsUsedForPathIndex, c.bitsUsedForPathIndex))
 	}
-	toAppend[len(toAppend)-1] = bitgroupModePathEnd
 
-	for i := 1; i < len(path); i++ {
+	for i := 1; i < length; i++ {
 		toAppend[i+c.tripletsUsedForPathIndex] = combinePathRelative(path[i-1], path[i])
+		if i == length-1 {
+			toAppend[i+c.tripletsUsedForPathIndex] += 4
+		}
 	}
 	c.c.Append(toAppend...)
 	return nil
@@ -291,21 +296,23 @@ func (c *CompactHistory) Iterate(
 				continue
 			}
 			switch current {
-			case bitgroupModePathEnd:
+			case bitgroupModePathUp, bitgroupModePathUpEnd:
+				path = append(path, path[len(path)-1]-c.gameColumns)
+			case bitgroupModePathRight, bitgroupModePathRightEnd:
+				path = append(path, path[len(path)-1]+1)
+			case bitgroupModePathDown, bitgroupModePathDownEnd:
+				path = append(path, path[len(path)-1]+c.gameColumns)
+			case bitgroupModePathLeft, bitgroupModePathLeftEnd:
+				path = append(path, path[len(path)-1]-1)
+			default:
+				return fmt.Errorf("Failed to map in mode, got unexpected value at triplet-index %d, %d %s", i, current, name(mode, current))
+			}
+			switch current {
+			case bitgroupModePathUpEnd, bitgroupModePathRightEnd, bitgroupModePathDownEnd, bitgroupModePathLeftEnd:
 				onCombinePath(path, j)
 				path = []int{}
 				j++
 				mode = modeDefault
-			case bitgroupModePathUp:
-				path = append(path, path[len(path)-1]-c.gameColumns)
-			case bitgroupModePathRight:
-				path = append(path, path[len(path)-1]+1)
-			case bitgroupModePathDown:
-				path = append(path, path[len(path)-1]+c.gameColumns)
-			case bitgroupModePathLeft:
-				path = append(path, path[len(path)-1]-1)
-			default:
-				return fmt.Errorf("Failed to map in mode, got unexpected value at triplet-index %d, %d %s", i, current, name(mode, current))
 			}
 		case modeHelper:
 			switch current {
