@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
+	"strconv"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/gotally/randomizer"
@@ -43,7 +44,7 @@ type Game struct {
 	Hinter        hintCalculator
 	GoalChecker   GoalChecker
 	DefeatChecker GoalChecker
-	History       Instruction
+	History       CompactHistory
 }
 
 func (g Game) Seed() (uint64, uint64) {
@@ -127,7 +128,8 @@ func (g Game) Copy() Game {
 			game.board, game.board, game.board,
 		)
 	}
-	game.History = append(game.History, g.History...)
+	game.History = NewCompactHistoryFromGame(game)
+	game.History.c = append(game.History.c, g.History.c...)
 	return game
 
 }
@@ -184,7 +186,7 @@ func RestoreGame(g *types.Game) (Game, error) {
 		Name:          g.Name,
 		GoalChecker:   nil,
 		DefeatChecker: nil,
-		History:       []any{},
+		History:       NewCompactHistory(int(g.Rules.Columns), int(g.Rules.Rows)),
 	}
 
 	game.DefeatChecker = DefeatCheckerNoMoreMoves{}
@@ -233,7 +235,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 			StartingBricks:  5,
 			GameMode:        mode,
 		},
-		History: []any{},
 	}
 	for _, o := range options {
 		game.Rules.Options = o
@@ -288,6 +289,7 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d %s", mode, string(debug.Stack()))
 	}
+	game.History = NewCompactHistory(game.Rules.SizeX, game.Rules.SizeY)
 	allEmpty := true
 	for _, c := range game.Cells() {
 		if c.Value() > 0 {
@@ -407,10 +409,6 @@ func (g *Game) EvaluateSelection() bool {
 // - Moves
 // - History
 func (g *Game) EvaluateForPath(path []int) bool {
-	err, _ := g.board.ValidatePath(path)
-	if err != nil {
-		return false
-	}
 	points, _, err := g.board.EvaluatesTo(path, true, false)
 	if err != nil {
 		return false
@@ -498,4 +496,29 @@ func (g Game) IsGameOver() bool {
 func (g Game) Hash() string {
 	b := []byte(g.board.Hash())
 	return base64.URLEncoding.EncodeToString(b)
+}
+func (g *Game) DescribePath(path []int) string {
+	values := make([]int64, len(path))
+	cells := g.Cells()
+	sum := int64(0)
+	product := int64(1)
+	for i := 0; i < len(path); i++ {
+		values[i] = cells[path[i]].Value()
+		if i != len(path)-1 {
+			sum += values[i]
+			product *= values[i]
+		}
+	}
+	targetValue := values[len(path)-1]
+	sep := " + "
+	if targetValue == product {
+		sep = " * "
+	}
+	s := strconv.FormatInt(values[0], 10)
+	for i := 1; i < len(path)-1; i++ {
+		s += sep + strconv.FormatInt(values[i], 10)
+	}
+	s += " = " + strconv.FormatInt(targetValue, 10)
+	fmt.Printf("Described %s, from values %v, for path %v and cells %s\n", s, values, path, cells)
+	return s
 }

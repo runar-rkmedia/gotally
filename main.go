@@ -94,26 +94,21 @@ func generateGame() {
 						Moves:            s.Moves(),
 					}
 					gameCopy := sg.Copy()
-					for _, ins := range s.History {
-						t := tallylogic.GetInstructionType(ins)
-						switch t {
-						case tallylogic.InstructionTypeCombinePath, tallylogic.InstructionTypeSelectCoord, tallylogic.InstructionTypeSelectIndex:
-							path, ok := tallylogic.GetInstructionAsPath(ins)
-							if !ok {
-								panic("The path was not the expected type")
-							}
-							s := "\n" + gameCopy.DescribePath(path)
-							s += gameCopy.PrintForSelectionNoColor(path) + "\n"
-							gameCopy.Instruct(ins)
+					history, err := s.History.All()
+					if err != nil {
+						panic(fmt.Sprintf("failed to iterate of history: %v", err))
+					}
+					for _, ins := range history {
+						gameCopy.Instruct(ins)
+						switch {
+						case ins.IsPath:
+							s := "\n" + gameCopy.DescribePath(ins.Path)
+							s += gameCopy.PrintForSelectionNoColor(ins.Path) + "\n"
 							out.Solutions[i].VisualSolution += s
-						case tallylogic.InstructionTypeSwipe:
-							dir, ok := tallylogic.GetInstructionAsSwipe(ins)
-							if !ok {
-								fmt.Printf("%#v\n", ins)
-								panic("invalid swipe-direction")
-							}
-							gameCopy.Instruct(ins)
-							out.Solutions[i].VisualSolution += "\n" + string(dir) + gameCopy.Print() + "\n"
+						case ins.IsSwipe:
+							out.Solutions[i].VisualSolution += "\n" + string(ins.Direction) + gameCopy.Print() + "\n"
+						default:
+							panic(fmt.Sprintf("NotImplemented: %#v", ins))
 						}
 					}
 					out.Solutions[i].VisualSolution += "\nEnd: \n" + gameCopy.Print()

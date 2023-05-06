@@ -354,7 +354,7 @@ type GeneratedGame struct {
 }
 
 type GeneratedSolution struct {
-	History          []any
+	History          CompactHistory
 	HighestCellValue int64
 	Score            int64
 	Moves            int

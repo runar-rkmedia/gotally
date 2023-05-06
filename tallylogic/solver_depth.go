@@ -33,7 +33,7 @@ func (b *bruteDepthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, erro
 
 	seen := map[string]struct{}{}
 	game := g.Copy()
-	game.History = Instruction{}
+	game.History = NewCompactHistoryFromGame(game)
 	solutionsChan := make(chan Game)
 	ctx, cancel := context.WithTimeout(context.Background(), b.MaxTime)
 	defer cancel()
@@ -140,24 +140,31 @@ func (b *bruteDepthSolver) solveGame(
 		}
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
-		if !originalGame.Rules.NoReswipe && len(g.History) > 0 {
+		if !originalGame.Rules.NoReswipe && !g.History.IsEmpty() {
 			// there is no point in swiping the same direction twice
-			last := g.History[len(g.History)-1]
-			if last == dir {
-				continue
+			// TODO: this can be improved performace-wise
+			lastEntry, err := g.History.Last()
+			if err != nil {
+				return err
 			}
-			// there is no point in swiping the opposite direction of the last swipe
-			if last == SwipeDirectionUp && dir == SwipeDirectionDown {
-				continue
-			}
-			if last == SwipeDirectionDown && dir == SwipeDirectionUp {
-				continue
-			}
-			if last == SwipeDirectionLeft && dir == SwipeDirectionRight {
-				continue
-			}
-			if last == SwipeDirectionRight && dir == SwipeDirectionLeft {
-				continue
+			if lastEntry.IsSwipe {
+				last := lastEntry.Direction
+				if last == dir {
+					continue
+				}
+				// there is no point in swiping the opposite direction of the last swipe
+				if last == SwipeDirectionUp && dir == SwipeDirectionDown {
+					continue
+				}
+				if last == SwipeDirectionDown && dir == SwipeDirectionUp {
+					continue
+				}
+				if last == SwipeDirectionLeft && dir == SwipeDirectionRight {
+					continue
+				}
+				if last == SwipeDirectionRight && dir == SwipeDirectionLeft {
+					continue
+				}
 			}
 		}
 		gameCopy := g.Copy()

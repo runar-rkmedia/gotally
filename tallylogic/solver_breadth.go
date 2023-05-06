@@ -81,7 +81,7 @@ func (b *bruteBreadthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, er
 
 	game := g.Copy()
 	seen[game.Hash()] = struct{}{}
-	game.History = Instruction{}
+	game.History = NewCompactHistoryFromGame(game)
 	solutionsChan := make(chan Game)
 	ctx, cancel := context.WithTimeout(context.Background(), b.MaxTime)
 	defer cancel()
@@ -227,26 +227,31 @@ func (b *bruteBreadthSolver) solveGame(
 		send("hint-job", jobsCh, gameJob{gameCopy, hash, depth, "hint"})
 	}
 	for _, dir := range []SwipeDirection{SwipeDirectionUp, SwipeDirectionRight, SwipeDirectionDown, SwipeDirectionLeft} {
-		if !originalGame.Rules.NoReswipe && len(g.History) > 0 {
-			// there is no point in swiping the same direction twice
-			last := g.History[len(g.History)-1]
-			if last == dir {
-				continue
-			}
-			// there is no point in swiping the opposite direction of the last swipe
-			// THIS IS ONLY TRUE FOR GAMES WHERE THERE IS NO Cell-generation
-			// TODO: implement a check for this distinction
-			if last == SwipeDirectionUp && dir == SwipeDirectionDown {
-				continue
-			}
-			if last == SwipeDirectionDown && dir == SwipeDirectionUp {
-				continue
-			}
-			if last == SwipeDirectionLeft && dir == SwipeDirectionRight {
-				continue
-			}
-			if last == SwipeDirectionRight && dir == SwipeDirectionLeft {
-				continue
+		if !originalGame.Rules.NoReswipe && g.History.Length() > 0 {
+			// TODO: this might be very inefficient
+			lastIndex := g.History.c.Length() - 1
+			lastIns := g.History.At(lastIndex)
+			if lastIns.IsSwipe {
+				last := lastIns.Direction
+				// there is no point in swiping the same direction twice
+				if lastIns.IsSwipe && last == dir {
+					continue
+				}
+				// there is no point in swiping the opposite direction of the last swipe
+				// THIS IS ONLY TRUE FOR GAMES WHERE THERE IS NO Cell-generation
+				// TODO: implement a check for this distinction
+				if last == SwipeDirectionUp && dir == SwipeDirectionDown {
+					continue
+				}
+				if last == SwipeDirectionDown && dir == SwipeDirectionUp {
+					continue
+				}
+				if last == SwipeDirectionLeft && dir == SwipeDirectionRight {
+					continue
+				}
+				if last == SwipeDirectionRight && dir == SwipeDirectionLeft {
+					continue
+				}
 			}
 		}
 		gameCopy := g.Copy()
