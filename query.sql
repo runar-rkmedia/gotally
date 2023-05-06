@@ -10,8 +10,8 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, template_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertRule :one
 INSERT INTO rule
@@ -24,15 +24,6 @@ INSERT INTO game_template
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
--- name: InsertGameHistory :one
-insert into game_history
-(created_at, game_id, move, kind, points, data) 
-values 
-(?, ?, ?, ?, ?, ?)
-RETURNING *;
--- name: GetGameHistoryByMoveNumber :one
-select * from game_history
-where game_id = ? and move == ?;
 -- name: GetGameTemplate :one
 select * from game_template
 where id = ?;
@@ -85,6 +76,7 @@ SELECT
        game.description game_description,
        game.name game_Name,
        game.data game_data,
+       game.history game_history,
        game.play_state game_play_state,
        game.score game_score,
        game.moves game_moves,
@@ -97,8 +89,6 @@ WHERE session.id = ? LIMIT 1;
 
 -- name: GetAllGames :many
 SELECT * from game;
--- name: GetAllGameHistory :many
-SELECT * from game_history;
 -- name: GetAllRules :many
 SELECT * from rule;
 -- name: GetAllSessions :many
@@ -115,7 +105,8 @@ SET updated_at = ?,
     score      = ?,
     moves      = ?,
     play_state = ?,
-    data       = ?
+    data       = ?,
+    history    = ?
 WHERE id = ?
 RETURNING *;
 -- name: SetPlayStateForGame :one
@@ -147,8 +138,8 @@ SELECT (SELECT COUNT(*) FROM user) AS users
      , (SELECT COUNT(*) FROM game where game.play_state = 4) AS games_current
      , (SELECT max(game.moves) FROM game where game.play_state = 4) AS longest_game
      , (SELECT max(game.score) FROM game where game.play_state = 4) AS highest_score
-     , (SELECT CAST(AVG(length(data)*length(data)) - AVG(length(data))*AVG(length(data)) as FLOAT) from game_history where kind = 2) as history_data_variance
-     , (SELECT avg(length(data)) from game_history where kind = 2) as combine_data_avg
-     , (SELECT max(length(data)) from game_history where kind = 2) as combine_data_max
-     , (SELECT min(length(data)) from game_history where kind = 2) as combine_data_min
-     , (SELECT CAST(total(length(data)) as INT) from game_history where kind = 2) as combine_data_total
+     , (SELECT CAST(AVG(length(history)*length(history)) - AVG(length(history))*AVG(length(history)) as FLOAT) from game) as history_variance
+     , (SELECT avg(length(history)) from game) as history_avg
+     , (SELECT max(length(history)) from game) as history_max
+     , (SELECT min(length(history)) from game) as history_min
+     , (SELECT CAST(total(length(history)) as INT) from game where kind = 2) as history_total

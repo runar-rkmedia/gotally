@@ -28,10 +28,8 @@ type SessionStore interface {
 
 	// Creates a new Session for a user
 	CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (*types.SessionUser, error)
-	// Game-mechanic for combing cells from a path
-	CombinePath(ctx context.Context, payload types.CombinePathPayload) error
-	// Game-mechanic for swiping the board.
-	SwipeBoard(ctx context.Context, payload types.SwipePayload) error
+	// Game-mechanic for updating a game
+	UpdateGame(ctx context.Context, payload types.UpdateGamePayload) error
 	// Creates a new game for the user
 	NewGameForUser(ctx context.Context, payload types.NewGamePayload) (types.Game, error)
 	// Restarts the current active game

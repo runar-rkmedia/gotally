@@ -32,30 +32,19 @@ create table if not exists game
     description       varchar(400)     ,
     user_id    varchar(21)    not null,
     rule_id    varchar(21)    not null,
+    based_on_game varchar(21),
     template_id    varchar(21),
     score      int not null,
     moves      int    not null,
     play_state INT             not null,
     data       blob  not null,
+    data_at_start       blob  not null,
+    history       blob,
     primary key (id),
     foreign key (rule_id) references rule,
     foreign key (template_id) references game_template,
     foreign key (user_id) references user
 );
-
-
-create table if not exists game_history
-(
-    created_at datetime        not null,
-    game_id    varchar(21)    not null,
-    move       int    not null,
-    kind       INT             not null,
-    points     INT             not null,
-    data       blob,
-    primary key (move, game_id),
-    foreign key (game_id) references game
-);
-
 
 
 create table if not exists user
@@ -101,9 +90,6 @@ create table if not exists game_template
     foreign key (updated_by) references user
 );
 
-
-create unique index if not exists game_id_move
-    on game_history (game_id, move);
 
 create unique index if not exists active_game_id
     on user (active_game_id);

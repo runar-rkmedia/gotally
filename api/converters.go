@@ -91,6 +91,7 @@ func toTypeGame(Game tallylogic.Game, userId string) types.Game {
 		Name:      Game.Name,
 		Seed:      seed,
 		State:     state,
+		History:   Game.History.Bytes(),
 		Score:     uint64(Game.Score()),
 		Moves:     uint(Game.Moves()),
 		Cells:     Game.Cells(),

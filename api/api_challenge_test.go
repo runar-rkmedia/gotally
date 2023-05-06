@@ -74,14 +74,31 @@ func TestApi_Challange_Restart(t *testing.T) {
 		// ------------------------------------------------------------
 		ts.NewGameChallenge(res.Msg.Id)
 
+		checkHistoryLength := func() {
+			game := ts.Game()
+			t.Helper()
+			t.Logf("Moves: %d History-Length: %d %s ID: %s", game.Moves(), game.History.Length(), game.Print(), game.ID)
+			if game.Moves() != game.History.Length() {
+				t.Errorf("Expected Game.History.Length()=%d to equal game.Moves()=%d", game.History.Length(), game.Moves())
+			}
+
+		}
+
+		checkHistoryLength()
 		{
 			res := ts.SwipeDown()
-			testza.AssertGreater(t, res.Msg.Moves, int64(0), "Moves should be 1")
+			testza.AssertEqual(t, int64(1), res.Msg.Moves, "Moves should be 1")
+		}
+		checkHistoryLength()
+		{
+			res := ts.SwipeUp()
+			testza.AssertEqual(t, int64(2), res.Msg.Moves, "Moves should be 2")
 		}
 		{
 			res := ts.RestartGame()
-			testza.AssertEqual(t, res.Msg.Moves, int64(0), "Moves should be 0")
+			testza.AssertEqual(t, int64(0), res.Msg.Moves, "Moves should be 0")
 		}
+		checkHistoryLength()
 	})
 }
 func getTemplate(s string) *tallylogic.GameTemplate {

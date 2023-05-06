@@ -92,71 +92,24 @@ func (p CreateGameTemplatePayload) Validate() error {
 	return nil
 }
 
-type SwipePayload struct {
-	GameID         string
-	SwipeDirection SwipeDirection
-	// Index for this move.
-	Moves int
-	// State of any randomizer
-	State uint64
-	//Seed of randomizer
-	Seed  uint64
-	Cells []cell.Cell
-	PlayState
-}
-
-func (p SwipePayload) Validate() error {
-
-	if p.GameID == "" {
-		return fmt.Errorf("%w: GameId", ErrArgumentMissing)
-	}
-	if p.Moves <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
-	}
-	if p.State <= 0 {
-		return fmt.Errorf("%w: Seed", ErrArgumentMissing)
-	}
-	if p.Seed <= 0 {
-		return fmt.Errorf("%w: Seed", ErrArgumentMissing)
-	}
-	if p.SwipeDirection == "" {
-		return fmt.Errorf("%w: SwipeDirection", ErrArgumentMissing)
-	}
-	if len(p.Cells) == 0 {
-		return fmt.Errorf("%w: Cells", ErrArgumentMissing)
-	}
-	return nil
-}
-
-type CombinePathPayload struct {
+type UpdateGamePayload struct {
 	GameID string
 	// Index for this move.
 	Moves int
-	// Points achieved for this move
-	Points int
 	// Score total in this game
 	Score uint64
 	// State of randomizer
 	State uint64
 	//Seed of randomizer
-	Seed  uint64
-	Path  []uint32
-	Cells []cell.Cell
+	Seed    uint64
+	Cells   []cell.Cell
+	History []byte
 	PlayState
 }
 
-func (payload CombinePathPayload) Validate() error {
+func (payload UpdateGamePayload) Validate() error {
 	if payload.GameID == "" {
 		return fmt.Errorf("%w: GameId", ErrArgumentMissing)
-	}
-	if payload.Moves <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
-	}
-	if payload.Points == 0 {
-		return fmt.Errorf("%w: Points", ErrArgumentMissing)
-	}
-	if payload.Score == 0 {
-		return fmt.Errorf("%w: Score", ErrArgumentMissing)
 	}
 	if payload.State == 0 {
 		return fmt.Errorf("%w: State", ErrArgumentMissing)
@@ -167,8 +120,11 @@ func (payload CombinePathPayload) Validate() error {
 	if len(payload.Cells) == 0 {
 		return fmt.Errorf("%w: Cells", ErrArgumentMissing)
 	}
-	if len(payload.Path) == 0 {
-		return fmt.Errorf("%w: Path", ErrArgumentMissing)
+	if payload.Moves <= 0 {
+		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
+	}
+	if payload.Moves > 0 && len(payload.History) == 0 {
+		return fmt.Errorf("%w: History", ErrArgumentMissing)
 	}
 	return nil
 }
@@ -196,13 +152,4 @@ func (payload RestartGamePayload) Validate() error {
 var (
 	ErrArgumentMissing = errors.New("missing argument")
 	ErrArgumentInvalid = errors.New("invalid argument")
-)
-
-type SwipeDirection string
-
-const (
-	SwipeDirectionUp    SwipeDirection = "Up"
-	SwipeDirectionRight SwipeDirection = "Right"
-	SwipeDirectionDown  SwipeDirection = "Down"
-	SwipeDirectionLeft  SwipeDirection = "Left"
 )

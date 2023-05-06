@@ -96,6 +96,9 @@ type CompactHistory struct {
 | **Sum** | **1181 bytes**  | **(600 x 3 + 50 x 3 + 350 x 21 )/ 8**                                                           |
 */
 func NewCompactHistory(gameColumns, gameRows int) CompactHistory {
+	return NewCompactHistoryFromBinary(gameColumns, gameRows, []byte{})
+}
+func NewCompactHistoryFromBinary(gameColumns, gameRows int, data []byte) CompactHistory {
 	boardSize := gameRows * gameColumns
 	bitsUsedForPathIndex := bits.Len(uint(boardSize))
 	tripletsUsedForPathIndex := int(math.Ceil(float64(bitsUsedForPathIndex) / 3))
@@ -107,12 +110,13 @@ func NewCompactHistory(gameColumns, gameRows int) CompactHistory {
 
 	}
 	return CompactHistory{
-		[]byte{},
+		data,
 		gameRows,
 		gameColumns,
 		bitsUsedForPathIndex,
 		tripletsUsedForPathIndex,
 	}
+
 }
 func (c *CompactHistory) MarshalBinary() ([]byte, error) {
 	return c.c, nil
@@ -128,8 +132,7 @@ func (c *CompactHistory) Size() int {
 	return c.c.Size()
 }
 func NewCompactHistoryFromGame(game Game) CompactHistory {
-	// fmt.Println("RECREATING COMPACTHISTORY FROM GAME NOT IMPLEMENTED", game.History.c.Size())
-	return NewCompactHistory(game.Rules.SizeX, game.Rules.SizeY)
+	return NewCompactHistoryFromBinary(game.Rules.SizeX, game.Rules.SizeY, game.History.c)
 }
 
 func (c *CompactHistory) IsEmpty() bool {

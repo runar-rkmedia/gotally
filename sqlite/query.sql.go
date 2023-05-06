@@ -11,42 +11,8 @@ import (
 	"time"
 )
 
-const getAllGameHistory = `-- name: GetAllGameHistory :many
-SELECT created_at, game_id, move, kind, points, data from game_history
-`
-
-func (q *Queries) GetAllGameHistory(ctx context.Context) ([]GameHistory, error) {
-	rows, err := q.db.QueryContext(ctx, getAllGameHistory)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GameHistory
-	for rows.Next() {
-		var i GameHistory
-		if err := rows.Scan(
-			&i.CreatedAt,
-			&i.GameID,
-			&i.Move,
-			&i.Kind,
-			&i.Points,
-			&i.Data,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getAllGames = `-- name: GetAllGames :many
-SELECT id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data from game
+SELECT id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history from game
 `
 
 func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
@@ -66,11 +32,14 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 			&i.Description,
 			&i.UserID,
 			&i.RuleID,
+			&i.BasedOnGame,
 			&i.TemplateID,
 			&i.Score,
 			&i.Moves,
 			&i.PlayState,
 			&i.Data,
+			&i.DataAtStart,
+			&i.History,
 		); err != nil {
 			return nil, err
 		}
@@ -290,7 +259,7 @@ func (q *Queries) GetChallengeStatsForUser(ctx context.Context, userID string) (
 }
 
 const getGame = `-- name: GetGame :one
-select id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data from game
+select id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history from game
 where id == ?
 `
 
@@ -305,11 +274,14 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.BasedOnGame,
 		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
 		&i.Data,
+		&i.DataAtStart,
+		&i.History,
 	)
 	return i, err
 }
@@ -354,30 +326,6 @@ func (q *Queries) GetGameChallengesTemplates(ctx context.Context) ([]GameTemplat
 		return nil, err
 	}
 	return items, nil
-}
-
-const getGameHistoryByMoveNumber = `-- name: GetGameHistoryByMoveNumber :one
-select created_at, game_id, move, kind, points, data from game_history
-where game_id = ? and move == ?
-`
-
-type GetGameHistoryByMoveNumberParams struct {
-	GameID string
-	Move   int64
-}
-
-func (q *Queries) GetGameHistoryByMoveNumber(ctx context.Context, arg GetGameHistoryByMoveNumberParams) (GameHistory, error) {
-	row := q.db.QueryRowContext(ctx, getGameHistoryByMoveNumber, arg.GameID, arg.Move)
-	var i GameHistory
-	err := row.Scan(
-		&i.CreatedAt,
-		&i.GameID,
-		&i.Move,
-		&i.Kind,
-		&i.Points,
-		&i.Data,
-	)
-	return i, err
 }
 
 const getGameTemplate = `-- name: GetGameTemplate :one
@@ -499,6 +447,7 @@ SELECT
        game.description game_description,
        game.name game_Name,
        game.data game_data,
+       game.history game_history,
        game.play_state game_play_state,
        game.score game_score,
        game.moves game_moves,
@@ -524,6 +473,7 @@ type GetUserBySessionIDRow struct {
 	Description  sql.NullString
 	Name         sql.NullString
 	Data         []byte
+	History      []byte
 	PlayState    int64
 	Score        int64
 	Moves        int64
@@ -547,6 +497,7 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 		&i.Description,
 		&i.Name,
 		&i.Data,
+		&i.History,
 		&i.PlayState,
 		&i.Score,
 		&i.Moves,
@@ -608,9 +559,9 @@ func (q *Queries) InserTemplate(ctx context.Context, arg InserTemplateParams) (G
 
 const insertGame = `-- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, template_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
 `
 
 type InsertGameParams struct {
@@ -625,7 +576,10 @@ type InsertGameParams struct {
 	Moves       int64
 	PlayState   int64
 	Data        []byte
+	DataAtStart []byte
+	History     []byte
 	TemplateID  sql.NullString
+	BasedOnGame sql.NullString
 }
 
 func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, error) {
@@ -641,7 +595,10 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		arg.Moves,
 		arg.PlayState,
 		arg.Data,
+		arg.DataAtStart,
+		arg.History,
 		arg.TemplateID,
+		arg.BasedOnGame,
 	)
 	var i Game
 	err := row.Scan(
@@ -652,49 +609,14 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.BasedOnGame,
 		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
 		&i.Data,
-	)
-	return i, err
-}
-
-const insertGameHistory = `-- name: InsertGameHistory :one
-insert into game_history
-(created_at, game_id, move, kind, points, data) 
-values 
-(?, ?, ?, ?, ?, ?)
-RETURNING created_at, game_id, move, kind, points, data
-`
-
-type InsertGameHistoryParams struct {
-	CreatedAt time.Time
-	GameID    string
-	Move      int64
-	Kind      int64
-	Points    int64
-	Data      []byte
-}
-
-func (q *Queries) InsertGameHistory(ctx context.Context, arg InsertGameHistoryParams) (GameHistory, error) {
-	row := q.db.QueryRowContext(ctx, insertGameHistory,
-		arg.CreatedAt,
-		arg.GameID,
-		arg.Move,
-		arg.Kind,
-		arg.Points,
-		arg.Data,
-	)
-	var i GameHistory
-	err := row.Scan(
-		&i.CreatedAt,
-		&i.GameID,
-		&i.Move,
-		&i.Kind,
-		&i.Points,
-		&i.Data,
+		&i.DataAtStart,
+		&i.History,
 	)
 	return i, err
 }
@@ -863,7 +785,7 @@ UPDATE game
 SET updated_at = ?,
     play_state = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
 `
 
 type SetPlayStateForGameParams struct {
@@ -883,11 +805,14 @@ func (q *Queries) SetPlayStateForGame(ctx context.Context, arg SetPlayStateForGa
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.BasedOnGame,
 		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
 		&i.Data,
+		&i.DataAtStart,
+		&i.History,
 	)
 	return i, err
 }
@@ -902,28 +827,28 @@ SELECT (SELECT COUNT(*) FROM user) AS users
      , (SELECT COUNT(*) FROM game where game.play_state = 4) AS games_current
      , (SELECT max(game.moves) FROM game where game.play_state = 4) AS longest_game
      , (SELECT max(game.score) FROM game where game.play_state = 4) AS highest_score
-     , (SELECT CAST(AVG(length(data)*length(data)) - AVG(length(data))*AVG(length(data)) as FLOAT) from game_history where kind = 2) as history_data_variance
-     , (SELECT avg(length(data)) from game_history where kind = 2) as combine_data_avg
-     , (SELECT max(length(data)) from game_history where kind = 2) as combine_data_max
-     , (SELECT min(length(data)) from game_history where kind = 2) as combine_data_min
-     , (SELECT CAST(total(length(data)) as INT) from game_history where kind = 2) as combine_data_total
+     , (SELECT CAST(AVG(length(history)*length(history)) - AVG(length(history))*AVG(length(history)) as FLOAT) from game) as history_variance
+     , (SELECT avg(length(history)) from game) as history_avg
+     , (SELECT max(length(history)) from game) as history_max
+     , (SELECT min(length(history)) from game) as history_min
+     , (SELECT CAST(total(length(history)) as INT) from game where kind = 2) as history_total
 `
 
 type StatsRow struct {
-	Users               int64
-	Session             int64
-	Games               int64
-	GamesWon            int64
-	GamesLost           int64
-	GamesAbandoned      int64
-	GamesCurrent        int64
-	LongestGame         interface{}
-	HighestScore        interface{}
-	HistoryDataVariance interface{}
-	CombineDataAvg      sql.NullFloat64
-	CombineDataMax      interface{}
-	CombineDataMin      interface{}
-	CombineDataTotal    interface{}
+	Users           int64
+	Session         int64
+	Games           int64
+	GamesWon        int64
+	GamesLost       int64
+	GamesAbandoned  int64
+	GamesCurrent    int64
+	LongestGame     interface{}
+	HighestScore    interface{}
+	HistoryVariance interface{}
+	HistoryAvg      sql.NullFloat64
+	HistoryMax      interface{}
+	HistoryMin      interface{}
+	HistoryTotal    interface{}
 }
 
 func (q *Queries) Stats(ctx context.Context) (StatsRow, error) {
@@ -939,11 +864,11 @@ func (q *Queries) Stats(ctx context.Context) (StatsRow, error) {
 		&i.GamesCurrent,
 		&i.LongestGame,
 		&i.HighestScore,
-		&i.HistoryDataVariance,
-		&i.CombineDataAvg,
-		&i.CombineDataMax,
-		&i.CombineDataMin,
-		&i.CombineDataTotal,
+		&i.HistoryVariance,
+		&i.HistoryAvg,
+		&i.HistoryMax,
+		&i.HistoryMin,
+		&i.HistoryTotal,
 	)
 	return i, err
 }
@@ -956,9 +881,10 @@ SET updated_at = ?,
     score      = ?,
     moves      = ?,
     play_state = ?,
-    data       = ?
+    data       = ?,
+    history    = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, template_id, score, moves, play_state, data
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
 `
 
 type UpdateGameParams struct {
@@ -969,6 +895,7 @@ type UpdateGameParams struct {
 	Moves     int64
 	PlayState int64
 	Data      []byte
+	History   []byte
 	ID        string
 }
 
@@ -981,6 +908,7 @@ func (q *Queries) UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, e
 		arg.Moves,
 		arg.PlayState,
 		arg.Data,
+		arg.History,
 		arg.ID,
 	)
 	var i Game
@@ -992,11 +920,14 @@ func (q *Queries) UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, e
 		&i.Description,
 		&i.UserID,
 		&i.RuleID,
+		&i.BasedOnGame,
 		&i.TemplateID,
 		&i.Score,
 		&i.Moves,
 		&i.PlayState,
 		&i.Data,
+		&i.DataAtStart,
+		&i.History,
 	)
 	return i, err
 }
