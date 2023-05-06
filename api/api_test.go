@@ -174,10 +174,6 @@ func TestApi_Restart_After_Some_Moves(t *testing.T) {
 
 		ts := newTestApi(t)
 		ctx := context.TODO()
-		dump := ts.GetDBDump()
-		if len(dump.GameHistories) == 0 {
-			t.Fatalf("although an internal technical implementation, a new game should have GameHistories applied, but there were none")
-		}
 		{
 			res := ts.SwipeUp()
 			if res.Msg.Moves != 1 {

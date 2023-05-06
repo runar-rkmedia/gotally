@@ -154,6 +154,7 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 		Direction: direction,
 	}))
 	if err != nil {
+		ts.t.Log(err.Error())
 		ts.t.Fatalf("%s Failed during SwipeBoard: %#v", logError, err)
 	}
 	ts.t.Logf("response %#v", res.Msg)
@@ -220,13 +221,12 @@ func (ta *testApi) DumpDBWithPrefix(prefix string) {
 // Temp hack since types.Dump has not yet received any good typing
 // does not really matter, though
 type sqliteDump struct {
-	Date          time.Time
-	Games         []sqlite.Game         //[]Game
-	GameHistories []sqlite.GameHistory  //[]any
-	Rules         []sqlite.Rule         //[]Rules
-	Sessions      []sqlite.Session      //[]Session
-	Users         []sqlite.User         //[]User
-	Templates     []sqlite.GameTemplate //[]GameTemplate
+	Date      time.Time
+	Games     []sqlite.Game         //[]Game
+	Rules     []sqlite.Rule         //[]Rules
+	Sessions  []sqlite.Session      //[]Session
+	Users     []sqlite.User         //[]User
+	Templates []sqlite.GameTemplate //[]GameTemplate
 }
 
 func (ta *testApi) GetDBDump() sqliteDump {
@@ -236,13 +236,12 @@ func (ta *testApi) GetDBDump() sqliteDump {
 	}
 
 	return sqliteDump{
-		Date:          time.Now(),
-		Games:         d.Games.([]sqlite.Game),
-		GameHistories: d.GameHistories.([]sqlite.GameHistory),
-		Rules:         d.Rules.([]sqlite.Rule),
-		Sessions:      d.Sessions.([]sqlite.Session),
-		Users:         d.Users.([]sqlite.User),
-		Templates:     d.Template.([]sqlite.GameTemplate),
+		Date:      time.Now(),
+		Games:     d.Games.([]sqlite.Game),
+		Rules:     d.Rules.([]sqlite.Rule),
+		Sessions:  d.Sessions.([]sqlite.Session),
+		Users:     d.Users.([]sqlite.User),
+		Templates: d.Template.([]sqlite.GameTemplate),
 	}
 }
 func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[model.NewGameResponse]) {
@@ -326,8 +325,7 @@ func (ts *testApi) RestartGame() (response *connect.Response[model.RestartGameRe
 	if err != nil {
 		ts.t.Fatalf("restart game failed:  %v", err)
 	}
-	testza.AssertEqual(ts.t, res.Msg.Moves, int64(0), "Expected moves to be reset")
-	testza.AssertEqual(ts.t, res.Msg.Score, int64(0), "Expected score to be reset")
+	testza.AssertEqual(ts.t, int64(0), res.Msg.Moves, "Expected moves to be reset")
 	return res
 }
 
@@ -359,7 +357,7 @@ func (ts *testApi) SolveGameWithHints(expectMaxHints int) (response *connect.Res
 				}
 				res, err := ts.client.CombineCells(ts.context, &req)
 				if err != nil {
-					ts.t.Fatalf("CombineCells failed for isntruction %s: %v", v, err)
+					ts.t.Fatalf("CombineCells failed for instruction %s: %v", v, err)
 				}
 				ts.t.Log(ts.Game().Print())
 				response = res

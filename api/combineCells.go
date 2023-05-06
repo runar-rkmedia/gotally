@@ -61,15 +61,15 @@ func (s *TallyServer) CombineCells(
 		return nil, cerr
 	}
 	seed, state := session.Game.Seed()
-	p := types.CombinePathPayload{
-		GameID: session.Game.ID,
-		Moves:  session.Game.Moves(),
-		Points: int(session.Game.Score() - gameCopy.Score()),
-		Score:  uint64(session.Game.Score()),
-		State:  state,
-		Seed:   seed,
-		Path:   req.Msg.GetIndexes().Index,
-		Cells:  session.Game.Cells(),
+	p := types.UpdateGamePayload{
+		GameID:    session.Game.ID,
+		Moves:     session.Game.Moves(),
+		Score:     uint64(session.Game.Score()),
+		State:     state,
+		Seed:      seed,
+		Cells:     session.Game.Cells(),
+		History:   session.Game.History.Bytes(),
+		PlayState: types.PlayStateCurrent,
 	}
 	didWin := session.Game.IsGameWon()
 	didLose := session.Game.IsGameOver()
@@ -78,12 +78,12 @@ func (s *TallyServer) CombineCells(
 	} else if didLose {
 		p.PlayState = types.PlayStateLost
 	}
-	err := s.storage.CombinePath(ctx, p)
+	err := s.storage.UpdateGame(ctx, p)
 	if err != nil {
 		s.l.Error().Err(err).Msg("internal failure during CombinePath-operation")
 
 		session.Game = gameCopy
-		return nil, fmt.Errorf("internal failure during CombinePath-operation")
+		return nil, fmt.Errorf("internal failure during CombinePath-operation: %w", err)
 	}
 	response := model.CombineCellsResponse{
 		Board:   toModalBoard(&session.Game),

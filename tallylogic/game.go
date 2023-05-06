@@ -186,7 +186,7 @@ func RestoreGame(g *types.Game) (Game, error) {
 		Name:          g.Name,
 		GoalChecker:   nil,
 		DefeatChecker: nil,
-		History:       NewCompactHistory(int(g.Rules.Columns), int(g.Rules.Rows)),
+		History:       NewCompactHistoryFromBinary(int(g.Rules.Columns), int(g.Rules.Rows), g.History),
 	}
 
 	game.DefeatChecker = DefeatCheckerNoMoreMoves{}
@@ -316,7 +316,8 @@ func (g *Game) GetHint() map[string]Hint {
 
 // Returns hints in a consistant order, mostly useful for tests
 func (g *Game) GetHintConsistantly(ctx context.Context, max int) []Hint {
-	return g.Hinter.GetNHintsConsistant(ctx, max)
+	g2 := g.Copy()
+	return g2.Hinter.GetNHintsConsistant(ctx, max)
 }
 func (g *Game) BoardID() string {
 	return g.board.ID()

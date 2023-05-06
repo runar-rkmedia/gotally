@@ -15,9 +15,6 @@ func init() {
 	testza.SetShowStartupMessage(false)
 }
 
-// CAUTION: THERE IS CURRENTLY A RACE-CONDITION here.
-// This should be fixed with running t
-
 // This test is ment to check how long it would take to reacreate a previously
 // game, based on its starting-parameters, and the history of the game. As long
 // as this is fast enough, it could allow very compact storage of gamestate, as
@@ -59,7 +56,8 @@ outer:
 		// so if it takes too long, it might have ran into positions for the game
 		// where it requires deeper hints.
 		var hints []tallylogic.Hint
-		hints = game.GetHintConsistantly(context.TODO(), 1)
+		g2 := game.Copy()
+		hints = g2.GetHintConsistantly(context.TODO(), 1)
 		if len(hints) == 0 {
 			swipes := map[int]struct{}{}
 			for len(swipes) < 4 {
