@@ -114,6 +114,19 @@ func NewCompactHistory(gameColumns, gameRows int) CompactHistory {
 		tripletsUsedForPathIndex,
 	}
 }
+func (c *CompactHistory) MarshalBinary() ([]byte, error) {
+	return c.c, nil
+}
+func (c *CompactHistory) Bytes() []byte {
+	return c.c
+}
+func (c *CompactHistory) Restore(b []byte) error {
+	c.c = b
+	return nil
+}
+func (c *CompactHistory) Size() int {
+	return c.c.Size()
+}
 func NewCompactHistoryFromGame(game Game) CompactHistory {
 	// fmt.Println("RECREATING COMPACTHISTORY FROM GAME NOT IMPLEMENTED", game.History.c.Size())
 	return NewCompactHistory(game.Rules.SizeX, game.Rules.SizeY)
