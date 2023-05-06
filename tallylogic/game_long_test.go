@@ -3,6 +3,7 @@ package tallylogic_test
 import (
 	"context"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -133,5 +134,130 @@ outer:
 	seedCopy, stateCopy := game.Seed()
 	testza.AssertEqual(t, seedOriginal, seedCopy, "Expected the two games seed to be equal")
 	testza.AssertEqual(t, stateOriginal, stateCopy, "Expected the two games seedState to be equal")
+	t.Logf("Wrote %d bytes to %s for game. with length %d", game.History.Size(), outFile, game.History.Length())
+	testza.AssertEqual(t, 2102, game.History.Size(), "game history-size should match expected value (it should be low, like below 1 byte per move)")
 
+}
+
+var outFile = "./testdata/longplay-game-data.bin"
+
+func TestGame_LongPlayFromBinary(t *testing.T) {
+	// Test a previously stored game-history, in binary-form
+	game, err := tallylogic.NewGame(tallylogic.GameModeRandom, nil, tallylogic.NewGameOptions{
+		Seed:  123,
+		State: 123,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(outFile)
+	testza.AssertNoError(t, err)
+	err = game.History.Restore(b)
+	testza.AssertNoError(t, err)
+	start := time.Now()
+	history, err := game.History.All()
+	if err != nil {
+		t.Fatalf("failed to get history: %v", err)
+	}
+	for i, v := range history {
+		switch {
+		case v.IsSwipe:
+			game.Swipe(v.Direction)
+		case v.IsPath:
+			ok := game.EvaluateForPath(v.Path)
+			if !ok {
+				t.Log(game.Moves(), game.Print())
+				t.Log(v)
+				t.Fatalf("expected %d/%d instruction to evaluate, but it did not", i, len(history))
+			}
+		default:
+			panic("NotImplemented: Helper in test")
+		}
+	}
+	end := time.Now()
+	diff := end.Sub(start)
+	t.Logf("recreate completed in %s", diff.String())
+}
+func BenchmarkLongPlayFromBinaryViaAll(b *testing.B) {
+	bytes, err := os.ReadFile(outFile)
+	if err != nil {
+		b.Fatalf("failed to read file %s: %v", outFile, err)
+	}
+	for i := 0; i < b.N; i++ {
+		// Test a previously stored game-history, in binary-form
+		game, err := tallylogic.NewGame(tallylogic.GameModeRandom, nil, tallylogic.NewGameOptions{
+			Seed:  123,
+			State: 123,
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		err = game.History.Restore(bytes)
+		if err != nil {
+			b.Fatalf("failed to restore from file %s %v", outFile, err)
+		}
+		if game.History.Size() != 2102 {
+			b.Fatalf("expected size of restore to be 2102")
+		}
+		history, err := game.History.All()
+		if err != nil {
+			b.Fatalf("failed to get history: %v", err)
+		}
+		for i, v := range history {
+			switch {
+			case v.IsSwipe:
+				game.Swipe(v.Direction)
+			case v.IsPath:
+				ok := game.EvaluateForPath(v.Path)
+				if !ok {
+					b.Log(game.Moves(), game.Print())
+					b.Log(v)
+					b.Fatalf("expected %d/%d instruction to evaluate, but it did not", i, len(history))
+				}
+			default:
+				panic("NotImplemented: Helper in test")
+			}
+		}
+	}
+}
+func BenchmarkLongPlayFromBinaryViaIterate(b *testing.B) {
+	bytes, err := os.ReadFile(outFile)
+	if err != nil {
+		b.Fatalf("failed to read file %s: %v", outFile, err)
+	}
+	for i := 0; i < b.N; i++ {
+		// Test a previously stored game-history, in binary-form
+		game, err := tallylogic.NewGame(tallylogic.GameModeRandom, nil, tallylogic.NewGameOptions{
+			Seed:  123,
+			State: 123,
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		err = game.History.Restore(bytes)
+		if err != nil {
+			b.Fatalf("failed to restore from file %s %v", outFile, err)
+		}
+		if game.History.Size() != 2102 {
+			b.Fatalf("expected size of restore to be 2102")
+		}
+		game.History.Iterate(
+			func(dir tallylogic.SwipeDirection, i int) error {
+				game.Swipe(dir)
+				return nil
+			},
+			func(path []int, i int) error {
+
+				game.EvaluateForPath(path)
+				return nil
+			},
+			func(helper tallylogic.Helper, i int) error {
+
+				panic("NotImplemented: Helper in test")
+				return nil
+			},
+		)
+	}
 }
