@@ -430,17 +430,17 @@ const (
 )
 
 func cellsAreEqual(a, b []cell.Cell) bool {
+	if len(a) != len(b) {
+		return false
+	}
 	for i := 0; i < len(a); i++ {
-		if a[i].Value() == 0 {
-			continue
+		va, ta := a[i].Raw()
+		vb, tb := b[i].Raw()
+		if va != vb {
+			return false
 		}
-		for j := 0; j < len(b); j++ {
-			if a[j].Value() == 0 {
-				continue
-			}
-			if a[i].Hash() != b[i].Hash() {
-				return false
-			}
+		if ta != tb {
+			return false
 		}
 	}
 	return true
