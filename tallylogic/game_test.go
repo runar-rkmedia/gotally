@@ -63,6 +63,7 @@ func TestGame_Play(t *testing.T) {
 			"Play the first daily board",
 			mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath")),
 			func(g *Game, t *testing.T) {
+				// TODO: update to use Instruction_
 				instructions := []any{
 					// Combine 4 into 4 (+) resulting in 8
 					[2]int{2, 1},
@@ -112,12 +113,25 @@ func TestGame_Play(t *testing.T) {
 				}
 				h := BoardHightlighter(g)
 				for i, v := range instructions {
-					ok := g.Instruct(v)
-					// t.Logf("Performed isntruction %d %v \n%s", i, v, g.board.PrintBoard(h))
-					if !ok {
-						t.Errorf("Failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
-						return
+					switch vt := v.(type) {
+					case SwipeDirection:
+						ok := g.Swipe(SwipeDirection(vt))
+						if !ok {
+							t.Errorf("Failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
+							return
+						}
+					case bool:
+						ok := g.EvaluateSelection()
+						if !ok {
+							t.Errorf("Failed at instruction %d %#v\n%s", i, v, g.board.PrintBoard(h))
+							return
+						}
+					case [2]int:
+						g.selectCellCoord(vt[0], vt[1])
+					default:
+						t.Fatalf("unhandled type!!! %#v %v", vt, v)
 					}
+
 				}
 			},
 			960,
@@ -130,17 +144,17 @@ func TestGame_Play(t *testing.T) {
 			// #. A played game should be replayable, in a UI.
 			mustCreateNewGameForTest(GameModeRandom, nil, NewGameOptions{Seed: 123}),
 			func(g *Game, t *testing.T) {
-				instructions := []any{
-					SwipeDirectionRight,
-					SwipeDirectionUp,
-					SwipeDirectionDown,
-					SwipeDirectionLeft,
-					SwipeDirectionDown,
-					SwipeDirectionRight,
-					SwipeDirectionDown,
-					SwipeDirectionLeft,
-					[]int{22, 21, 20},
-					SwipeDirectionUp,
+				instructions := []Instruction_{
+					NewSwipeInstruction_(SwipeDirectionRight),
+					NewSwipeInstruction_(SwipeDirectionUp),
+					NewSwipeInstruction_(SwipeDirectionDown),
+					NewSwipeInstruction_(SwipeDirectionLeft),
+					NewSwipeInstruction_(SwipeDirectionDown),
+					NewSwipeInstruction_(SwipeDirectionRight),
+					NewSwipeInstruction_(SwipeDirectionDown),
+					NewSwipeInstruction_(SwipeDirectionLeft),
+					NewPathInstruction_([]int{22, 21, 20}),
+					NewSwipeInstruction_(SwipeDirectionUp),
 				}
 				gCopy := g.Copy()
 				h := BoardHightlighter(g)
@@ -191,6 +205,7 @@ func TestGame_Play(t *testing.T) {
 				Rules:         gg.Rules,
 				score:         gg.score,
 			}
+			g.History = NewCompactHistoryFromGame(*g)
 			tt.play(g, t)
 			if tt.expectedScore != g.score {
 				t.Log("Selected", g.selectedCells)

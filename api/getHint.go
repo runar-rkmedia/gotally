@@ -102,22 +102,22 @@ func (s *TallyServer) GetHint(
 		})
 	case model.HintPreference_HINT_PREFERENCE_SHORT:
 		sort.Slice(games, func(i, j int) bool {
-			return len(games[i].History) < len(games[j].History)
+			return games[i].History.Length() < games[j].History.Length()
 		})
 	case model.HintPreference_HINT_PREFERENCE_MINIMUM_SWIPES:
 		sort.Slice(games, func(i, j int) bool {
 			var swipeI int
 			var swipeJ int
-			for _, instr := range games[i].History {
-				if tallylogic.GetInstructionType(instr) == tallylogic.InstructionTypeSwipe {
-					swipeI++
-				}
-			}
-			for _, instr := range games[j].History {
-				if tallylogic.GetInstructionType(instr) == tallylogic.InstructionTypeSwipe {
-					swipeJ++
-				}
-			}
+			games[i].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { swipeI++; return nil },
+				func(path []int, i int) error { return nil },
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
+			games[j].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { swipeJ++; return nil },
+				func(path []int, i int) error { return nil },
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
 			return swipeI < swipeJ
 		})
 	case model.HintPreference_HINT_PREFERENCE_FIRST_COMBINE:
@@ -125,20 +125,24 @@ func (s *TallyServer) GetHint(
 			var combineIndexI int
 			var combineIndexJ int
 			// TODO
-			for k, instr := range games[i].History {
-				if tallylogic.GetInstructionType(instr) == tallylogic.InstructionTypeCombinePath {
-					combineIndexI = k
-					break
-				}
-			}
-			for k, instr := range games[j].History {
-				if tallylogic.GetInstructionType(instr) == tallylogic.InstructionTypeCombinePath {
-					combineIndexJ = k
-					break
-				}
-			}
+			games[i].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { return nil },
+				func(path []int, i int) error {
+					combineIndexI = i
+					return fmt.Errorf("stop")
+				},
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
+			games[j].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { return nil },
+				func(path []int, i int) error {
+					combineIndexJ = i
+					return fmt.Errorf("stop")
+				},
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
 			if combineIndexI == combineIndexJ {
-				return len(games[i].History) < len(games[j].History)
+				return games[i].History.Length() < games[j].History.Length()
 			}
 			return combineIndexI < combineIndexJ
 		})
@@ -148,29 +152,23 @@ func (s *TallyServer) GetHint(
 			var swipeJ float32
 			var combineI float32
 			var combineJ float32
-			for _, instr := range games[i].History {
-				t := tallylogic.GetInstructionType(instr)
-				if t == tallylogic.InstructionTypeSwipe {
-					swipeI++
-				} else if t == tallylogic.InstructionTypeCombinePath {
-					combineI++
-				}
-			}
-			for _, instr := range games[j].History {
-				t := tallylogic.GetInstructionType(instr)
-				if t == tallylogic.InstructionTypeSwipe {
-					swipeJ++
-				} else if t == tallylogic.InstructionTypeCombinePath {
-					combineJ++
-				}
-			}
+			games[i].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { swipeI++; return nil },
+				func(path []int, i int) error { combineI++; return nil },
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
+			games[j].History.Iterate(
+				func(dir tallylogic.SwipeDirection, i int) error { swipeJ++; return nil },
+				func(path []int, i int) error { combineJ++; return nil },
+				func(helper tallylogic.Helper, i int) error { return nil },
+			)
 			ratioI := swipeI / combineI
 			ratioJ := swipeJ / combineI
 			return ratioI < ratioJ
 		})
 	}
 	bestInstructions := games[0].History
-	var length int = len(bestInstructions)
+	var length int = bestInstructions.Length()
 	if req.Msg.MaxLength > 0 && req.Msg.MaxLength < uint32(length) {
 		length = int(req.Msg.MaxLength)
 	}

@@ -1,4 +1,4 @@
-package triplets_test
+package tallylogic_test
 
 import (
 	"context"
@@ -72,7 +72,7 @@ outer:
 				var changed bool
 				if wouldChange {
 					changed = game.Swipe(dir)
-					t.Logf("Swiped %s after %d attempts", dir, len(swipes))
+					// t.Logf("Swiped %s after %d attempts", dir, len(swipes))
 					if changed {
 						continue outer
 					}
@@ -103,26 +103,23 @@ outer:
 	// 2. Attempt to restart the game, and replay the game from history.
 	// This should ideally be fast
 	start := time.Now()
-	for i, v := range game.History {
-		kind := tallylogic.GetInstructionType(v)
-		switch kind {
-		case tallylogic.InstructionTypeSwipe:
-			dir, ok := tallylogic.GetInstructionAsSwipe(v)
-			if !ok {
-				t.Fatal("instrction was not of expected swipe")
-			}
-			gameCopyAtStart.Swipe(dir)
-		default:
-			path, ok := tallylogic.GetInstructionAsPath(v)
-			if !ok {
-				t.Fatal("instruction was not of expected path")
-			}
-			ok = gameCopyAtStart.EvaluateForPath(path)
+	history, err := game.History.All()
+	if err != nil {
+		t.Fatalf("failed to get history: %v", err)
+	}
+	for i, v := range history {
+		switch {
+		case v.IsSwipe:
+			gameCopyAtStart.Swipe(v.Direction)
+		case v.IsPath:
+			ok := gameCopyAtStart.EvaluateForPath(v.Path)
 			if !ok {
 				t.Log(gameCopyAtStart.Moves(), gameCopyAtStart.Print())
 				t.Log(v)
-				t.Fatalf("expected %d/%d instruction to evaluate, but it did not", i, len(game.History))
+				t.Fatalf("expected %d/%d instruction to evaluate, but it did not", i, len(history))
 			}
+		default:
+			panic("NotImplemented: Helper in test")
 		}
 	}
 	end := time.Now()
