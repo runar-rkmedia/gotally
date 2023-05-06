@@ -41,35 +41,30 @@ func String(list []int) []string {
 	return s
 }
 func calculateStat(original Game, solution Game) (SolutionStat, error) {
-	if len(original.History) > 0 {
+	instructionLength := original.History.Length()
+	if instructionLength > 0 {
 		return SolutionStat{}, fmt.Errorf("Not implemented. CalculateState currently only supports calculating Games where the original haz no History")
 	}
-	instructionLength := len(solution.History)
 	s := SolutionStat{
 		Moves:           solution.Moves() - original.Moves(),
 		Score:           uint64(solution.Score()) - uint64(original.Score()),
 		InstructionTags: make([]InstructionTag, instructionLength),
 	}
-	if len(solution.History) > 0 {
+	if instructionLength > 0 {
 		gameCopy := original.Copy()
 
-		for i, ins := range solution.History {
-
-			t := GetInstructionType(ins)
-			switch t {
-			case InstructionTypeSwipe:
+		err := solution.History.Iterate(
+			func(dir SwipeDirection, i int) error {
 				s.InstructionTags[i] = InstructionTag{IsSwipe: true, Ok: true}
-				if !gameCopy.Instruct(ins) {
-					return s, fmt.Errorf("failed to instuct game to swipe")
+				if !gameCopy.Swipe(dir) {
+					return fmt.Errorf("failed to instuct game to swipe")
 				}
-			case InstructionTypeCombinePath, InstructionTypeSelectCoord, InstructionTypeSelectIndex:
-				path, ok := GetInstructionAsPath(ins)
-				if !ok {
-					return s, fmt.Errorf("failed to get instruction as path for instuction")
-				}
+				return nil
+			},
+			func(path []int, i int) error {
 				_, method, err := gameCopy.SoftEvaluatesForPath(path)
 				if err != nil {
-					return s, err
+					return err
 				}
 				switch method {
 				case EvalMethodSum:
@@ -77,21 +72,24 @@ func calculateStat(original Game, solution Game) (SolutionStat, error) {
 				case EvalMethodProduct:
 					s.InstructionTags[i] = InstructionTag{IsMultiplication: true, Ok: true}
 				}
-				if !gameCopy.Instruct(ins) {
-					return s, fmt.Errorf("failed to instuct game to combine")
+				if !gameCopy.EvaluateForPath(path) {
+					return fmt.Errorf("failed to instuct game to combine")
 				}
 				_, twoPow := gameCopy.Cells()[path[len(path)-1]].Raw()
 				s.InstructionTags[i].TwoPow = twoPow
-			default:
-				return s, fmt.Errorf("Unhandled instructiontype %d with value %#v", t, ins)
-
-			}
-
+				return nil
+			},
+			func(helper Helper, i int) error {
+				return fmt.Errorf("Not implemented: Helper in calculateStat")
+			},
+		)
+		if err != nil {
+			return s, err
 		}
 	}
 	fmt.Println("Calculating status for solution")
 	fmt.Println(original.Print())
-	fmt.Println(solution.DescribeInstruction(solution.History))
+	fmt.Println(solution.History.Describe())
 	fmt.Printf("solutons has %d moves\n", s.Moves)
 	fmt.Printf("solutons reached a score of %d \n", s.Score)
 

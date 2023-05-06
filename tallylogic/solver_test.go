@@ -96,8 +96,8 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			},
 			1,
 			[]string{
-				"indexes:7,6,3,4;indexes:2,5,4;indexes:0,1,4;",
-				"indexes:3,6,7,4;indexes:2,5,4;indexes:0,1,4;",
+				"7,6,3,4;2,5,4;0,1,4;",
+				"3,6,7,4;2,5,4;0,1,4;",
 			},
 		},
 
@@ -152,7 +152,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			outer:
 				for _, want := range tt.wantOneOfSolutionShortDescription {
 					for i, solved := range solutions {
-						s[i] = solved.History.DescribeShort()
+						s[i] = solved.History.Describe()
 					}
 					sort.Slice(s, func(i, j int) bool {
 						li := len(s[i])
@@ -178,7 +178,7 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			if tt.wantSolutionCountGte >= 0 && len(solutions) < tt.wantSolutionCountGte {
 				t.Errorf("Found %d solutions, want at least %d", len(solutions), tt.wantSolutionCountGte)
 				for i, solved := range solutions {
-					t.Logf("Solution %d: solved - %d moves with a score of %d %s", i, solved.Moves(), solved.Score(), solved.History.DescribeShort())
+					t.Logf("Solution %d: solved - %d moves with a score of %d %s", i, solved.Moves(), solved.Score(), solved.History.Describe())
 				}
 				// intentionally no prefix for testname here, since we want to compare them
 				t.Log(gg.board.String())
@@ -188,10 +188,17 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			t.Log(gg.board.String())
 			if gg.Rules.NoReswipe {
 				for _, solution := range solutions {
-					for i := 1; i < len(solution.History); i++ {
-						prev := solution.History[i-1]
-						curr := solution.History[i]
-						if equal, kind := CompareInstrictionAreEqual(prev, curr); equal && kind == InstructionTypeSwipe {
+					history, err := solution.History.All()
+					if err != nil {
+						t.Fatalf("Failed to retrieve all history-items: %v", err)
+					}
+					for i := 1; i < len(history); i++ {
+						prev := history[i-1]
+						curr := history[i]
+						if !prev.IsPath || !curr.IsPath {
+							continue
+						}
+						if prev.Equal(curr) {
 							// Duplicate paths are not allowed, see Rules.NoReswipe
 							t.Errorf("duplicate swipe in path at %d: %v", i, solution.History)
 							break
@@ -209,16 +216,17 @@ func Test_bruteSolver_SolveGame(t *testing.T) {
 			// Check that we can replay the instructions from the solutions (first one at least)
 			// This is mostly to check that randomizers have been reset, and any other state is not changed
 			solution := solutions[0]
-			for i := 0; i < len(solution.History); i++ {
-				instr := solution.History[i]
+			history, err := solution.History.All()
+			for i := 0; i < len(history); i++ {
+				instr := history[i]
 				combine := func(vs ...any) string {
 					return fmt.Sprintf("%v", vs)
 				}
 				t.Logf("seed: %d-%d, %s %s", originalSeed, originalState, combine(gg.cellGenerator.Seed()), combine(solution.cellGenerator.Seed()))
 				desc := gg.DescribeInstruction(instr)
-				switch t := instr.(type) {
-				case []int:
-					for _, v := range t {
+				switch {
+				case instr.IsPath:
+					for _, v := range instr.Path {
 						gg.SelectCell(v)
 					}
 				}
