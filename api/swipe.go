@@ -30,14 +30,15 @@ func (s *TallyServer) SwipeBoard(
 		didWin := session.Game.IsGameWon()
 		didLose := session.Game.IsGameOver()
 		seed, state := session.Game.Seed()
-		payload := types.SwipePayload{
-
-			GameID:         session.Game.ID,
-			SwipeDirection: types.SwipeDirection(dir),
-			Moves:          session.Game.Moves(),
-			State:          state,
-			Seed:           seed,
-			Cells:          session.Cells(),
+		payload := types.UpdateGamePayload{
+			GameID:    session.Game.ID,
+			Moves:     session.Game.Moves(),
+			Score:     uint64(gameCopy.Score()),
+			State:     state,
+			Seed:      seed,
+			Cells:     session.Cells(),
+			History:   session.Game.History.Bytes(),
+			PlayState: types.PlayStateCurrent,
 		}
 		if didWin {
 			payload.PlayState = types.PlayStateWon
@@ -46,7 +47,7 @@ func (s *TallyServer) SwipeBoard(
 			payload.PlayState = types.PlayStateLost
 			response.DidWin = didLose
 		}
-		err := s.storage.SwipeBoard(ctx, payload)
+		err := s.storage.UpdateGame(ctx, payload)
 		if err != nil {
 			s.l.Error().
 				Err(err).
@@ -54,7 +55,7 @@ func (s *TallyServer) SwipeBoard(
 				Msg("failed to save the board to storage during swipe-operation")
 			// rollback the game in memory
 			session.Game = gameCopy
-			return nil, fmt.Errorf("intarnal failure while saving the board")
+			return nil, fmt.Errorf("intarnal failure while saving the board: %w", err)
 		}
 	}
 	res := connect.NewResponse(response)

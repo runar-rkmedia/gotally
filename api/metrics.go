@@ -27,11 +27,11 @@ func (t TallyServer) collectStats() {
 	metricTotalGamesCurrent.Set(float64(stats.GamesCurrent))
 	metricLongestGame.Set(float64(stats.LongestGame))
 	metricHighestScore.Set(float64(stats.HighestScore))
-	metricHistoryStdDev.Set(float64(stats.CombineDataStdDev))
-	metricHistoryMin.Set(float64(stats.CombineDataMin))
-	metricHistoryAvg.Set(float64(stats.CombineDataAvg))
-	metricHistoryMax.Set(float64(stats.CombineDataMax))
-	metricHistoryTotal.Set(float64(stats.CombineDataTotal))
+	metricHistoryStdDev.Set(float64(stats.HistoryStdDev))
+	metricHistoryMin.Set(float64(stats.HistoryMin))
+	metricHistoryAvg.Set(float64(stats.HistoryAvg))
+	metricHistoryMax.Set(float64(stats.HistoryMax))
+	metricHistoryTotal.Set(float64(stats.HistoryTotal))
 }
 
 var (

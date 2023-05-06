@@ -84,6 +84,7 @@ type Game struct {
 	Score       uint64
 	Moves       uint
 	Cells       []cell.Cell
+	History     []byte
 	PlayState
 	Rules
 }
@@ -109,6 +110,9 @@ func (p Game) Validate() error {
 	}
 	if p.Rules.Mode == "" {
 		return fmt.Errorf("%w: Game.Rules.Mode %s", ErrArgumentMissing, debug.Stack())
+	}
+	if p.Moves > 0 && p.History == nil {
+		return fmt.Errorf("%w: Game.Rules.History %s", ErrArgumentMissing, debug.Stack())
 	}
 
 	return nil
@@ -187,14 +191,14 @@ type Statistics struct {
 	LongestGame uint64
 	// Highest score recorded for a game
 	HighestScore uint64
-	// Size of the data-column in the history (counting only combines), represented as a standard-deviation
-	CombineDataStdDev float64
-	// Size of the data-column in the history (counting only combines), represented as average
-	CombineDataAvg float64
-	// Size of the data-column in the history (counting only combines), represented as max
-	CombineDataMax uint64
-	// Size of the data-column in the history (counting only combines), represented as min
-	CombineDataMin uint64
-	// Size of the data-column in the history (counting only combines), represented as total
-	CombineDataTotal uint64
+	// Size of the history-column in the history, represented as a standard-deviation
+	HistoryStdDev float64
+	// Size of the history-column in the history, represented as average
+	HistoryAvg float64
+	// Size of the history-column in the history, represented as max
+	HistoryMax uint64
+	// Size of the history-column in the history, represented as min
+	HistoryMin uint64
+	// Size of the history-column in the history, represented as total
+	HistoryTotal uint64
 }

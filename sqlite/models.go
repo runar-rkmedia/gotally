@@ -17,20 +17,14 @@ type Game struct {
 	Description sql.NullString
 	UserID      string
 	RuleID      string
+	BasedOnGame sql.NullString
 	TemplateID  sql.NullString
 	Score       int64
 	Moves       int64
 	PlayState   int64
 	Data        []byte
-}
-
-type GameHistory struct {
-	CreatedAt time.Time
-	GameID    string
-	Move      int64
-	Kind      int64
-	Points    int64
-	Data      []byte
+	DataAtStart []byte
+	History     []byte
 }
 
 type GameTemplate struct {

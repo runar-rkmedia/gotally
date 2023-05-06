@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/sqlite"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 	"github.com/runar-rkmedia/gotally/types"
@@ -50,20 +49,6 @@ func toNullInt64(n uint64) sql.NullInt64 {
 	}
 }
 
-func toModalDirection(dir types.SwipeDirection) tallyv1.SwipeDirection {
-	switch dir {
-	case types.SwipeDirectionUp:
-		return tallyv1.SwipeDirection_SWIPE_DIRECTION_UP
-	case types.SwipeDirectionRight:
-		return tallyv1.SwipeDirection_SWIPE_DIRECTION_RIGHT
-	case types.SwipeDirectionDown:
-		return tallyv1.SwipeDirection_SWIPE_DIRECTION_DOWN
-	case types.SwipeDirectionLeft:
-		return tallyv1.SwipeDirection_SWIPE_DIRECTION_LEFT
-	}
-	return tallyv1.SwipeDirection_SWIPE_DIRECTION_UNSPECIFIED
-}
-
 func toTypeRule(rule sqlite.Rule) (types.Rules, error) {
 	mode, err := toMode(rule.Mode)
 	if err != nil {
@@ -104,6 +89,7 @@ func toTypeGame(createdGame *sqlite.Game, r *sqlite.Rule, seed, state uint64, ce
 		State:     state,
 		Score:     uint64(createdGame.Score),
 		Moves:     uint(createdGame.Moves),
+		History:   createdGame.History,
 		Cells:     cells,
 		PlayState: playState,
 		Rules:     tRule,
