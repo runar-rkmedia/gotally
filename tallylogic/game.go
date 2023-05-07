@@ -32,8 +32,10 @@ type IntRandomizer interface {
 
 type Game struct {
 	// Uniquely identifies this board
-	ID            string
-	board         BoardController
+	ID           string
+	board        BoardController
+	boardAtStart BoardController
+	// deprecated (I think atleast, I dont believe there is a need for this)
 	selectedCells []int
 	cellGenerator CellGenerator
 	Rules         GameRules
@@ -304,6 +306,7 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 		}
 	}
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
+	game.boardAtStart = game.board.Copy()
 	if len(game.board.Cells()) != (game.Rules.SizeX * game.Rules.SizeY) {
 		return game, fmt.Errorf("Game has invalid size: %d cells, %dx%d, mode %v template %v", len(game.board.Cells()), game.Rules.SizeX, game.Rules.SizeY, mode, template)
 	}
@@ -356,6 +359,64 @@ func (g *Game) Swipe(direction SwipeDirection) (changed bool) {
 		g.History.AddSwipe(direction)
 	}
 	return changed
+}
+func (g *Game) ReplaceBasedOn(game Game) error {
+	g.boardAtStart = game.board
+	return nil
+}
+func (g *Game) CanUndo() bool {
+	undos := 0
+	others := 0
+	g.History.Iterate(
+		func(dir SwipeDirection, i int) error { others++; return nil },
+		func(path []int, i int) error { others++; return nil },
+		func(helper Helper, i int) error {
+			if helper == helperUndo {
+				undos++
+			} else {
+				others++
+			}
+			return nil
+		},
+	)
+	undone := undos * 10
+	return undone < others
+}
+func (g *Game) Undo() error {
+	if g.moves == 0 {
+		return fmt.Errorf("Cannot undo at start of game")
+	}
+	if g.boardAtStart == nil {
+		return fmt.Errorf("Invalid state: Could not locate data for board-start.")
+	}
+	history, err := g.History.FilterForUndo()
+	if err != nil {
+		return fmt.Errorf("failed to undo game: %w", err)
+	}
+	hbytes := g.History.BytesCopy()
+	g.board = g.boardAtStart.Copy()
+	g.History = NewCompactHistory(g.Rules.SizeX, g.Rules.SizeY)
+	// g.moves = 0
+	g.score = 0
+	for i := 0; i < len(history); i++ {
+		ins := history[i]
+		if ins.IsHelperUndo() {
+			panic("Nested undo!")
+		}
+		ok := g.Instruct(ins)
+		g.moves--
+		// time.Sleep(1 * time.Millisecond)
+		if !ok {
+			return fmt.Errorf("failed to apply instruction  %d %#v", i, ins)
+		}
+
+	}
+
+	g.History.c = hbytes
+	g.History.AddUndo()
+	g.moves++
+
+	return nil
 }
 
 // Not all types of boards supports this, so this method will probably be removed
@@ -454,6 +515,9 @@ func (g Game) SelectedCells() []int {
 func (g Game) Cells() []cell.Cell {
 	return g.board.Cells()
 }
+func (g Game) BoardSize() int {
+	return g.Rules.SizeX * g.Rules.SizeY
+}
 
 // PathValues returns the values for the given path.
 // Mostly used for diagnostics
@@ -520,6 +584,5 @@ func (g *Game) DescribePath(path []int) string {
 		s += sep + strconv.FormatInt(values[i], 10)
 	}
 	s += " = " + strconv.FormatInt(targetValue, 10)
-	fmt.Printf("Described %s, from values %v, for path %v and cells %s\n", s, values, path, cells)
 	return s
 }

@@ -27,6 +27,9 @@ func (c *Cell) Double() *Cell {
 	c.power += 1
 	return c
 }
+func (c Cell) Equal(b Cell) bool {
+	return c.baseValue == b.baseValue && c.power == b.power
+}
 func (c *Cell) IsEmpty() bool {
 	return c.baseValue == 0
 }

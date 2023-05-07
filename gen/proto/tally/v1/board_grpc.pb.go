@@ -25,6 +25,7 @@ type BoardServiceClient interface {
 	NewGame(ctx context.Context, in *NewGameRequest, opts ...grpc.CallOption) (*NewGameResponse, error)
 	NewGameFromTemplate(ctx context.Context, in *NewGameFromTemplateRequest, opts ...grpc.CallOption) (*NewGameFromTemplateResponse, error)
 	GetHint(ctx context.Context, in *GetHintRequest, opts ...grpc.CallOption) (*GetHintResponse, error)
+	Undo(ctx context.Context, in *UndoRequest, opts ...grpc.CallOption) (*UndoResponse, error)
 	RestartGame(ctx context.Context, in *RestartGameRequest, opts ...grpc.CallOption) (*RestartGameResponse, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 	SwipeBoard(ctx context.Context, in *SwipeBoardRequest, opts ...grpc.CallOption) (*SwipeBoardResponse, error)
@@ -64,6 +65,15 @@ func (c *boardServiceClient) NewGameFromTemplate(ctx context.Context, in *NewGam
 func (c *boardServiceClient) GetHint(ctx context.Context, in *GetHintRequest, opts ...grpc.CallOption) (*GetHintResponse, error) {
 	out := new(GetHintResponse)
 	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/GetHint", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *boardServiceClient) Undo(ctx context.Context, in *UndoRequest, opts ...grpc.CallOption) (*UndoResponse, error) {
+	out := new(UndoResponse)
+	err := c.cc.Invoke(ctx, "/tally.v1.BoardService/Undo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +159,7 @@ type BoardServiceServer interface {
 	NewGame(context.Context, *NewGameRequest) (*NewGameResponse, error)
 	NewGameFromTemplate(context.Context, *NewGameFromTemplateRequest) (*NewGameFromTemplateResponse, error)
 	GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error)
+	Undo(context.Context, *UndoRequest) (*UndoResponse, error)
 	RestartGame(context.Context, *RestartGameRequest) (*RestartGameResponse, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 	SwipeBoard(context.Context, *SwipeBoardRequest) (*SwipeBoardResponse, error)
@@ -171,6 +182,9 @@ func (UnimplementedBoardServiceServer) NewGameFromTemplate(context.Context, *New
 }
 func (UnimplementedBoardServiceServer) GetHint(context.Context, *GetHintRequest) (*GetHintResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHint not implemented")
+}
+func (UnimplementedBoardServiceServer) Undo(context.Context, *UndoRequest) (*UndoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Undo not implemented")
 }
 func (UnimplementedBoardServiceServer) RestartGame(context.Context, *RestartGameRequest) (*RestartGameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RestartGame not implemented")
@@ -258,6 +272,24 @@ func _BoardService_GetHint_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BoardServiceServer).GetHint(ctx, req.(*GetHintRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BoardService_Undo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UndoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BoardServiceServer).Undo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/tally.v1.BoardService/Undo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BoardServiceServer).Undo(ctx, req.(*UndoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -424,6 +456,10 @@ var BoardService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetHint",
 			Handler:    _BoardService_GetHint_Handler,
+		},
+		{
+			MethodName: "Undo",
+			Handler:    _BoardService_Undo_Handler,
 		},
 		{
 			MethodName: "RestartGame",

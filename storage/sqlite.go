@@ -568,6 +568,9 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		AnnotateSpanError(span, err)
 		span.End()
 	}()
+	if err := payload.Validate(); err != nil {
+		return nil, err
+	}
 	sess, err := p.queries.GetUserBySessionID(ctx, payload.ID)
 
 	if err != nil {
@@ -687,9 +690,9 @@ func (p *sqliteStorage) UpdateGame(ctx context.Context, payload types.UpdateGame
 		History:   payload.History,
 		ID:        g.ID,
 	}
-	if len(updateGameArgs.History) == 0 {
-		return fmt.Errorf("attempted to update game, but there was no history-field")
-	}
+	// if len(updateGameArgs.History) == 0 {
+	// 	return fmt.Errorf("attempted to update game, but there was no history-field")
+	// }
 	if len(updateGameArgs.Data) == 0 {
 		return fmt.Errorf("attempted to update game, but there was no data-field")
 	}
@@ -755,6 +758,40 @@ func (p *sqliteStorage) Dump(ctx context.Context) (tg types.Dump, err error) {
 	return
 }
 
+func (p *sqliteStorage) GetOriginalGame(ctx context.Context, payload types.GetOriginalGamePayload) (tg types.Game, err error) {
+
+	ctx, span := tracerSqlite.Start(ctx, "RestartGame")
+	defer func() {
+		AnnotateSpanError(span, err)
+		span.End()
+	}()
+	if err := payload.Validate(); err != nil {
+		return types.Game{}, err
+	}
+	q, tx, err := p.beginTx(ctx)
+	if err != nil {
+		return tg, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	g, err := q.GetGame(ctx, payload.GameID)
+	if err != nil {
+		return tg, fmt.Errorf("failed to to retrieve game (payload %#v): %w", payload, err)
+	}
+	playstate, err := toPlayState(g.PlayState)
+	if err != nil {
+		return tg, fmt.Errorf("invalid gameParams.PlayState: %w", err)
+	}
+	rule, err := p.ensureRuleExists(ctx, q, types.Rules{ID: g.RuleID})
+	if err != nil {
+		return tg, fmt.Errorf("failed to retrieve rule with id '%s': %w", g.RuleID, err)
+	}
+	cells, seed, state, err := UnmarshalInternalDataGame(ctx, g.DataAtStart)
+	fmt.Println("Got original game", cells)
+	return toTypeGame(&g, &rule, seed, state, cells, playstate)
+
+}
 func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGamePayload) (tg types.Game, err error) {
 
 	ctx, span := tracerSqlite.Start(ctx, "RestartGame")

@@ -141,6 +141,7 @@ export interface ApiType {
 		selection: number[]
 	) => CommitableGoResult<{ didWin: boolean; board: Board; moves: number; score: number }>
 	restartGame: () => CommitableGoResult<{ board: Board; moves: number; score: number }>
+	undo: () => CommitableGoResult<{ board: Board; moves: number; score: number }>
 	newGame: (
 		options: OnlyMessage<Api.NewGameRequest>
 	) => CommitableGoResult<{ board: Board; moves: number; score: number }>
@@ -209,7 +210,7 @@ class ApiStore implements ApiType {
 		const res = result.challenges.map((r) => strip<Challenge>(r))
 		const commit = async () => {
 			// TODO: commit the result to the store
-			console.error('not implemented: commit for generateGame', { res })
+			console.error('not implemented: commit for getChallenges', { res })
 		}
 
 		return [res, commit, null]
@@ -226,7 +227,7 @@ class ApiStore implements ApiType {
 		}
 		const commit = async () => {
 			// TODO: commit the result to the store
-			console.error('not implemented: commit for generateGame', { res })
+			console.error('not implemented: commit for createTemplate', { res })
 		}
 
 		return [res, commit, null]
@@ -309,6 +310,40 @@ class ApiStore implements ApiType {
 		const [result, err] = await go(client.restartGame({}))
 		if (err) {
 			handleError('restartGame', err)
+			return [null, null, err]
+		}
+		const { board: _board } = result
+		if (!_board) {
+			return [null, null, ErrNoResult]
+		}
+		const board = strip<Board>(_board)
+		// response.board = result.board
+		const res = {
+			board,
+			moves: Number(result.moves),
+			score: Number(result.score)
+		}
+		const commit = async () => {
+			store.update((s) => ({
+				...s,
+				didWin: false,
+				hints: [],
+				hintDoneIndex: -1,
+				session: {
+					...s.session,
+					game: {
+						...s.session.game,
+						...res
+					}
+				}
+			}))
+		}
+		return [res, commit, null]
+	}
+	undo: ApiType['undo'] = async () => {
+		const [result, err] = await go(client.undo({}))
+		if (err) {
+			handleError('undo', err)
 			return [null, null, err]
 		}
 		const { board: _board } = result

@@ -378,6 +378,36 @@ func (q *Queries) GetGameTemplateByChallengeNumber(ctx context.Context, challeng
 	return i, err
 }
 
+const getOriginalGame = `-- name: GetOriginalGame :one
+SELECT o.id, o.created_at, o.updated_at, o.name, o.description, o.user_id, o.rule_id, o.based_on_game, o.template_id, o.score, o.moves, o.play_state, o.data, o.data_at_start, o.history
+  FROM game AS g 
+    JOIN game o ON o.id == g.based_on_game
+ WHERE g.id = '?'
+`
+
+func (q *Queries) GetOriginalGame(ctx context.Context) (Game, error) {
+	row := q.db.QueryRowContext(ctx, getOriginalGame)
+	var i Game
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Name,
+		&i.Description,
+		&i.UserID,
+		&i.RuleID,
+		&i.BasedOnGame,
+		&i.TemplateID,
+		&i.Score,
+		&i.Moves,
+		&i.PlayState,
+		&i.Data,
+		&i.DataAtStart,
+		&i.History,
+	)
+	return i, err
+}
+
 const getRule = `-- name: GetRule :one
 ;
 select id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule

@@ -30,6 +30,7 @@ type BoardServiceClient interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
 	NewGameFromTemplate(context.Context, *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameFromTemplateResponse], error)
 	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
+	Undo(context.Context, *connect_go.Request[v1.UndoRequest]) (*connect_go.Response[v1.UndoResponse], error)
 	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
@@ -63,6 +64,11 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 		getHint: connect_go.NewClient[v1.GetHintRequest, v1.GetHintResponse](
 			httpClient,
 			baseURL+"/tally.v1.BoardService/GetHint",
+			opts...,
+		),
+		undo: connect_go.NewClient[v1.UndoRequest, v1.UndoResponse](
+			httpClient,
+			baseURL+"/tally.v1.BoardService/Undo",
 			opts...,
 		),
 		restartGame: connect_go.NewClient[v1.RestartGameRequest, v1.RestartGameResponse](
@@ -113,6 +119,7 @@ type boardServiceClient struct {
 	newGame             *connect_go.Client[v1.NewGameRequest, v1.NewGameResponse]
 	newGameFromTemplate *connect_go.Client[v1.NewGameFromTemplateRequest, v1.NewGameFromTemplateResponse]
 	getHint             *connect_go.Client[v1.GetHintRequest, v1.GetHintResponse]
+	undo                *connect_go.Client[v1.UndoRequest, v1.UndoResponse]
 	restartGame         *connect_go.Client[v1.RestartGameRequest, v1.RestartGameResponse]
 	getSession          *connect_go.Client[v1.GetSessionRequest, v1.GetSessionResponse]
 	swipeBoard          *connect_go.Client[v1.SwipeBoardRequest, v1.SwipeBoardResponse]
@@ -136,6 +143,11 @@ func (c *boardServiceClient) NewGameFromTemplate(ctx context.Context, req *conne
 // GetHint calls tally.v1.BoardService.GetHint.
 func (c *boardServiceClient) GetHint(ctx context.Context, req *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error) {
 	return c.getHint.CallUnary(ctx, req)
+}
+
+// Undo calls tally.v1.BoardService.Undo.
+func (c *boardServiceClient) Undo(ctx context.Context, req *connect_go.Request[v1.UndoRequest]) (*connect_go.Response[v1.UndoResponse], error) {
+	return c.undo.CallUnary(ctx, req)
 }
 
 // RestartGame calls tally.v1.BoardService.RestartGame.
@@ -183,6 +195,7 @@ type BoardServiceHandler interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
 	NewGameFromTemplate(context.Context, *connect_go.Request[v1.NewGameFromTemplateRequest]) (*connect_go.Response[v1.NewGameFromTemplateResponse], error)
 	GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error)
+	Undo(context.Context, *connect_go.Request[v1.UndoRequest]) (*connect_go.Response[v1.UndoResponse], error)
 	RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error)
 	GetSession(context.Context, *connect_go.Request[v1.GetSessionRequest]) (*connect_go.Response[v1.GetSessionResponse], error)
 	SwipeBoard(context.Context, *connect_go.Request[v1.SwipeBoardRequest]) (*connect_go.Response[v1.SwipeBoardResponse], error)
@@ -213,6 +226,11 @@ func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerO
 	mux.Handle("/tally.v1.BoardService/GetHint", connect_go.NewUnaryHandler(
 		"/tally.v1.BoardService/GetHint",
 		svc.GetHint,
+		opts...,
+	))
+	mux.Handle("/tally.v1.BoardService/Undo", connect_go.NewUnaryHandler(
+		"/tally.v1.BoardService/Undo",
+		svc.Undo,
 		opts...,
 	))
 	mux.Handle("/tally.v1.BoardService/RestartGame", connect_go.NewUnaryHandler(
@@ -271,6 +289,10 @@ func (UnimplementedBoardServiceHandler) NewGameFromTemplate(context.Context, *co
 
 func (UnimplementedBoardServiceHandler) GetHint(context.Context, *connect_go.Request[v1.GetHintRequest]) (*connect_go.Response[v1.GetHintResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.GetHint is not implemented"))
+}
+
+func (UnimplementedBoardServiceHandler) Undo(context.Context, *connect_go.Request[v1.UndoRequest]) (*connect_go.Response[v1.UndoResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("tally.v1.BoardService.Undo is not implemented"))
 }
 
 func (UnimplementedBoardServiceHandler) RestartGame(context.Context, *connect_go.Request[v1.RestartGameRequest]) (*connect_go.Response[v1.RestartGameResponse], error) {

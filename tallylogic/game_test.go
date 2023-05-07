@@ -3,6 +3,7 @@ package tallylogic
 import (
 	"testing"
 
+	"github.com/MarvinJWendt/testza"
 	"github.com/go-test/deep"
 	"github.com/gookit/color"
 )
@@ -49,6 +50,143 @@ func mustCreateNewGameForTest(mode GameMode, template *GameTemplate, options ...
 		}
 		return game
 	}
+}
+
+func TestGame_Undo(t *testing.T) {
+	t.Run("Undoing a game should work", func(t *testing.T) {
+		g := mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath"))()
+		info := func() {
+			t.Helper()
+			return
+			t.Logf("[INFO] Moves: %d Score: %d HistoryLength: %d HistorySize: %d %s %s",
+				g.Moves(), g.Score(), g.History.Length(), g.History.Size(), g.History.Describe(), g.Print())
+		}
+		gamesAtH := make([]Game, 6)
+		gamesAtH[0] = g.Copy()
+
+		assertGameEquality := func(got, expected Game, expectedHistory string) {
+			t.Helper()
+			if expected.Moves() != got.Moves() {
+				t.Errorf("Moves mismatch expected %d, got %d", expected.Moves(), got.Score())
+			}
+			if expected.Score() != got.Score() {
+				t.Errorf("Score mismatch expected %d, got %d", expected.Score(), got.Score())
+			}
+			if expectedHistory != g.History.Describe() {
+				t.Errorf("History mismatch expected %s, got %s", expectedHistory, g.History.Describe())
+			}
+			if expected.Print() != got.Print() {
+				diffIndexes := getGameCellDiff(expected, g)
+				t.Errorf(
+					"The game-layout was not reset to the previous layout. Expected %s but got %s",
+					expected.PrintForSelection(diffIndexes), got.PrintForSelection(diffIndexes))
+			}
+		}
+
+		err := g.Undo()
+		testza.AssertNotNil(t, err)
+		testza.AssertContains(t, err.Error(), "Cannot undo at start")
+
+		testza.AssertEqual(t, 0, g.Moves(), "Moves should be 0 at start")
+		testza.AssertEqual(t, 0, g.History.Length(), "History-Length should be 0 at start")
+		info()
+
+		// Move 1 (1):
+		t.Log("Swiping Up")
+		changed := g.Swipe(SwipeDirectionUp)
+		testza.AssertTrue(t, changed, "Expected board to change after swipe")
+		testza.AssertEqual(t, 1, g.Moves(), "Moves should have increased")
+		testza.AssertEqual(t, 1, g.History.Length(), "History-Length should be 1")
+		gamesAtH[1] = g.Copy()
+		info()
+
+		// Move 2 (2):
+		t.Log("Swiping Right")
+		changed = g.Swipe(SwipeDirectionRight)
+		testza.AssertTrue(t, changed, "Expected board to change after swipe")
+		testza.AssertEqual(t, 2, g.Moves(), "Moves should have increased")
+		testza.AssertEqual(t, 2, g.History.Length(), "History-Length should be 2")
+		gamesAtH[2] = g.Copy()
+		info()
+
+		// Undo (1) (3):
+		t.Log("Undoing")
+		err = g.Undo()
+		testza.AssertNoError(t, err, "Undo should not err")
+		gamesAtH[3] = g.Copy()
+		info()
+		assertGameEquality(g, gamesAtH[1], "U;R;Z;")
+
+		// Combine (2) (4):
+		t.Log("Combining")
+		ok := g.EvaluateForPath([]int{3, 2, 1, 6})
+		testza.AssertTrue(t, ok, "Expecte EvaluateForPath to report ok")
+		gamesAtH[4] = g.Copy()
+		info()
+
+		// Combine (3) (5):
+		t.Log("Combining")
+		ok = g.EvaluateForPath([]int{4, 9, 8, 7, 6})
+		testza.AssertTrue(t, ok, "Expecte EvaluateForPath to report ok")
+		gamesAtH[5] = g.Copy()
+		info()
+
+		// Swiping (4) (6):
+		t.Log("Swiping Down")
+		changed = g.Swipe(SwipeDirectionDown)
+		testza.AssertTrue(t, changed, "Expected board to change after swipe")
+		info()
+
+		// Undo (3) (7):
+		t.Log("Undoing")
+		err = g.Undo()
+		testza.AssertNoError(t, err, "Undo should not err")
+		info()
+		assertGameEquality(g, gamesAtH[5], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;")
+
+		// Undo (2) (8):
+		t.Log("Undoing twice in a row")
+		err = g.Undo()
+		testza.AssertNoError(t, err, "Undo should not err")
+		info()
+		assertGameEquality(g, gamesAtH[4], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;Z;")
+
+		t.Log("Undoing a third time in a row")
+		err = g.Undo()
+		testza.AssertNoError(t, err, "Undo should not err")
+		info()
+		assertGameEquality(g, gamesAtH[1], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;Z;Z;")
+
+		t.Log("Undoing a fourth time in a row")
+		err = g.Undo()
+		testza.AssertNoError(t, err, "Undo should not err")
+		info()
+		assertGameEquality(g, gamesAtH[0], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;Z;Z;Z;")
+		for i := 0; i < len(gamesAtH); i++ {
+			t.Logf("gamesAtH: index: %d, moves %d score %d %s", i, gamesAtH[i].Moves(), gamesAtH[i].Score(), gamesAtH[i].Print())
+
+		}
+
+		// t.Log("Undoing a fifth time in a row")
+		// err = g.Undo()
+		// testza.AssertNoError(t, err, "Undo should not err")
+		// info()
+		// assertGameEquality(g, gamesAtH[2], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;Z;Z;")
+		t.Fail()
+
+	})
+}
+func getGameCellDiff(a, b Game) []int {
+	diffIndexes := []int{}
+	for i := 0; i < a.BoardSize(); i++ {
+		expected := a.board.GetCellAtIndex(i)
+		got := b.board.GetCellAtIndex(i)
+		if !expected.Equal(*got) {
+			diffIndexes = append(diffIndexes, i)
+		}
+
+	}
+	return diffIndexes
 }
 
 func TestGame_Play(t *testing.T) {
