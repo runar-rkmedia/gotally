@@ -118,11 +118,22 @@ func NewCompactHistoryFromBinary(gameColumns, gameRows int, data []byte) Compact
 	}
 
 }
+
+// Returns the inner bytes (does not copy)
 func (c *CompactHistory) MarshalBinary() ([]byte, error) {
 	return c.c, nil
 }
+
+// Returns the inner bytes (does not copy)
 func (c *CompactHistory) Bytes() []byte {
 	return c.c
+}
+
+// Returns the inner bytes (does not copy)
+func (c *CompactHistory) BytesCopy() []byte {
+	b := make([]byte, len(c.c))
+	copy(b, c.c)
+	return b
 }
 func (c *CompactHistory) Restore(b []byte) error {
 	c.c = b
@@ -229,6 +240,25 @@ func (c *CompactHistory) AddPath(path []int) error {
 	return nil
 }
 
+// Describe returns a short, human-readable version of the history.
+//
+// Each instruction is seperated by ;
+//
+// Swiping Up:      U
+//
+// Swiping Right:   R
+//
+// Swiping Down:    D
+//
+// Swiping Left:    L
+//
+// Undo:            Z
+//
+// Hint:            H
+//
+// Swap:            S
+//
+// CombinePath:     Comma-separated indexes
 func (c *CompactHistory) Describe() string {
 	s := strings.Builder{}
 	err := c.Iterate(
@@ -329,6 +359,27 @@ func NewPathInstruction_(path []int) Instruction_ {
 func NewHelperInstruction_(helper Helper) Instruction_ {
 	return Instruction_{IsHelper: true, Helper: helper}
 }
+func (ins Instruction_) IsHelperUndo() bool {
+	return ins.IsHelper && ins.Helper == helperUndo
+}
+func (ins Instruction_) IsHelperHint() bool {
+	return ins.IsHelper && ins.Helper == helperHint
+}
+func (ins Instruction_) String() string {
+	switch {
+	case ins.IsSwipe:
+		return string(ins.Direction)
+	case ins.IsHelper:
+		return string(ins.Helper)
+	case ins.IsPath:
+		s := ""
+		for i := 0; i < len(ins.Path); i++ {
+			s += strconv.FormatInt(int64(ins.Path[i]), 10) + ","
+		}
+		return s[:len(s)-1]
+	}
+	return "Instruction???"
+}
 func (ins Instruction_) Equal(b Instruction_) bool {
 	switch {
 	case ins.IsSwipe:
@@ -383,6 +434,30 @@ func (c *CompactHistory) IterateKind(
 			return f(Instruction_{Helper: helper, IsHelper: true}, i)
 		},
 	)
+}
+
+func (c CompactHistory) FilterForUndo() ([]Instruction_, error) {
+	history, err := c.All()
+	if err != nil {
+		return []Instruction_{}, fmt.Errorf("failed to undo game: %w", err)
+	}
+	history = append(history, NewHelperInstruction_(helperUndo))
+	dropped := 0
+	l := len(history)
+	for i := 0; i < len(history); i++ {
+		if history[i].IsHelperUndo() {
+			if dropped == l {
+				return []Instruction_{}, nil
+			}
+			if i >= i {
+				history = append(history[:i-1], history[i+1:]...)
+			} else {
+				history = append(history[:i], history[i+1:]...)
+			}
+			i = -1
+		}
+	}
+	return history, nil
 }
 func (c *CompactHistory) Iterate(
 	onSwipe func(dir SwipeDirection, i int) error,

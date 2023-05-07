@@ -37,4 +37,5 @@ type SessionStore interface {
 	// Creates a new template, often used for challenges
 	CreateGameTemplate(ctx context.Context, payload types.CreateGameTemplatePayload) (*types.GameTemplate, error)
 	GetGameChallenges(ctx context.Context, payload types.GetGameChallengePayload) ([]types.GameTemplate, error)
+	GetOriginalGame(ctx context.Context, payload types.GetOriginalGamePayload) (types.Game, error)
 }

@@ -11,6 +11,10 @@ import (
 type GetUserPayload struct {
 	ID string
 }
+type GetOriginalGamePayload struct {
+	GameID string
+}
+
 type CreateUserSessionPayload struct {
 	InvalidAfter time.Time
 	SessionID    string
@@ -20,6 +24,18 @@ type CreateUserSessionPayload struct {
 	TemplateID   string
 }
 
+func (p GetOriginalGamePayload) Validate() error {
+	if p.GameID == "" {
+		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
+	}
+	return nil
+}
+func (p GetUserPayload) Validate() error {
+	if p.ID == "" {
+		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
+	}
+	return nil
+}
 func (p CreateUserSessionPayload) Validate() error {
 	if p.Game.ID == "" {
 		return fmt.Errorf("%w: Game.ID", ErrArgumentMissing)
@@ -119,9 +135,6 @@ func (payload UpdateGamePayload) Validate() error {
 	}
 	if len(payload.Cells) == 0 {
 		return fmt.Errorf("%w: Cells", ErrArgumentMissing)
-	}
-	if payload.Moves <= 0 {
-		return fmt.Errorf("%w: Moves", ErrArgumentMissing)
 	}
 	if payload.Moves > 0 && len(payload.History) == 0 {
 		return fmt.Errorf("%w: History", ErrArgumentMissing)

@@ -89,6 +89,13 @@ message GetHintRequest {
   HintPreference hint_preference = 1;
   uint32 max_length = 2;
 }
+message UndoRequest {
+}
+message UndoResponse {
+  Board board = 1;
+  int64 score = 2;
+  int64 moves = 4;
+}
 message GetHintResponse { repeated Instruction instructions = 1; }
 message GetSessionRequest {}
 message RestartGameRequest {}
@@ -334,6 +341,7 @@ service BoardService {
   rpc NewGame(NewGameRequest) returns (NewGameResponse) {}
   rpc NewGameFromTemplate(NewGameFromTemplateRequest) returns (NewGameFromTemplateResponse) {}
   rpc GetHint(GetHintRequest) returns (GetHintResponse) {}
+  rpc Undo(UndoRequest) returns (UndoResponse) {}
   rpc RestartGame(RestartGameRequest) returns (RestartGameResponse) {}
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {}
   rpc SwipeBoard(SwipeBoardRequest) returns (SwipeBoardResponse) {}

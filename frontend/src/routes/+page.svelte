@@ -1,7 +1,14 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import { GameMode, GetHintRequest, httpErrorStore, Indexes, SwipeDirection } from '../connect-web'
+	import {
+		GameMode,
+		GetHintRequest,
+		httpErrorStore,
+		Indexes,
+		SwipeDirection,
+		UndoRequest
+	} from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/environment'
 	import { animateSwipe, coordToIndex, createSelectionDirectionMap, ValidatePath } from '../logic'
@@ -32,6 +39,10 @@
 
 	const getHint = async (options?: PartialMessage<GetHintRequest>) => {
 		return storeHandler.commit(storeHandler.getHint(options))
+	}
+	const undo = async (options?: PartialMessage<UndoRequest>) => {
+		console.log('undo?', storeHandler)
+		return storeHandler.commit(storeHandler.undo(options))
 	}
 	let lastNumberKey: number | null = null
 
@@ -204,6 +215,12 @@
 						}
 						getHint()
 						break
+					case 'u':
+						if (showGameMenu) {
+							return
+						}
+						undo()
+						break
 					// Combine path
 					case 'Space':
 					case ' ':
@@ -216,6 +233,7 @@
 						select(lastSelection)
 						break
 					case 'r':
+						return
 						if (!$store?.session.game.moves) {
 							return
 						}
@@ -682,6 +700,13 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 			{$store.session.game.description}
 		</p>
 		<div class="bottom-controls">
+			<button
+				data-testid="undo"
+				on:click={() => undo()}
+				disabled={$store.didWin || $store.session.game.moves <= 0}
+			>
+				<Icon icon="undo" color="white" /> Undo
+			</button>
 			<button data-testid="hint" on:click={() => getHint()} disabled={$store.didWin}>
 				<Icon icon="help" color="white" /> Hint
 			</button>

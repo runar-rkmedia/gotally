@@ -143,6 +143,18 @@ func (ts *testApi) SwipeDown() *connect.Response[tallyv1.SwipeBoardResponse] {
 	ts.t.Helper()
 	return ts.Swipe(model.SwipeDirection_SWIPE_DIRECTION_DOWN)
 }
+func (ts *testApi) Undo() *connect.Response[tallyv1.UndoResponse] {
+	ts.t.Helper()
+	ctx := context.TODO()
+	res, err := ts.client.Undo(ctx, connect.NewRequest(&model.UndoRequest{}))
+	if err != nil {
+		ts.t.Log(err.Error())
+		ts.t.Fatalf("%s Failed during Undo: %#v", logError, err)
+	}
+	ts.t.Logf("response %#v", res.Msg)
+	ts.t.Logf("%s Board Undo", logSuccess)
+	return res
+}
 func (ts *testApi) SwipeLeft() *connect.Response[tallyv1.SwipeBoardResponse] {
 	ts.t.Helper()
 	return ts.Swipe(model.SwipeDirection_SWIPE_DIRECTION_LEFT)

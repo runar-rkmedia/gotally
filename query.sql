@@ -56,6 +56,11 @@ where id == ? or slug == ?;
 -- name: GetGame :one
 select * from game
 where id == ?;
+-- name: GetOriginalGame :one
+SELECT o.*
+  FROM game AS g 
+    JOIN game o ON o.id == g.based_on_game
+ WHERE g.id = '?';
 -- name: GetUser :one
 select * from user
 where id == ?;

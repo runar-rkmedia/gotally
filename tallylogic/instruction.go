@@ -39,10 +39,17 @@ func (g *Game) Instruct(instruction Instruction_) bool {
 			return g.Swipe(SwipeDirectionDown)
 		case SwipeDirectionLeft:
 			return g.Swipe(SwipeDirectionLeft)
+		default:
+			panic(fmt.Sprintf("Unknown swipe-instruction %#v", instruction))
 		}
 	case instruction.IsPath:
 		g.selectedCells = instruction.Path
 		return g.EvaluateSelection()
+	case instruction.IsHelper:
+		switch instruction.Helper {
+		case helperUndo:
+			g.Undo()
+		}
 	default:
 		panic(fmt.Sprintf("Unknown instruction %#v", instruction))
 	}
