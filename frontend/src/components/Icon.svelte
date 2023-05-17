@@ -7,15 +7,16 @@
 		HelpCircle,
 		InfinityIcon,
 		LockIcon,
-		PartyPopperIcon,
 		PlayIcon,
 		RefreshCcw,
 		StarHalfIcon,
 		StarIcon,
-		Sword
+		Sword,
+		Undo2
 	} from 'lucide-svelte'
 	export let icon:
 		| 'settings'
+		| 'undo'
 		| 'help'
 		| 'tutorial'
 		| 'challenge'
@@ -52,6 +53,8 @@
 	<Cog color={c} {size} />
 {:else if icon === 'help'}
 	<HelpCircle color={c} {size} />
+{:else if icon === 'undo'}
+	<Undo2 color={c} {size} />
 {:else if icon === 'tutorial'}
 	<GraduationCapIcon color={c} {size} />
 {:else if icon === 'challenge'}
