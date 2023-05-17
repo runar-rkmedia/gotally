@@ -57,29 +57,42 @@ func TestGame_Undo(t *testing.T) {
 		g := mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath"))()
 		info := func() {
 			t.Helper()
-			return
+			// return
 			t.Logf("[INFO] Moves: %d Score: %d HistoryLength: %d HistorySize: %d %s %s",
 				g.Moves(), g.Score(), g.History.Length(), g.History.Size(), g.History.Describe(), g.Print())
 		}
 		gamesAtH := make([]Game, 6)
 		gamesAtH[0] = g.Copy()
 
+		// Checks that the games are equal, but ignores elements that would change due to undo.
+		// For instance:
+		// Moves-counter should increase whene doing an undo
 		assertGameEquality := func(got, expected Game, expectedHistory string) {
 			t.Helper()
-			if expected.Moves() != got.Moves() {
-				t.Errorf("Moves mismatch expected %d, got %d", expected.Moves(), got.Score())
+			hasErr := false
+			if expected.board == nil {
+				t.Fatalf("The expected board was nil %#v", g)
+			}
+			if got.board == nil {
+				t.Fatalf("The resulting board (got) was nil %#v", g)
 			}
 			if expected.Score() != got.Score() {
 				t.Errorf("Score mismatch expected %d, got %d", expected.Score(), got.Score())
+				hasErr = true
 			}
 			if expectedHistory != g.History.Describe() {
 				t.Errorf("History mismatch expected %s, got %s", expectedHistory, g.History.Describe())
+				hasErr = true
 			}
 			if expected.Print() != got.Print() {
 				diffIndexes := getGameCellDiff(expected, g)
+				hasErr = true
 				t.Errorf(
 					"The game-layout was not reset to the previous layout. Expected %s but got %s",
 					expected.PrintForSelection(diffIndexes), got.PrintForSelection(diffIndexes))
+			}
+			if hasErr {
+				t.FailNow()
 			}
 		}
 
@@ -166,14 +179,12 @@ func TestGame_Undo(t *testing.T) {
 			t.Logf("gamesAtH: index: %d, moves %d score %d %s", i, gamesAtH[i].Moves(), gamesAtH[i].Score(), gamesAtH[i].Print())
 
 		}
-
-		// t.Log("Undoing a fifth time in a row")
-		// err = g.Undo()
-		// testza.AssertNoError(t, err, "Undo should not err")
-		// info()
-		// assertGameEquality(g, gamesAtH[2], "U;R;Z;3,2,1,6;4,9,8,7,6;D;Z;Z;Z;")
-		t.Fail()
-
+		testza.AssertFalse(t, g.CanUndo())
+		t.Log(g.CanUndo(), g.History.DescribeWithoutParams())
+		// undo anyway, should not crash
+		err = g.Undo()
+		testza.AssertNotNil(t, err, "Expected to have error")
+		t.Error(err)
 	})
 }
 func getGameCellDiff(a, b Game) []int {

@@ -1,6 +1,7 @@
 package tallylogic
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/bits"
@@ -260,6 +261,12 @@ func (c *CompactHistory) AddPath(path []int) error {
 //
 // CombinePath:     Comma-separated indexes
 func (c *CompactHistory) Describe() string {
+	return c.describe(true)
+}
+func (c *CompactHistory) DescribeWithoutParams() string {
+	return c.describe(false)
+}
+func (c *CompactHistory) describe(withParams bool) string {
 	s := strings.Builder{}
 	err := c.Iterate(
 		func(dir SwipeDirection, i int) error {
@@ -279,6 +286,10 @@ func (c *CompactHistory) Describe() string {
 		},
 		func(path []int, i int) error {
 			l := len(path)
+			if !withParams {
+				s.WriteString("C;")
+				return nil
+			}
 			for i := 0; i < l; i++ {
 				s.WriteString(strconv.FormatInt(int64(path[i]), 10))
 				if i < l-1 {
@@ -436,23 +447,48 @@ func (c *CompactHistory) IterateKind(
 	)
 }
 
+var (
+	ErrNoMoreHistoryToUndo = errors.New("No more history to undo")
+)
+
+// helper for creating a copy of the history where the undo-actions and its targets are removed
+// For instance, Say we have the following History:
+// Input: L;R;Z;
+// Output: L;
+// Input: D;L;R;Z;U;Z;Z;
+// Output: D;
 func (c CompactHistory) FilterForUndo() ([]Instruction_, error) {
 	history, err := c.All()
 	if err != nil {
 		return []Instruction_{}, fmt.Errorf("failed to undo game: %w", err)
 	}
-	history = append(history, NewHelperInstruction_(helperUndo))
-	dropped := 0
 	l := len(history)
+	undoes := 0
+	others := 0
+	for i := 0; i < len(history); i++ {
+		if history[i].IsHelperUndo() {
+			undoes++
+		} else {
+			others++
+		}
+	}
+	if undoes >= others {
+		return history, ErrNoMoreHistoryToUndo
+	}
+	history = append(history, NewHelperInstruction_(helperUndo))
+	var dropped int
 	for i := 0; i < len(history); i++ {
 		if history[i].IsHelperUndo() {
 			if dropped == l {
 				return []Instruction_{}, nil
 			}
 			if i >= i {
+				fmt.Printf("hist a %d (l: %d) %#v\n", i, len(history), history)
 				history = append(history[:i-1], history[i+1:]...)
+				dropped++
 			} else {
 				history = append(history[:i], history[i+1:]...)
+				panic("what")
 			}
 			i = -1
 		}

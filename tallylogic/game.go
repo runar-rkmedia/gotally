@@ -379,7 +379,7 @@ func (g *Game) CanUndo() bool {
 			return nil
 		},
 	)
-	undone := undos * 10
+	undone := undos * 2
 	return undone < others
 }
 func (g *Game) Undo() error {
