@@ -89,7 +89,7 @@
 			cells={challenge.cells ||
 				new Array(challenge.rows * challenge.columns || 30).fill(null).map((_, i) => ({
 					base: Math.random() > 0.6 ? 0 : Math.ceil(Math.random() * 12),
-					twopow: 0
+					twopow: 0,
 				}))}
 		/>
 	</div>

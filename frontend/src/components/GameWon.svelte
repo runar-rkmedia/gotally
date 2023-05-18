@@ -19,7 +19,7 @@
 			return JSON.parse(localStorage.getItem('appState') || '{}')
 		} catch (err) {
 			return {
-				userName: ''
+				userName: '',
 			}
 		}
 	}
@@ -37,7 +37,7 @@
 		{ headline: 'Awesome' },
 		{ headline: 'Great' },
 		{ headline: 'Superb' },
-		{ headline: 'Wonderful', gif: 'hug win' }
+		{ headline: 'Wonderful', gif: 'hug win' },
 	]
 	$: tag = tags[seed % tags.length]
 	function submitToBoard() {
@@ -60,7 +60,7 @@
 		[2, '👎', 'No fun'],
 		[3, '🫤', 'OK'],
 		[4, '😊', 'Good'],
-		[5, '🤗', 'Great']
+		[5, '🤗', 'Great'],
 	] as const
 </script>
 
@@ -108,7 +108,7 @@
 							storeHandler.commit(
 								storeHandler.vote({
 									funVote: vote,
-									userName
+									userName,
 								})
 							)}
 					>

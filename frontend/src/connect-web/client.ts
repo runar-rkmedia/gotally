@@ -3,7 +3,7 @@ import {
 	createConnectTransport,
 	type Interceptor,
 	type ConnectTransportOptions,
-	Code
+	Code,
 } from '@bufbuild/connect-web'
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
@@ -12,7 +12,7 @@ import { writable } from 'svelte/store'
 import type { ApiType } from './store'
 
 const state = {
-	authHeader: appEnv.browser && localStorage.getItem('sessionID')
+	authHeader: appEnv.browser && localStorage.getItem('sessionID'),
 }
 
 type ErrorStore = {
@@ -50,25 +50,25 @@ const retrier: Interceptor =
 						const msg = await res.read()
 						console.debug('streaming response', msg)
 						return msg
-					}
+					},
 				}
 			}
 			httpErrorStore.update((e) => ({
 				...e,
-				errors: e.errors.filter((err) => err.url === req.url)
+				errors: e.errors.filter((err) => err.url === req.url),
 			}))
 			return res
 		} catch (err: unknown) {
 			if (err instanceof Error) {
 				httpErrorStore.update((e) => ({
 					...e,
-					errors: [{ time: new Date(), error: err as any, url: req.url }]
+					errors: [{ time: new Date(), error: err as any, url: req.url }],
 				}))
 				setTimeout(() => {
 					const cutoff = new Date().getTime() - 10000
 					httpErrorStore.update((e) => ({
 						...e,
-						errors: e.errors.filter((err) => err.time.getTime() > cutoff)
+						errors: e.errors.filter((err) => err.time.getTime() > cutoff),
 					}))
 				}, 10500)
 				if (err.message.includes('NetworkError')) {
@@ -109,7 +109,7 @@ const transportOptions: ConnectTransportOptions = {
 		? false
 		: appEnv.browser
 		? !window.location.search.includes('json=1')
-		: true
+		: true,
 }
 console.debug({ transportOptions, meta: import.meta, appEnv })
 

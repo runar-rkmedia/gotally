@@ -1,31 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+		/>
+		<meta name="theme-color" content="#14141b" />
+		%sveltekit.head%
+	</head>
 
-<head>
-  <meta charset="utf-8" />
-  <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#14141b">
-  %sveltekit.head%
-</head>
+	<body>
+		<div id="root">%sveltekit.body%</div>
+	</body>
+	<style>
+		html {
+			font-size: 16;
+			font-family: var(--font-sans);
+		}
 
-<body>
-  <div id="root">%sveltekit.body%</div>
-</body>
-<style>
-  html {
-    font-size: 16;
-    font-family: var(--font-sans);
-  }
+		body {
+			background-color: var(--color-black);
+			color: var(--color-grey-50);
+			/* disable scrolling. I don't really like this at all, but scrolling in a game is not too good. */
+			overflow: hidden;
+		}
 
-  body {
-    background-color: var(--color-black);
-    color: var(--color-grey-50);
-    /* disable scrolling. I don't really like this at all, but scrolling in a game is not too good. */
-    overflow: hidden;
-  }
-
-  < !-- Css-reset from https: //www.joshwcomeau.com/css/custom-css-reset/ -->
+		< !-- Css-reset from https: //www.joshwcomeau.com/css/custom-css-reset/ -->
 
   /*
   1. Use a more-intuitive box-sizing model.
@@ -33,88 +35,86 @@
   *,
   *::before,
   *::after {
-    box-sizing: border-box;
-  }
+			box-sizing: border-box;
+		}
 
-  /*
+		/*
   2. Remove default margin
 */
-  * {
-    margin: 0;
-  }
+		* {
+			margin: 0;
+		}
 
-  /*
+		/*
   3. Allow percentage-based heights in the application
 */
-  html,
-  body {
-    height: 100%;
-  }
+		html,
+		body {
+			height: 100%;
+		}
 
-  /*
+		/*
   Typographic tweaks!
   4. Add accessible line-height
   5. Improve text rendering
 */
-  body {
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-  }
+		body {
+			line-height: 1.5;
+			-webkit-font-smoothing: antialiased;
+		}
 
-  /*
+		/*
   6. Improve media defaults
 */
-  img,
-  picture,
-  video,
-  canvas,
-  {
-  display: block;
-  max-width: 100%;
-  }
+		img,
+		picture,
+		video,
+		canvas {
+			display: block;
+			max-width: 100%;
+		}
 
-  /*
+		/*
   7. Remove built-in form typography styles
 */
-  input,
-  button,
-  textarea,
-  select {
-    font: inherit;
-  }
+		input,
+		button,
+		textarea,
+		select {
+			font: inherit;
+		}
 
-  button {
-    all: unset;
-    cursor: pointer;
-    text-align: center;
-    display: block;
-  }
+		button {
+			all: unset;
+			cursor: pointer;
+			text-align: center;
+			display: block;
+		}
 
-  button:disabled {
-    cursor: not-allowed;
-  }
+		button:disabled {
+			cursor: not-allowed;
+		}
 
-  /*
+		/*
   8. Avoid text overflows
 */
-  p,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    overflow-wrap: break-word;
-  }
+		p,
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			overflow-wrap: break-word;
+		}
 
-  /*
+		/*
   9. Create a root stacking context
 */
-  #root,
-  #__next {
-    height: 100%;
-    isolation: isolate;
-  }
-</style>
-
+		#root,
+		#__next {
+			height: 100%;
+			isolation: isolate;
+		}
+	</style>
 </html>

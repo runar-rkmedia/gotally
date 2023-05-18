@@ -44,11 +44,11 @@ type Primitive = string | number | bigint | boolean | null | undefined
 
 type Replaced<T, TReplace, TWith, TKeep = Primitive> = T extends TReplace | TKeep
 	? T extends TReplace
-	? TWith | Exclude<T, TReplace>
-	: T
+		? TWith | Exclude<T, TReplace>
+		: T
 	: {
-		[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
-	}
+			[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
+	  }
 
 const strip = <ReturnType>(obj: any): ReturnType => {
 	const {
@@ -94,7 +94,7 @@ const strip = <ReturnType>(obj: any): ReturnType => {
 									return Number(vv)
 							}
 							return strip(vv)
-						})
+						}),
 					}
 				}
 				return { ...r, [k]: strip(v as any) }
@@ -110,7 +110,7 @@ export const store = writable<Store>({
 	didWin: false,
 	hintDoneIndex: -1,
 	session: null as any,
-	usersVotes: {}
+	usersVotes: {},
 })
 /** It is a bit annoying that the types include some extra methods, that I do not need
  * This strips these away
@@ -191,7 +191,7 @@ class ApiStore implements ApiType {
 			idealScore: Number(result.idealScore),
 			highestScore: Number(result.highestScore),
 			solutions: result.solutions.map((g) => strip<Game>(g)),
-			stats: strip<any>(result.stats)
+			stats: strip<any>(result.stats),
 		}
 		const commit = async () => {
 			// TODO: commit the result to the store
@@ -222,7 +222,7 @@ class ApiStore implements ApiType {
 		}
 		const res = {
 			id: result.id,
-			challengeNumber: result.challengeNumber
+			challengeNumber: result.challengeNumber,
 		}
 		const commit = async () => {
 			// TODO: commit the result to the store
@@ -242,13 +242,13 @@ class ApiStore implements ApiType {
 			return [null, null, ErrNoResult]
 		}
 		const res = {
-			instructions
+			instructions,
 		}
 		const commit = async () => {
 			store.update((s) => ({
 				...s,
 				hints: result.instructions,
-				hintDoneIndex: -1
+				hintDoneIndex: -1,
 			}))
 		}
 		return [res, commit, null]
@@ -284,7 +284,7 @@ class ApiStore implements ApiType {
 			board,
 			moves: Number(result.moves),
 			score: Number(result.score),
-			description: result.description
+			description: result.description,
 		}
 		const commit = async () => {
 			store.update((s) => {
@@ -297,9 +297,9 @@ class ApiStore implements ApiType {
 						...s.session,
 						game: {
 							...s.session?.game,
-							...res
-						}
-					}
+							...res,
+						},
+					},
 				}
 			})
 		}
@@ -320,7 +320,7 @@ class ApiStore implements ApiType {
 		const res = {
 			board,
 			moves: Number(result.moves),
-			score: Number(result.score)
+			score: Number(result.score),
 		}
 		const commit = async () => {
 			store.update((s) => ({
@@ -332,9 +332,9 @@ class ApiStore implements ApiType {
 					...s.session,
 					game: {
 						...s.session.game,
-						...res
-					}
-				}
+						...res,
+					},
+				},
 			}))
 		}
 		return [res, commit, null]
@@ -354,7 +354,7 @@ class ApiStore implements ApiType {
 		const res = {
 			board,
 			moves: Number(result.moves),
-			score: Number(result.score)
+			score: Number(result.score),
 		}
 		const commit = async () => {
 			store.update((s) => ({
@@ -366,9 +366,9 @@ class ApiStore implements ApiType {
 					...s.session,
 					game: {
 						...s.session.game,
-						...res
-					}
-				}
+						...res,
+					},
+				},
 			}))
 		}
 		return [res, commit, null]
@@ -378,8 +378,8 @@ class ApiStore implements ApiType {
 			client.combineCells({
 				selection: {
 					case: 'indexes',
-					value: { index: selection }
-				}
+					value: { index: selection },
+				},
 			})
 		)
 		if (err) {
@@ -396,7 +396,7 @@ class ApiStore implements ApiType {
 			moves: Number(result.moves),
 			score: Number(result.score),
 			board: board,
-			didWin: result.didWin
+			didWin: result.didWin,
 		}
 		const commit = async () => {
 			store.update((s) => {
@@ -411,9 +411,9 @@ class ApiStore implements ApiType {
 							...s.session.game,
 							moves: res.moves,
 							score: res.score,
-							board: board
-						}
-					}
+							board: board,
+						},
+					},
 				}
 				const nextHint = s.hints[s.hintDoneIndex + 1]
 				if (nextHint && nextHint.instructionOneof.case === 'combine') {
@@ -439,12 +439,12 @@ class ApiStore implements ApiType {
 					return
 				}
 				localStorage.setItem('sessionID', auth)
-			}
+			},
 		}
 		if (sessionID) {
 			options.headers = {
 				...options.headers,
-				Authorization: sessionID
+				Authorization: sessionID,
 			}
 		}
 		const [res, err] = await go(client.getSession({}, options))
@@ -472,7 +472,7 @@ class ApiStore implements ApiType {
 		const commit = async () => {
 			store.update((s) => ({
 				...s,
-				usersVotes: { ...s.usersVotes, [result.id]: vote }
+				usersVotes: { ...s.usersVotes, [result.id]: vote },
 			}))
 		}
 		return [vote, commit, null]
@@ -497,7 +497,7 @@ class ApiStore implements ApiType {
 		const res = {
 			board,
 			moves: Number(result.moves),
-			didChange: result.didChange
+			didChange: result.didChange,
 		}
 
 		const commit = async () => {
@@ -509,9 +509,9 @@ class ApiStore implements ApiType {
 						game: {
 							...s.session.game,
 							moves: res.moves,
-							board: board
-						}
-					}
+							board: board,
+						},
+					},
 				}
 				const nextHint = s.hints[s.hintDoneIndex + 1]
 
@@ -545,7 +545,7 @@ export const httpStateStore = writable<HttpStateStore>({
 	errors: objectKeys(storeHandler).reduce(
 		(r, k) => ({ ...r, [k]: null }),
 		{} as HttpStateStore['errors']
-	)
+	),
 })
 
 type GoFunc<Params, Result> = (params: Params) => GoResult<Result>

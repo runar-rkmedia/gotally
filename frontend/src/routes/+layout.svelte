@@ -12,7 +12,7 @@
 			on:click={() =>
 				httpErrorStore.update((e) => ({
 					...e,
-					errors: e.errors.filter((error) => error.time !== err.time && error.url !== err.url)
+					errors: e.errors.filter((error) => error.time !== err.time && error.url !== err.url),
 				}))}
 		>
 			<!-- content here -->

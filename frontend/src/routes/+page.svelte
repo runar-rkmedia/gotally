@@ -434,7 +434,8 @@
 			{#if nextHint?.instructionOneof.case === 'swipe'}
 				<SwipeHint
 					instruction={nextHint?.instructionOneof.value}
-					active={nextHint?.instructionOneof.case === 'swipe'} />
+					active={nextHint?.instructionOneof.case === 'swipe'}
+				/>
 			{/if}
 			<Board {select} {selection} {selectionMap} {resetSelection} {isSwiping} bind:boardDiv {swipe}>
 				{#each $store.session.game.board.cells as c, i}
@@ -524,7 +525,8 @@
 							console.log('mouse down ')
 							select(i)
 							didDrag = null
-						}} />
+						}}
+					/>
 				{/each}
 			</Board>
 		</div>
@@ -537,7 +539,8 @@
 			on:undo={() => undo()}
 			on:hint={() => getHint()}
 			didWin={$store.didWin}
-			moves={$store.session.game.moves} />
+			moves={$store.session.game.moves}
+		/>
 	{/if}
 </div>
 

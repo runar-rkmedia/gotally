@@ -6,27 +6,27 @@
 	const quotes = [
 		{
 			paragraphs: ['A quitter never wins and a winner never quits.'],
-			by: 'Napoleoon Hill'
+			by: 'Napoleoon Hill',
 		},
 		{
 			paragraphs: [
 				'You’re not obligated to win.',
 				'You’re obligated to keep trying.',
-				'To the best you can do everyday.'
+				'To the best you can do everyday.',
 			],
-			by: 'Jason Mraz'
+			by: 'Jason Mraz',
 		},
 		{
 			paragraphs: [
 				'The brain is like a muscle.',
 				'When it is in use we feel very good.',
-				'Understanding is joyous.'
+				'Understanding is joyous.',
 			],
-			by: 'Carl Sagan'
+			by: 'Carl Sagan',
 		},
 		{
-			paragraphs: ['You are doing great,', 'keep those brainfluids flowing!']
-		}
+			paragraphs: ['You are doing great,', 'keep those brainfluids flowing!'],
+		},
 	]
 	$: quote = quotes[seed % quotes.length]
 </script>

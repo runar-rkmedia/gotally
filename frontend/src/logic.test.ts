@@ -26,7 +26,7 @@ describe('index to coordinate', () => {
 		[3, [0, 1]],
 		[4, [1, 1]],
 		[5, [2, 1]],
-		[6, [0, 2]]
+		[6, [0, 2]],
 	] as const
 	it('coordinate for index should match for ', () => {
 		for (const [i, want] of tests) {

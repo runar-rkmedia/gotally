@@ -28,7 +28,8 @@
 		class="icon-only"
 		data-testid="menu"
 		on:click={() => (showGameMenu = true)}
-		aria-roledescription="Show menu">
+		aria-roledescription="Show menu"
+	>
 		<Icon icon="settings" color="white" />
 	</button>
 </div>

@@ -17,7 +17,8 @@
 			? 'error'
 			: lastSelectionValue * 2 === selectionSum
 			? 'success'
-			: 'normal'} />
+			: 'normal'}
+	/>
 	<Counter
 		show={selectionProduct > 1}
 		asCell={true}
@@ -27,7 +28,8 @@
 			? 'error'
 			: lastSelectionValue === selectionProduct / lastSelectionValue
 			? 'success'
-			: 'normal'} />
+			: 'normal'}
+	/>
 	<PrimeFactors n={selectionProduct} />
 </div>
 

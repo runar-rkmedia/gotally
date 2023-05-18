@@ -41,7 +41,7 @@
 
 		const options = {
 			rootMargin: `${top}px ${right}px ${bottom}px ${left}px`,
-			threshold: stepsToThreshold(steps)
+			threshold: stepsToThreshold(steps),
 		}
 
 		if (intersectionObserverSupport) {

@@ -136,7 +136,8 @@ grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr);
 grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
         --board-cell-width: ${boardCellSize}px;
         --board-cell-height: ${boardCellSize}px;
-`}>
+`}
+>
 	<slot />
 </div>
 

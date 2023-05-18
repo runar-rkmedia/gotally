@@ -8,8 +8,8 @@ export const findCellFromTouch = (e: TouchEvent): [Finding, null] | [null, Findi
 			{
 				code: 'no-touch',
 				message: 'failed to find the current item from the touch',
-				details: { e }
-			}
+				details: { e },
+			},
 		]
 	}
 	const x = touch.pageX
@@ -21,8 +21,8 @@ export const findCellFromTouch = (e: TouchEvent): [Finding, null] | [null, Findi
 			{
 				code: 'no-target',
 				message: 'failed to find the target from the touch',
-				details: { e, touch }
-			}
+				details: { e, touch },
+			},
 		]
 	}
 	const cell = findDOMParent(target, (e) => e.classList.contains('cell')) as HTMLDivElement
@@ -32,8 +32,8 @@ export const findCellFromTouch = (e: TouchEvent): [Finding, null] | [null, Findi
 			{
 				code: 'no-cell',
 				message: 'failed to find the cell from the touch',
-				details: { e, touch, target }
-			}
+				details: { e, touch, target },
+			},
 		]
 	}
 	const isEmpty = cell.classList.contains('blank')
@@ -43,8 +43,8 @@ export const findCellFromTouch = (e: TouchEvent): [Finding, null] | [null, Findi
 			{
 				code: 'no-parent-board',
 				message: 'failed to find the board from the touch',
-				details: { e, touch, cell, target, isEmpty }
-			}
+				details: { e, touch, cell, target, isEmpty },
+			},
 		]
 	}
 	const index = [...(cell.parentElement?.children || [])].findIndex((el) => el === cell)
@@ -54,8 +54,8 @@ export const findCellFromTouch = (e: TouchEvent): [Finding, null] | [null, Findi
 			{
 				code: 'no-index',
 				message: 'failed to find the index from the touch',
-				details: { e, touch, cell, target, isEmpty }
-			}
+				details: { e, touch, cell, target, isEmpty },
+			},
 		]
 	}
 	return [{ cell, index, target, touch, x, y, e, isEmpty }, null]
