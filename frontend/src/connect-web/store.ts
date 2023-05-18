@@ -51,7 +51,6 @@ type Replaced<T, TReplace, TWith, TKeep = Primitive> = T extends TReplace | TKee
 	}
 
 const strip = <ReturnType>(obj: any): ReturnType => {
-	console.log('stripping thing', obj)
 	const {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		equals,
