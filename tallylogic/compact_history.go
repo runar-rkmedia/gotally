@@ -483,7 +483,6 @@ func (c CompactHistory) FilterForUndo() ([]Instruction_, error) {
 				return []Instruction_{}, nil
 			}
 			if i >= i {
-				fmt.Printf("hist a %d (l: %d) %#v\n", i, len(history), history)
 				history = append(history[:i-1], history[i+1:]...)
 				dropped++
 			} else {
