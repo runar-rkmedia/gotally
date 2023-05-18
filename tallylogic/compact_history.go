@@ -457,7 +457,7 @@ var (
 // Output: L;
 // Input: D;L;R;Z;U;Z;Z;
 // Output: D;
-func (c CompactHistory) FilterForUndo() ([]Instruction_, error) {
+func (c CompactHistory) FilterForUndo(appendUndo bool) ([]Instruction_, error) {
 	history, err := c.All()
 	if err != nil {
 		return []Instruction_{}, fmt.Errorf("failed to undo game: %w", err)
@@ -475,7 +475,9 @@ func (c CompactHistory) FilterForUndo() ([]Instruction_, error) {
 	if undoes >= others {
 		return history, ErrNoMoreHistoryToUndo
 	}
-	history = append(history, NewHelperInstruction_(helperUndo))
+	if appendUndo {
+		history = append(history, NewHelperInstruction_(helperUndo))
+	}
 	var dropped int
 	for i := 0; i < len(history); i++ {
 		if history[i].IsHelperUndo() {

@@ -389,7 +389,7 @@ func (g *Game) Undo() error {
 	if g.boardAtStart == nil {
 		return fmt.Errorf("Invalid state: Could not locate data for board-start.")
 	}
-	history, err := g.History.FilterForUndo()
+	history, err := g.History.FilterForUndo(true)
 	if err != nil {
 		return fmt.Errorf("failed to undo game: %w", err)
 	}

@@ -34,7 +34,7 @@ const cumulativeOffset = function (el: HTMLElement) {
 
 	return {
 		top: top,
-		left: left
+		left: left,
 	}
 }
 
@@ -45,7 +45,7 @@ export const animateSwipe = async ({
 	positive,
 	vertical,
 	swipeAnimationTime,
-	dry
+	dry,
 }: {
 	boardEl: HTMLElement
 	nColumns: number
@@ -74,7 +74,7 @@ export const animateSwipe = async ({
 						i,
 						rows,
 						boardLength: boardEl.children.length,
-						boardChildren: boardEl.children
+						boardChildren: boardEl.children,
 					})
 					return false
 				}
@@ -155,7 +155,7 @@ const newInvalidPathError = (
 ): invalidPathError => ({
 	message,
 	code,
-	invalidIndex
+	invalidIndex,
 })
 
 type cellLike = Cell | { base: number; twopow: number }
@@ -292,7 +292,7 @@ export const createSelectionDirectionMap = (selection: number[]): Record<number,
 	}
 	if (selection.length === 1) {
 		return {
-			[selection[0]]: 'stop'
+			[selection[0]]: 'stop',
 		}
 	}
 	let prev = selection[0]

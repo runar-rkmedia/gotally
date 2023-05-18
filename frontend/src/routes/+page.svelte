@@ -1,31 +1,24 @@
 <script lang="ts">
 	export const ssr = false
 	import 'pollen-css'
-	import {
-		GameMode,
-		GetHintRequest,
-		httpErrorStore,
-		Indexes,
-		SwipeDirection,
-		UndoRequest
-	} from '../connect-web'
+	import { GameMode, GetHintRequest, SwipeDirection } from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/environment'
 	import { animateSwipe, coordToIndex, createSelectionDirectionMap, ValidatePath } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
 	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
+	import Board from '../components/Board.svelte'
 	import GameWon from '../components/GameWon.svelte'
 	import GameMenu from '../components/GameMenu.svelte'
 	import Dialog from '../components/Dialog.svelte'
 	import CellComp from '../components/board/Cell.svelte'
 	import { cellValue } from '../components/board/cell'
-	import Counter from '../components/Counter.svelte'
 	import userSettings from '../userSettings'
-	import PrimeFactors from '../components/PrimeFactors.svelte'
-	import { findCellFromTouch } from '../utils/touchHandlers'
-	import Icon from '../components/Icon.svelte'
 	import { findDOMParent } from '../utils/findDomParent'
+	import GameHeader from '../components/GameHeader.svelte'
+	import GameButtons from '../components/GameButtons.svelte'
+	import SelectionInfo from '../components/SelectionInfo.svelte'
 
 	$: {
 		// when user wins a game, refresh the challenge
@@ -40,9 +33,8 @@
 	const getHint = async (options?: PartialMessage<GetHintRequest>) => {
 		return storeHandler.commit(storeHandler.getHint(options))
 	}
-	const undo = async (options?: PartialMessage<UndoRequest>) => {
-		console.log('undo?', storeHandler)
-		return storeHandler.commit(storeHandler.undo(options))
+	const undo = async () => {
+		return storeHandler.commit(storeHandler.undo())
 	}
 	let lastNumberKey: number | null = null
 
@@ -263,10 +255,10 @@
 		// block swiping if dragging across cells
 		const diff = new Date().getTime() - didDrag.getTime()
 		if (diff > 200) {
-			console.log('drag reset', diff)
+			console.log('drag lock reset', diff)
 			return true
 		}
-		console.log('drag reset NOT', diff)
+		console.log('drag lock reset NOT', diff)
 		return false
 	}
 	const swipeQueue: SwipeDirection[] = []
@@ -276,7 +268,7 @@
 				return
 			}
 			if (swipeLockedForDragging()) {
-				resetSelection()
+				// resetSelection()
 				return
 			}
 		}
@@ -306,7 +298,7 @@
 			}
 			// block swiping if dragging across cells
 			if (swipeLockedForDragging()) {
-				resetSelection()
+				// resetSelection()
 				return
 			}
 		}
@@ -319,7 +311,7 @@
 			vertical: direction === SwipeDirection.UP || direction === SwipeDirection.DOWN,
 			boardEl: boardDiv,
 			nColumns: $store.session.game.board.columns,
-			nRows: $store.session.game.board.rows
+			nRows: $store.session.game.board.rows,
 		}
 		const shouldAnimate = await animateSwipe({ ...swipeOptions, dry: true })
 		if (!shouldAnimate) {
@@ -350,54 +342,22 @@
 		}
 		commit()
 	}
-	function createSwiper(node: HTMLElement) {
-		if (!browser) {
-			return
-		}
-		let Hammer: any
-		import('hammerjs').then((h) => {
-			Hammer = h.default
-			const hammerTime = new Hammer(node, {
-				recognizers: [[Hammer.Swipe, { direction: Hammer.DIRECTION_ALL }]]
-			})
-			hammerTime.on('swipe', (e: any) => {
-				switch (e.direction) {
-					case Hammer.DIRECTION_UP:
-						swipe(SwipeDirection.UP)
-						break
-					case Hammer.DIRECTION_DOWN:
-						swipe(SwipeDirection.DOWN)
-						break
-					case Hammer.DIRECTION_LEFT:
-						swipe(SwipeDirection.LEFT)
-						break
-					case Hammer.DIRECTION_RIGHT:
-						swipe(SwipeDirection.RIGHT)
-						break
-				}
-			})
-		})
-	}
 	let selection: number[] = []
 	let lastSelectionValue = 0
 	let selectionMap: Record<number, boolean | undefined> = {}
 	let invalidSelectionMap: Record<number, boolean | undefined> = {}
-	// let selectionDirectionMap: Record<number, pathDirection> = {
-	// 	11: 'up',
-	// 	6: 'continue',
-	// 	1: 'upright',
-	// 	2: 'right'
-	// }
 	$: selectionDirectionMap = createSelectionDirectionMap(selection)
 	let pathInvalidErr: any
-	const showSelectionInfo = true
 	const resetSelection = () => {
+		const err = new Error('')
+		console.log('resetting selection', err.stack)
 		invalidSelectionMap = {}
 		selection = []
 		lastSelectionValue = 0
 		selectionMap = {}
 	}
 	const select = async (i: number) => {
+		console.log('select', i, selection)
 		invalidSelectionMap = {}
 		const cell = $store.session.game.board.cells[i]
 		if (!cell?.base) {
@@ -429,21 +389,20 @@
 		}
 		selection = [...selection, i]
 		lastSelectionValue = cellValue(cell)
-		selectionMap[i] = true
+		selectionMap = { ...selectionMap, [i]: true }
 	}
 	$: nextHint = $store.hintDoneIndex >= 0 ? $store.hints[$store.hintDoneIndex + 1] : $store.hints[0]
-	$: selectionSum = !showSelectionInfo
-		? 0
-		: selection.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
-	$: selectionEvaluatedSum = !showSelectionInfo
-		? 0
-		: selection.slice(0, -1).reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
-	$: selectionProduct = !showSelectionInfo
-		? 0
-		: selection.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
-	$: selectionEvaluatedProduct = !showSelectionInfo
-		? 0
-		: selection.slice(0, -1).reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
+	$: selectionSum = selection.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
+	$: selectionEvaluatedSum = selection
+		.slice(0, -1)
+		.reduce((r, i) => r + cellValue($store.session.game.board.cells[i]), 0)
+	$: selectionProduct = selection.reduce(
+		(r, i) => r * cellValue($store.session.game.board.cells[i]),
+		1
+	)
+	$: selectionEvaluatedProduct = selection
+		.slice(0, -1)
+		.reduce((r, i) => r * cellValue($store.session.game.board.cells[i]), 1)
 
 	$: pathEvaluatesToLast =
 		selection.length >= 2 &&
@@ -453,17 +412,10 @@
 		console.log('eval', lastSelectionValue, selectionEvaluatedSum, selectionSum, selection)
 	}
 	$: {
-		console.log('mouseDown state', mouseDown)
+		console.log('mouseDown state', mouseDown, selection)
 	}
 	let didDrag: Date | null = null
-	let canDragToSelect = true
 	let canSelectNonNeighbours = false
-	let resetSelectionOnSwipe = true
-	let boardWidth: number = 682
-	let boardHeight: number = 500
-	$: boardCellWidth = (boardWidth || 100) / ($store?.session?.game?.board?.columns || 1)
-	$: boardCellHeight = (boardHeight || 100) / ($store?.session?.game?.board?.columns || 1)
-	$: boardCellSize = Math.min(boardCellWidth, boardCellHeight)
 </script>
 
 {#if $store?.session?.game?.board}
@@ -476,123 +428,16 @@
 {/if}
 <div class="gameView">
 	{#if $store?.session?.game?.board}
-		<div class="headControls">
-			<div class="info">
-				<div>
-					<div class="score" data-score={$store.session.game.score} data-testid="score">
-						Score: {$store.session.game.score}
-					</div>
-					<small class="boardName" title={$store.session.game.board.id}
-						>{$store.session.game.board.name}</small
-					>
-					<div class="moves" data-moves={$store.session.game.moves}>
-						Moves: {$store.session.game.moves}
-					</div>
-				</div>
-			</div>
-			<p>Hi, {$store.session.username} ({$store.session.sessionId})</p>
-			<button
-				class="icon-only"
-				data-testid="menu"
-				on:click={() => (showGameMenu = true)}
-				aria-roledescription="Show menu"
-			>
-				<Icon icon="settings" color="white" />
-			</button>
-		</div>
+		<GameHeader bind:showGameMenu />
 
 		<div class="boardContainer">
-			<SwipeHint
-				instruction={nextHint?.instructionOneof.value}
-				active={nextHint?.instructionOneof.case === 'swipe'}
-			/>
-			<div
-				bind:this={boardDiv}
-				bind:clientWidth={boardWidth}
-				bind:clientHeight={boardHeight}
-				use:createSwiper
-				on:touchend|preventDefault={(e) => {
-					if (isSwiping) {
-						return
-					}
-					if (!canDragToSelect) {
-						console.log('touchend no-can-drag')
-						return
-					}
-					if (!didDrag) {
-						console.log('touchend no-drag')
-						return
-					}
-					didDrag = null
-					const [findings, err] = findCellFromTouch(e)
-					if (err) {
-						console.error(err.message, err.details)
-						resetSelection()
-						return
-					}
-					// if (selection[selection.length - 1] === findings.index) {
-					// 	console.log('touchend last')
-					// 	return
-					// }
-					if (selection.length === 1 && selection[0] === findings.index) {
-						return
-					}
-					console.log('touchend-select')
-					select(findings.index)
-				}}
-				on:touchmove|preventDefault={(e) => {
-					if (!canDragToSelect) {
-						return
-					}
-					if (isSwiping) {
-						return
-					}
-					const [findings, err] = findCellFromTouch(e)
-					if (err) {
-						// console.error(err.message, err.details)
-						return
-					}
-					if (selectionMap[findings.index]) {
-						return
-					}
-					select(findings.index)
-					didDrag = new Date()
-				}}
-				on:touchstart|preventDefault={(e) => {
-					if (isSwiping) {
-						return
-					}
-					if (!canDragToSelect) {
-						return
-					}
-					const [findings, err] = findCellFromTouch(e)
-					if (err) {
-						resetSelection()
-						return
-					}
-					if (selectionMap[findings.index]) {
-						if (selection.length === 1) {
-							resetSelection()
-							return
-						}
-						if (selection[selection.length - 1] !== findings.index) {
-							resetSelection()
-							return
-						}
-						// combine
-						select(findings.index)
-						return
-					}
-					select(findings.index)
-				}}
-				class="board"
-				style={`
-grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr); 
-grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
-        --board-cell-width: ${boardCellSize}px;
-        --board-cell-height: ${boardCellSize}px;
-`}
-			>
+			{#if nextHint?.instructionOneof.case === 'swipe'}
+				<SwipeHint
+					instruction={nextHint?.instructionOneof.value}
+					active={nextHint?.instructionOneof.case === 'swipe'}
+				/>
+			{/if}
+			<Board {select} {selection} {selectionMap} {resetSelection} {isSwiping} bind:boardDiv {swipe}>
 				{#each $store.session.game.board.cells as c, i}
 					<CellComp
 						pathDir={selectionDirectionMap[i]}
@@ -610,8 +455,10 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 						evaluatesTo={selection.length >= 2 && pathEvaluatesToLast}
 						cell={c}
 						on:mouseup={(e) => {
+							console.log('mouseup')
 							e.preventDefault()
 							if (e.ctrlKey) {
+								// This is only used in the generator / board-builder
 								resetSelection()
 
 								const val = cellValue(c)
@@ -632,7 +479,19 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 
 								return
 							}
+							console.log(
+								'mouse up  select',
+								i,
+								didDrag,
+								invalidSelectionMap[i],
+								selectionMap[i],
+								selection
+							)
 							if (!didDrag) {
+								return
+							}
+							if (true) {
+								select(i)
 								return
 							}
 							if (invalidSelectionMap[i]) {
@@ -646,7 +505,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 							select(i)
 							didDrag = null
 						}}
-						on:mouseenter={(e) => {
+						on:mouseenter={() => {
 							if (!mouseDown) {
 								return
 							}
@@ -659,58 +518,29 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 							if (!didDrag) {
 								didDrag = new Date()
 							}
+							console.log('mouseneter select', i)
 							select(i)
 						}}
 						on:mousedown={() => {
+							console.log('mouse down ')
 							select(i)
 							didDrag = null
 						}}
 					/>
 				{/each}
-			</div>
+			</Board>
 		</div>
-		{#if showSelectionInfo}
-			<div class="selectionCounter">
-				<Counter
-					show={!!selectionSum}
-					asCell={false}
-					value={selectionSum}
-					label="Sum"
-					variant={lastSelectionValue * 2 < selectionSum
-						? 'error'
-						: lastSelectionValue * 2 === selectionSum
-						? 'success'
-						: 'normal'}
-				/>
-				<Counter
-					show={selectionProduct > 1}
-					asCell={true}
-					value={selectionProduct}
-					label="Product"
-					variant={lastSelectionValue < selectionProduct / lastSelectionValue
-						? 'error'
-						: lastSelectionValue === selectionProduct / lastSelectionValue
-						? 'success'
-						: 'normal'}
-				/>
-				<PrimeFactors n={selectionProduct} />
-			</div>
-		{/if}
+		<SelectionInfo {selectionProduct} {selectionSum} {lastSelectionValue} />
+
 		<p>
 			{$store.session.game.description}
 		</p>
-		<div class="bottom-controls">
-			<button
-				data-testid="undo"
-				on:click={() => undo()}
-				disabled={$store.didWin || $store.session.game.moves <= 0}
-			>
-				<Icon icon="undo" color="white" /> Undo
-			</button>
-			<button data-testid="hint" on:click={() => getHint()} disabled={$store.didWin}>
-				<Icon icon="help" color="white" /> Hint
-			</button>
-		</div>
+		<GameButtons
+			on:undo={() => undo()}
+			on:hint={() => getHint()}
+			didWin={$store.didWin}
+			moves={$store.session.game.moves}
+		/>
 	{/if}
 </div>
 
@@ -733,52 +563,5 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		margin-block-end: var(--size-4);
 		height: 100%;
 		max-height: 100%;
-	}
-	.board {
-		position: relative;
-		transition: opacity 300ms var(--easing-standard);
-		/* margin-inline: -4px; */
-		display: grid;
-		height: 100%;
-	}
-	.boardName {
-		opacity: 0.7;
-		float: right;
-	}
-	.selectionCounter {
-		display: grid;
-		grid-template-columns: 5fr 5fr 2fr;
-		gap: 10px;
-	}
-	.bottom-controls {
-		display: flex;
-		justify-content: center;
-		flex-direction: column;
-	}
-	button:disabled {
-		opacity: 0.4;
-	}
-	button {
-		cursor: pointer;
-		transition: opacity 70ms var(--easing-standard);
-		min-width: 52px;
-		min-height: 52px;
-		color: var(--color-white);
-		&:not(icon-only) {
-			background-color: var(--color-primary);
-		}
-
-		&.icon-only {
-			min-height: 48px;
-			background: unset;
-			border: unset;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-		}
-	}
-	.headControls {
-		display: flex;
-		justify-content: space-between;
 	}
 </style>

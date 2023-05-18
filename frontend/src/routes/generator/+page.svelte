@@ -20,7 +20,7 @@
 	enum tabs {
 		generator = 1,
 		preview,
-		tips
+		tips,
 	}
 	let state: {
 		gen: Parameters<typeof storeHandler.generateGame>[0]
@@ -38,8 +38,8 @@
 			maxMoves: 9,
 			withSolutions: true,
 			randomCellChance: 0,
-			algorithm: GeneratorAlgorithm.RANDOMIZED
-		}
+			algorithm: GeneratorAlgorithm.RANDOMIZED,
+		},
 	}
 	const setCells = (rows: number, columns: number) =>
 		new Array(rows * columns).fill(null).map((_, i) => ({ base: i, twopow: 0 }))
@@ -52,7 +52,7 @@
 		rows: 3,
 		columns: 3,
 		idealScore: 0,
-		challengeNumber: undefined
+		challengeNumber: undefined,
 	}
 	onMount(() => {
 		if (!browser) {
@@ -95,7 +95,7 @@
 			!state.gen.targetCellValue ||
 			state.gen.targetCellValue < 3 ||
 			(state.gen.targetCellValue > 100_000_000 &&
-				'TargetCellValue must be between 3 and 100 million')
+				'TargetCellValue must be between 3 and 100 million'),
 	} as Partial<Record<keyof typeof state.gen, boolean | string>>
 	$: setAsTemplateError = {
 		rows:
@@ -110,7 +110,7 @@
 			(!setAsTemplate.targetCellValue ||
 				setAsTemplate.targetCellValue < 3 ||
 				setAsTemplate.targetCellValue > 100_000_000) &&
-			'TargetCellValue must be between 3 and 100 million'
+			'TargetCellValue must be between 3 and 100 million',
 	} as Partial<Record<keyof typeof setAsTemplate, boolean | string>>
 	$: hasError = Object.values(error).some(Boolean)
 
@@ -176,8 +176,8 @@
 				description: setAsTemplate.description,
 				cells: setAsTemplate.cells?.map((c) => ({
 					base: c.base,
-					twopow: c.twopow
-				}))
+					twopow: c.twopow,
+				})),
 			})
 		)
 		if (r.error) {

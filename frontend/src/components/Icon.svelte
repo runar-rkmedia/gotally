@@ -12,7 +12,7 @@
 		StarHalfIcon,
 		StarIcon,
 		Sword,
-		Undo2
+		Undo2,
 	} from 'lucide-svelte'
 	export let icon:
 		| 'settings'

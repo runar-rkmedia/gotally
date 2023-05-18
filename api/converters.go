@@ -127,7 +127,7 @@ func toTypeMode(mode logic.GameMode) types.RuleMode {
 	return ""
 }
 func toModelInstruction(instructions logic.CompactHistory) ([]*model.Instruction, error) {
-	all, err := instructions.All()
+	all, err := instructions.FilterForUndo(false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map instructions: %w", err)
 	}

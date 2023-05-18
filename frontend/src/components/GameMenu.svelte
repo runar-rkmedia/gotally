@@ -115,8 +115,8 @@
 							mode: GameMode.RANDOM,
 							variant: {
 								value: Difficulty.EASY,
-								case: 'difficulty'
-							}
+								case: 'difficulty',
+							},
 						})
 						close()
 					}}>Easy</button
@@ -131,8 +131,8 @@
 							mode: GameMode.RANDOM,
 							variant: {
 								value: Difficulty.MEDIUM,
-								case: 'difficulty'
-							}
+								case: 'difficulty',
+							},
 						})
 						close()
 					}}>Medium</button
@@ -147,8 +147,8 @@
 							mode: GameMode.RANDOM,
 							variant: {
 								value: Difficulty.HARD,
-								case: 'difficulty'
-							}
+								case: 'difficulty',
+							},
 						})
 						close()
 					}}>Hard</button
@@ -166,8 +166,8 @@
 								mode: GameMode.RANDOM_CHALLENGE,
 								variant: {
 									value: c.id,
-									case: 'id'
-								}
+									case: 'id',
+								},
 							})
 							close()
 						}}
