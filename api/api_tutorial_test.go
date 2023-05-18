@@ -7,6 +7,10 @@ import (
 	tallyv1 "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 )
 
+func init() {
+	testza.SetShowStartupMessage(false)
+}
+
 func TestApi_Tutorial(t *testing.T) {
 	t.Run("Should be able to solve tutorial 1", func(t *testing.T) {
 		ts := newTestApi(t)

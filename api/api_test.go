@@ -178,32 +178,20 @@ func TestApi_Undo(t *testing.T) {
 		m4 := ts.SwipeDown()
 		testza.AssertEqual(t, m4.Msg.Moves, int64(4))
 		m5 := ts.Undo()
-		// testza.AssertEqual(t, m5.Msg.Moves, int64(3))
 		testza.AssertEqual(t, m5.Msg.Board.Cells, m3.Msg.Board.Cells)
 		m6 := ts.Undo()
-		// testza.AssertEqual(t, m6.Msg.Moves, int64(2))
 		testza.AssertEqual(t, m6.Msg.Board.Cells, m2.Msg.Board.Cells)
 		m7 := ts.SwipeRight()
-		// testza.AssertEqual(t, m7.Msg.Moves, int64(3))
 		t.Log(ts.Game().Print())
-		m8 := ts.CombineCellsByIndexPath(2, 5, 8)
-		fmt.Print(m8)
-		// testza.AssertEqual(t, m8.Msg.Moves, int64(4))
-		// testza.AssertEqual(t, m8.Msg.Score, int64(18))
+		ts.CombineCellsByIndexPath(2, 5, 8)
 		m9 := ts.Undo()
-		// testza.AssertEqual(t, m9.Msg.Moves, m7.Msg.Moves)
-		// testza.AssertEqual(t, m9.Msg.Moves, int64(3))
-		// testza.AssertEqual(t, m9.Msg.Score, int64(0))
+
 		testza.AssertEqual(t, m9.Msg.Board.Cells, m7.Msg.Board.Cells)
 		m10 := ts.Undo()
-		// testza.AssertEqual(t, m10.Msg.Moves, m2.Msg.Moves)
-		// testza.AssertEqual(t, m10.Msg.Moves, int64(2))
-		// testza.AssertEqual(t, m10.Msg.Score, int64(0))
+
 		testza.AssertEqual(t, m10.Msg.Board.Cells, m2.Msg.Board.Cells)
 		m11 := ts.Undo()
-		// testza.AssertEqual(t, m11.Msg.Moves, m1.Msg.Moves)
-		// testza.AssertEqual(t, m11.Msg.Moves, int64(1))
-		// testza.AssertEqual(t, m11.Msg.Score, int64(0))
+
 		testza.AssertEqual(t, m11.Msg.Board.Cells, m1.Msg.Board.Cells)
 		m12 := ts.SwipeDown()
 		fmt.Print(m12)
@@ -213,8 +201,11 @@ func TestApi_Undo(t *testing.T) {
 		ts.CombineCellsByIndexPath(2, 5, 8)
 		m := ts.CombineCellsByIndexPath(6, 7, 8)
 		testza.AssertTrue(t, m.Msg.DidWin)
-		// testza.AssertEqual(t, m.Msg.Score, int64(90))
-		// testza.AssertEqual(t, m.Msg.Moves, int64(4))
+		// Check that we are able to get a hint.
+		// See https://github.com/runar-rkmedia/gotally/issues/27
+		// There was a crash here when getting the hint
+		// ts.Undo()
+		// ts.GetHint(1)
 	})
 }
 func TestApi_Restart_After_Some_Moves(t *testing.T) {

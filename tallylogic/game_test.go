@@ -184,6 +184,7 @@ func TestGame_Undo(t *testing.T) {
 		// undo anyway, should not crash
 		err = g.Undo()
 		testza.AssertNotNil(t, err, "Expected to have error")
+
 	})
 }
 func getGameCellDiff(a, b Game) []int {
