@@ -1,0 +1,41 @@
+name: GoTally
+on: [push]
+jobs:
+  test:
+    name: Run Tests for Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Install go-deps
+        run: go mod download
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: |
+          go install gotest.tools/gotestsum@latest
+          gotestsum --format-hide-empty-pkg --format pkgname-and-test-fails --junitfile report.xml -- --coverprofile cover.out ./...
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: report.xml
+      - name: Prepare coverage
+        run: |
+          go tool cover -func=cover.out
+          go tool cover -html=cover.out -o coverage.html
+          echo "coverage.html written"
+      - name: Upload Go test coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: Go-coverage
+          path: coverage.html
+      - name: Benchmarks
+        run: go test -test.run=none -bench=. -benchmem ./... 2>&1 | tee ./test.bench
+      - name: Upload Go Benchmarks
+        uses: actions/upload-artifact@v3
+        with:
+          name: Go-benchmarks
+          path: 'test.bench'

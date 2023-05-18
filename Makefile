@@ -68,7 +68,7 @@ go-lint:
 
 # tests
 go-bench:
-	go test -test.run=none -bench=. -benchmem ./... > ./.bench/$(buildDate)-$(gitHash).bench
+	go test -test.run=none -bench=. -benchmem ./... 2>&1 | tee ./.bench/$(buildDate)-$(gitHash).bench
 cover: cover-go
 cover-html: cover-go-html
 cover-go:

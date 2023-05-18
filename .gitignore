@@ -108,3 +108,5 @@ dump_*
 out.cover
 playwright-report
 test-results
+coverage.html
+*.bench
