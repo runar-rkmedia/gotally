@@ -27,6 +27,7 @@
 	import Icon from '../components/Icon.svelte'
 	import { findDOMParent } from '../utils/findDomParent'
 	import GameHeader from '../components/GameHeader.svelte'
+	import GameButtons from '../components/GameButtons.svelte'
 
 	$: {
 		// when user wins a game, refresh the challenge
@@ -480,9 +481,11 @@
 		<GameHeader bind:showGameMenu />
 
 		<div class="boardContainer">
-			<SwipeHint
-				instruction={nextHint?.instructionOneof.value}
-				active={nextHint?.instructionOneof.case === 'swipe'} />
+			{#if nextHint?.instructionOneof.case === 'swipe'}
+				<SwipeHint
+					instruction={nextHint?.instructionOneof.value}
+					active={nextHint?.instructionOneof.case === 'swipe'} />
+			{/if}
 			<div
 				bind:this={boardDiv}
 				bind:clientWidth={boardWidth}
@@ -622,7 +625,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 							select(i)
 							didDrag = null
 						}}
-						on:mouseenter={(e) => {
+						on:mouseenter={() => {
 							if (!mouseDown) {
 								return
 							}
@@ -672,17 +675,11 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		<p>
 			{$store.session.game.description}
 		</p>
-		<div class="bottom-controls">
-			<button
-				data-testid="undo"
-				on:click={() => undo()}
-				disabled={$store.didWin || $store.session.game.moves <= 0}>
-				<Icon icon="undo" color="white" /> Undo
-			</button>
-			<button data-testid="hint" on:click={() => getHint()} disabled={$store.didWin}>
-				<Icon icon="help" color="white" /> Hint
-			</button>
-		</div>
+		<GameButtons
+			on:undo={() => undo()}
+			on:hint={() => getHint()}
+			didWin={$store.didWin}
+			moves={$store.session.game.moves} />
 	{/if}
 </div>
 
@@ -717,21 +714,5 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		display: grid;
 		grid-template-columns: 5fr 5fr 2fr;
 		gap: 10px;
-	}
-	.bottom-controls {
-		display: flex;
-		justify-content: center;
-		flex-direction: column;
-	}
-	button:disabled {
-		opacity: 0.4;
-	}
-	button {
-		cursor: pointer;
-		transition: opacity 70ms var(--easing-standard);
-		min-width: 52px;
-		min-height: 52px;
-		color: var(--color-white);
-		background-color: var(--color-primary);
 	}
 </style>
