@@ -278,7 +278,7 @@
 				return
 			}
 			if (swipeLockedForDragging()) {
-				resetSelection()
+				// resetSelection()
 				return
 			}
 		}
@@ -308,7 +308,7 @@
 			}
 			// block swiping if dragging across cells
 			if (swipeLockedForDragging()) {
-				resetSelection()
+				// resetSelection()
 				return
 			}
 		}
