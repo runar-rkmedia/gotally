@@ -19,14 +19,18 @@ jobs:
           go install gotest.tools/gotestsum@latest
           gotestsum --format-hide-empty-pkg --format pkgname-and-test-fails --junitfile report.xml -- --coverprofile cover.out ./...
       - name: Test Summary
+        if: always()
         uses: test-summary/action@v2
         with:
           paths: report.xml
       - name: Prepare coverage
         run: |
+          go install gitlab.com/fgmarand/gocoverstats@latest
           go tool cover -func=cover.out
           go tool cover -html=cover.out -o coverage.html
           echo "coverage.html written"
+          echo "### Coverage: $(gocoverstats -f cover.out --percent)"  >> $GITHUB_STEP_SUMMARY
+          gocoverstats -f cover.out --percent -v | sed -e 's/.*gotally\///' -e 's/%.*/%/'  | awk '{print "- " $1 ": " $(NF) }'>> $GITHUB_STEP_SUMMARY
       - name: Upload Go test coverage
         uses: actions/upload-artifact@v3
         with:

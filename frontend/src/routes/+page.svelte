@@ -7,7 +7,7 @@
 		httpErrorStore,
 		Indexes,
 		SwipeDirection,
-		UndoRequest
+		UndoRequest,
 	} from '../connect-web'
 	import { onMount } from 'svelte'
 	import { browser } from '$app/environment'
@@ -26,6 +26,7 @@
 	import { findCellFromTouch } from '../utils/touchHandlers'
 	import Icon from '../components/Icon.svelte'
 	import { findDOMParent } from '../utils/findDomParent'
+	import GameHeader from '../components/GameHeader.svelte'
 
 	$: {
 		// when user wins a game, refresh the challenge
@@ -319,7 +320,7 @@
 			vertical: direction === SwipeDirection.UP || direction === SwipeDirection.DOWN,
 			boardEl: boardDiv,
 			nColumns: $store.session.game.board.columns,
-			nRows: $store.session.game.board.rows
+			nRows: $store.session.game.board.rows,
 		}
 		const shouldAnimate = await animateSwipe({ ...swipeOptions, dry: true })
 		if (!shouldAnimate) {
@@ -358,7 +359,7 @@
 		import('hammerjs').then((h) => {
 			Hammer = h.default
 			const hammerTime = new Hammer(node, {
-				recognizers: [[Hammer.Swipe, { direction: Hammer.DIRECTION_ALL }]]
+				recognizers: [[Hammer.Swipe, { direction: Hammer.DIRECTION_ALL }]],
 			})
 			hammerTime.on('swipe', (e: any) => {
 				switch (e.direction) {
@@ -476,36 +477,12 @@
 {/if}
 <div class="gameView">
 	{#if $store?.session?.game?.board}
-		<div class="headControls">
-			<div class="info">
-				<div>
-					<div class="score" data-score={$store.session.game.score} data-testid="score">
-						Score: {$store.session.game.score}
-					</div>
-					<small class="boardName" title={$store.session.game.board.id}
-						>{$store.session.game.board.name}</small
-					>
-					<div class="moves" data-moves={$store.session.game.moves}>
-						Moves: {$store.session.game.moves}
-					</div>
-				</div>
-			</div>
-			<p>Hi, {$store.session.username} ({$store.session.sessionId})</p>
-			<button
-				class="icon-only"
-				data-testid="menu"
-				on:click={() => (showGameMenu = true)}
-				aria-roledescription="Show menu"
-			>
-				<Icon icon="settings" color="white" />
-			</button>
-		</div>
+		<GameHeader bind:showGameMenu />
 
 		<div class="boardContainer">
 			<SwipeHint
 				instruction={nextHint?.instructionOneof.value}
-				active={nextHint?.instructionOneof.case === 'swipe'}
-			/>
+				active={nextHint?.instructionOneof.case === 'swipe'} />
 			<div
 				bind:this={boardDiv}
 				bind:clientWidth={boardWidth}
@@ -591,8 +568,7 @@ grid-template-columns: repeat(${$store.session.game.board.columns}, 1fr);
 grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
         --board-cell-width: ${boardCellSize}px;
         --board-cell-height: ${boardCellSize}px;
-`}
-			>
+`}>
 				{#each $store.session.game.board.cells as c, i}
 					<CellComp
 						pathDir={selectionDirectionMap[i]}
@@ -664,8 +640,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 						on:mousedown={() => {
 							select(i)
 							didDrag = null
-						}}
-					/>
+						}} />
 				{/each}
 			</div>
 		</div>
@@ -680,8 +655,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 						? 'error'
 						: lastSelectionValue * 2 === selectionSum
 						? 'success'
-						: 'normal'}
-				/>
+						: 'normal'} />
 				<Counter
 					show={selectionProduct > 1}
 					asCell={true}
@@ -691,8 +665,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 						? 'error'
 						: lastSelectionValue === selectionProduct / lastSelectionValue
 						? 'success'
-						: 'normal'}
-				/>
+						: 'normal'} />
 				<PrimeFactors n={selectionProduct} />
 			</div>
 		{/if}
@@ -703,8 +676,7 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 			<button
 				data-testid="undo"
 				on:click={() => undo()}
-				disabled={$store.didWin || $store.session.game.moves <= 0}
-			>
+				disabled={$store.didWin || $store.session.game.moves <= 0}>
 				<Icon icon="undo" color="white" /> Undo
 			</button>
 			<button data-testid="hint" on:click={() => getHint()} disabled={$store.didWin}>
@@ -741,10 +713,6 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		display: grid;
 		height: 100%;
 	}
-	.boardName {
-		opacity: 0.7;
-		float: right;
-	}
 	.selectionCounter {
 		display: grid;
 		grid-template-columns: 5fr 5fr 2fr;
@@ -764,21 +732,6 @@ grid-template-rows: repeat(${$store.session.game.board.rows}, 1fr);
 		min-width: 52px;
 		min-height: 52px;
 		color: var(--color-white);
-		&:not(icon-only) {
-			background-color: var(--color-primary);
-		}
-
-		&.icon-only {
-			min-height: 48px;
-			background: unset;
-			border: unset;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-		}
-	}
-	.headControls {
-		display: flex;
-		justify-content: space-between;
+		background-color: var(--color-primary);
 	}
 </style>
