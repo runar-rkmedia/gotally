@@ -208,6 +208,50 @@ func TestApi_Undo(t *testing.T) {
 		// ts.GetHint(1)
 	})
 }
+func TestApi_UndoInfiniteGame(t *testing.T) {
+	ts := newTestApi(t)
+	t.Log(ts.Game().Print())
+	ts.NewGame(model.GameMode_GAME_MODE_RANDOM)
+	startGame := ts.Game()
+	dirs := []model.SwipeDirection{
+		model.SwipeDirection_SWIPE_DIRECTION_DOWN,
+		// model.SwipeDirection_SWIPE_DIRECTION_LEFT,
+		// model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
+		// model.SwipeDirection_SWIPE_DIRECTION_UP,
+		// model.SwipeDirection_SWIPE_DIRECTION_LEFT,
+		// model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
+		// model.SwipeDirection_SWIPE_DIRECTION_UP,
+	}
+	for _, v := range dirs {
+		ts.Swipe(v)
+		t.Log(ts.Game().Print())
+	}
+	game := ts.Game()
+	m := game.Moves()
+	{
+		seed, state := startGame.Seed()
+		t.Log("Startgame seed", seed, state)
+	}
+	{
+		seed, state := game.Seed()
+		t.Log("beforeundo seed", seed, state)
+	}
+	for i := 0; i < m; i++ {
+		ts.Undo()
+	}
+
+	game = ts.Game()
+	{
+		seed, state := game.Seed()
+		t.Log("Now seed", seed, state)
+	}
+	if startGame.Print() != game.Print() {
+		t.Fatalf("Expected undo-actions to have rolled back to the beginning, but it did not match snapshot. Got: %s Snapshot: %s", game.Print(), startGame.Print())
+	}
+
+	t.Errorf("FFOFOF")
+
+}
 func TestApi_Restart_After_Some_Moves(t *testing.T) {
 
 	// resulted in the error-message

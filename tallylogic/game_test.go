@@ -52,21 +52,95 @@ func mustCreateNewGameForTest(mode GameMode, template *GameTemplate, options ...
 	}
 }
 
-func TestGame_Undo(t *testing.T) {
+func GameInfoLoggger(t *testing.T, g *Game) func() {
+	return func() {
+		t.Helper()
+		seed, state := g.Seed()
+		t.Log("Current  Seed/State", seed, state)
+		t.Log("Starting Seed/State", g.Rules.Options.Seed, g.Rules.Options.State)
+		t.Logf("[INFO] Moves: %d Score: %d HistoryLength: %d HistorySize: %d %s %s",
+			g.Moves(), g.Score(), g.History.Length(), g.History.Size(), g.History.Describe(), g.Print())
+	}
+}
+func TestGame_UndoRandomGame(t *testing.T) {
+	// Check for issue #27 https://github.com/runar-rkmedia/gotally/issues/27
+	// where the randomizer seed/state was not set upon undo
 	t.Run("Undoing a game should work", func(t *testing.T) {
-		g := mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath"))()
-		info := func() {
-			t.Helper()
-			// return
-			t.Logf("[INFO] Moves: %d Score: %d HistoryLength: %d HistorySize: %d %s %s",
-				g.Moves(), g.Score(), g.History.Length(), g.History.Size(), g.History.Describe(), g.Print())
+		g := mustCreateNewGameForTest(GameModeRandom, nil)()
+		if g.Rules.Options.Seed == 0 {
+			t.Fatal("Seed must be set")
 		}
+		if g.Rules.Options.State == 0 {
+			t.Fatal("Seedstate must be set")
+		}
+		gStart := g.Print()
+
+		info := GameInfoLoggger(t, &g)
+		gamesAtH := make([]Game, 6)
+		gamesAtH[0] = g.Copy()
+		info()
+		g.Swipe(SwipeDirectionLeft)
+		info()
+		g.Swipe(SwipeDirectionRight)
+		info()
+		g.Swipe(SwipeDirectionLeft)
+		info()
+		// Combine 1 + 2 + 1 = 4
+		g.EvaluateForPath([]int{0, 5, 10, 15})
+		info()
+
+		// Undo all history
+		m := g.Moves()
+		gBeforeUndo := g.Print()
+		for i := 0; i < m; i++ {
+			t.Logf("Undoing move %d", i)
+			info()
+			err := g.Undo()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		// We should now be back at the start
+		gNow := g.Print()
+		if gNow != gStart {
+			t.Fatalf("Expected game to be at the beginning")
+		}
+		// Replay the exact same actions as above (not the undoes)
+		// We should end up with the exact same board
+		info()
+		g.Swipe(SwipeDirectionLeft)
+		info()
+		g.Swipe(SwipeDirectionRight)
+		info()
+		g.Swipe(SwipeDirectionLeft)
+		info()
+		// Combine 1 + 2 + 1 = 4
+		g.EvaluateForPath([]int{0, 5, 10, 15})
+		gNow = g.Print()
+		info()
+		if gNow != gBeforeUndo {
+			t.Log("Now:", gNow)
+			t.Log("Before Undo:", gBeforeUndo)
+			t.Fatalf("Expected game to have been replayed the same exact way")
+		}
+	})
+}
+func TestGame_Undo(t *testing.T) {
+	t.Run("Undoing a challenge game should work", func(t *testing.T) {
+		g := mustCreateNewGameForTest(GameModeTutorial, GetGameTemplateById("Ch:NotTheObviousPath"))()
+		if g.Rules.Options.Seed == 0 {
+			t.Fatalf("Seed must be set for gamemode %s", g.Rules.GameMode)
+		}
+		if g.Rules.Options.State == 0 {
+			t.Fatalf("Seedstate must be set for gamemode %s", g.Rules.GameMode)
+		}
+		info := GameInfoLoggger(t, &g)
 		gamesAtH := make([]Game, 6)
 		gamesAtH[0] = g.Copy()
 
 		// Checks that the games are equal, but ignores elements that would change due to undo.
 		// For instance:
-		// Moves-counter should increase whene doing an undo
+		// Moves-counter should increase when doing an undo
 		assertGameEquality := func(got, expected Game, expectedHistory string) {
 			t.Helper()
 			hasErr := false

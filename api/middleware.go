@@ -512,6 +512,10 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						Game:         toTypeGame(userState.Game, ""),
 						TemplateID:   template.ID,
 					}
+					if template != nil {
+						payload.TemplateID = template.ID
+
+					}
 					err := payload.Validate()
 					if err != nil {
 						l.Error().Err(err).

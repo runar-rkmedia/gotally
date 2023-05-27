@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,9 +56,24 @@ const (
 	logInfo    = "️ℹ️"
 )
 
-func newTestApi(t *testing.T) testApi {
+type newTestApiOptions struct {
+	Headers map[string]string
+	*tallylogic.NewGameOptions
+}
+
+func newTestApi(t *testing.T, options ...newTestApiOptions) testApi {
 	t.Helper()
 
+	var opt newTestApiOptions
+	for _, o := range options {
+		for k, v := range o.Headers {
+			opt.Headers[k] = v
+		}
+		if o.NewGameOptions != nil {
+			opt.NewGameOptions = o.NewGameOptions
+		}
+
+	}
 	logger.InitLogger(logger.LogConfig{
 		Level:      "error",
 		Format:     "human",
@@ -83,6 +99,16 @@ func newTestApi(t *testing.T) testApi {
 			tokenHeader:    mustCreateUUidgenerator()(),
 			"DEV_USERNAME": "GO_TESTER",
 		},
+	}
+	if opt.NewGameOptions != nil {
+		j, err := json.Marshal(opt.NewGameOptions)
+		if err != nil {
+			panic(err.Error())
+		}
+		a.defaultHeaders["DEV_GAME_OPTIONS"] = base64.StdEncoding.EncodeToString(j)
+	}
+	for k, v := range opt.Headers {
+		a.defaultHeaders[k] = v
 	}
 	t.Cleanup(a.DumpDB)
 	// client := connect.NewClient[tallyv1.BoardServiceClient](http.DefaultClient, path)
@@ -148,10 +174,9 @@ func (ts *testApi) Undo() *connect.Response[tallyv1.UndoResponse] {
 	ctx := context.TODO()
 	res, err := ts.client.Undo(ctx, connect.NewRequest(&model.UndoRequest{}))
 	if err != nil {
-		ts.t.Log(err.Error())
-		ts.t.Fatalf("%s Failed during Undo: %#v", logError, err)
+		ts.t.Fatalf("%s Failed during Undo: %s %#v", logError, err, err)
 	}
-	ts.t.Logf("response %#v", res.Msg)
+	// ts.t.Logf("response %#v", res.Msg)
 	ts.t.Logf("%s Board Undo", logSuccess)
 	return res
 }
@@ -169,7 +194,7 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 		ts.t.Log(err.Error())
 		ts.t.Fatalf("%s Failed during SwipeBoard: %#v", logError, err)
 	}
-	ts.t.Logf("response %#v", res.Msg)
+	// ts.t.Logf("response %#v", res.Msg)
 	if !res.Msg.DidChange {
 		game := ts.Game()
 		ts.t.Fatalf("%s board should have changed during swipe '%s', but did not. Perhaps you meant a different swipe-direction? %v", logError, direction, game.Print())

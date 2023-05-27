@@ -224,29 +224,44 @@ func RestoreGame(g *types.Game) (Game, error) {
 	return game, nil
 
 }
+func NewGameRules(mode GameMode, template *GameTemplate, options ...NewGameOptions) (GameRules, error) {
+	// Default rules
+	r := GameRules{
+		SizeX:           5,
+		SizeY:           5,
+		RecreateOnSwipe: true,
+		WithSuperPowers: true,
+		StartingBricks:  5,
+		GameMode:        mode,
+	}
 
-func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (Game, error) {
-	game := Game{
-		ID: gonanoid.Must(),
-		// Default rules
-		Rules: GameRules{
-			SizeX:           5,
-			SizeY:           5,
-			RecreateOnSwipe: true,
-			WithSuperPowers: true,
-			StartingBricks:  5,
-			GameMode:        mode,
-		},
+	switch mode {
+	case GameModeTutorial, GameModeRandomChallenge:
+		if template == nil {
+			return r, fmt.Errorf("gamemode %s requires a template", mode)
+		}
+		r = template.Rules
+
 	}
 	for _, o := range options {
-		game.Rules.Options = o
+		// TODO: merge
+		r.Options = o
+	}
+	return r, nil
+}
+
+func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (game Game, err error) {
+	game.ID = gonanoid.Must()
+	game.Rules, err = NewGameRules(mode, template, options...)
+	if err != nil {
+		return game, err
 	}
 
 	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
 	game.cellGenerator = cellgenerator.NewCellGenerator(r)
 	switch mode {
 	case GameModeRandom:
-		board := NewTableBoard(5, 5, game.Rules.Options.TableBoardOptions)
+		board := NewTableBoard(game.Rules.SizeX, game.Rules.SizeY, game.Rules.Options.TableBoardOptions)
 		game.board = &board
 		game.Description = "Default game, 5x5"
 		game.DefeatChecker = DefeatCheckerNoMoreMoves{}
@@ -255,7 +270,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 		if template != nil {
 			t := template.Create()
 			game.board = &t.Board
-			game.Rules = t.Rules
 			game.Description = t.Description
 			game.Name = t.Name
 			game.DefeatChecker = t.DefeatChecker
@@ -266,33 +280,14 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 			}
 
 		} else {
-
-			board := TableBoard{
-				rows:    5,
-				columns: 5,
-				cells: cellCreator(
-					0, 2, 1, 0, 1,
-					64, 4, 4, 1, 2,
-					64, 8, 4, 1, 0,
-					12, 3, 1, 0, 0,
-					16, 0, 0, 0, 0,
-				),
-			}
-			game.board = &board
-			game.Rules = GameRules{
-				GameMode:        mode,
-				SizeX:           board.columns,
-				SizeY:           board.rows,
-				RecreateOnSwipe: false,
-				WithSuperPowers: false,
-			}
-			game.Description = "Get to 512 points withing 10 moves"
+			return game, err
 		}
 	default:
 		return game, fmt.Errorf("Invalid gamemode: %d %s", mode, string(debug.Stack()))
 	}
 	game.History = NewCompactHistory(game.Rules.SizeX, game.Rules.SizeY)
 	allEmpty := true
+	// TODO: document if this block is needed, and why
 	for _, c := range game.Cells() {
 		if c.Value() > 0 {
 			allEmpty = false
@@ -394,7 +389,21 @@ func (g *Game) Undo() error {
 		return fmt.Errorf("failed to undo game: %w", err)
 	}
 	hbytes := g.History.BytesCopy()
-	g.board = g.boardAtStart.Copy()
+	r := randomizer.NewRandomizerFromSeed(g.Rules.Options.Seed, g.Rules.Options.State)
+	g.cellGenerator = cellgenerator.NewCellGenerator(r)
+	g.cellGenerator.SetSeed(g.Rules.Options.Seed, g.Rules.Options.State)
+	if g.Rules.GameMode == GameModeRandom {
+		board := NewTableBoard(g.Rules.SizeX, g.Rules.SizeY, g.Rules.Options.TableBoardOptions)
+		g.board = &board
+		g.Rules.StartingBricks = 5
+		for i := 0; i < g.Rules.StartingBricks; i++ {
+			g.generateCellToEmptyCell()
+		}
+
+	} else {
+
+		g.board = g.boardAtStart.Copy()
+	}
 	g.History = NewCompactHistory(g.Rules.SizeX, g.Rules.SizeY)
 	// g.moves = 0
 	g.score = 0
