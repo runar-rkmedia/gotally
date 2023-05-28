@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/runar-rkmedia/gotally/dev"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
@@ -28,9 +29,22 @@ func (s *TallyServer) Undo(
 
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if err := g.Validate(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	g2, err := tallylogic.RestoreGame(&g)
+	dev.Println("Original game",
+		g.StartingCells,
+		g2.Rules.StartingCells,
+		session.Game.Rules.StartingCells,
+		"OPTSeeed", g2.Rules.Options.PrintSeed(),
+		session.Game.PrintWithStats(),
+		g2.Print())
+	session.Game.Rules.Options.Seed = g2.Rules.Options.Seed
+	session.Game.Rules.Options.State = g2.Rules.Options.State
 	session.Game.ReplaceBasedOn(g2)
 	// We copy the game, to rollback the in-memory cache if anything goes wrong
+	dev.Println("UNDODOD", session.Game.Rules.Options.PrintSeed(), session.Game.PrintWithStats())
 	gameCopy := session.Game.Copy()
 	err = session.Game.Undo()
 	if err != nil {

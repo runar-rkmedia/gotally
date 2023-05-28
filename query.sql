@@ -10,13 +10,13 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game, option_seed, option_state)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InsertRule :one
 INSERT INTO rule
-(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score, starting_cells)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 -- name: InserTemplate :one
 INSERT INTO game_template
@@ -80,6 +80,8 @@ SELECT
        game.updated_at game_updated_at,
        game.description game_description,
        game.name game_Name,
+       game.option_seed game_option_seed,
+       game.option_state game_option_state,
        game.data game_data,
        game.history game_history,
        game.play_state game_play_state,

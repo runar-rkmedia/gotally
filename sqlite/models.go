@@ -24,6 +24,8 @@ type Game struct {
 	PlayState   int64
 	Data        []byte
 	DataAtStart []byte
+	OptionSeed  sql.NullInt64
+	OptionState sql.NullInt64
 	History     []byte
 }
 
@@ -54,6 +56,7 @@ type Rule struct {
 	MaxMoves        sql.NullInt64
 	TargetCellValue sql.NullInt64
 	TargetScore     sql.NullInt64
+	StartingCells   sql.NullInt64
 	RecreateOnSwipe bool
 	NoReswipe       bool
 	NoMultiply      bool

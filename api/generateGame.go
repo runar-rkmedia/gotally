@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/runar-rkmedia/gotally/dev"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic"
@@ -194,12 +195,12 @@ func calculateStats(game tallylogic.Game, solutions []tallylogic.Game) (tallylog
 		return stats, solutionStats, fmt.Errorf("failed to calculate stats for solutions %w", err)
 	}
 
-	fmt.Printf("Game can ideally be solved in %d moves, for %d points (solution index %d)\n", solutionStats.IdealMoves, solutionStats.ScoreOnIdeal, solutionStats.IdealMovesSolutionIndex)
-	fmt.Printf("The best score found was %d (solution index %d)\n", solutionStats.MaxScore, solutionStats.MaxScoreSolutionIndex)
+	dev.Printf("Game can ideally be solved in %d moves, for %d points (solution index %d)\n", solutionStats.IdealMoves, solutionStats.ScoreOnIdeal, solutionStats.IdealMovesSolutionIndex)
+	dev.Printf("The best score found was %d (solution index %d)\n", solutionStats.MaxScore, solutionStats.MaxScoreSolutionIndex)
 
-	fmt.Printf("game has %d unique factors with %d unique values\n", len(stats.UniqueFactors), len(stats.UniqueValues))
-	fmt.Printf("game has %d duplicate factors with %d duplicate values\n", stats.DuplicateFactors, stats.DuplicateValues)
-	fmt.Printf("game has %d hints available (%d unique)\n", len(stats.Hints), stats.UniqueHints)
-	fmt.Printf("game has %d non-empty cells %2f%%\n", stats.WithValueCount, float64(stats.WithValueCount)/float64(stats.CellCount)*100)
+	dev.Printf("game has %d unique factors with %d unique values\n", len(stats.UniqueFactors), len(stats.UniqueValues))
+	dev.Printf("game has %d duplicate factors with %d duplicate values\n", stats.DuplicateFactors, stats.DuplicateValues)
+	dev.Printf("game has %d hints available (%d unique)\n", len(stats.Hints), stats.UniqueHints)
+	dev.Printf("game has %d non-empty cells %2f%%\n", stats.WithValueCount, float64(stats.WithValueCount)/float64(stats.CellCount)*100)
 	return stats, solutionStats, nil
 }

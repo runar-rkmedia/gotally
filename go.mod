@@ -11,6 +11,7 @@ require (
 	github.com/honeycombio/honeycomb-opentelemetry-go v0.2.0
 	github.com/honeycombio/opentelemetry-go-contrib/launcher v0.0.0-20220824095536-e0b3dd3fbfe7
 	github.com/jfyne/live v0.15.2
+	github.com/keith-turner/ecoji/v2 v2.0.1
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/pelletier/go-toml/v2 v2.0.5

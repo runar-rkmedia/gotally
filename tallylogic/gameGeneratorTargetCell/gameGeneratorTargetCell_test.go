@@ -103,7 +103,7 @@ func Test_gameGeneratorTargetCell_GenerateGame(t *testing.T) {
 
 			_, solutions, err := gen.GenerateGame(context.TODO())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("gameGeneratorTargetCell.GenerateGame() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("gameGeneratorTargetCell.GenerateGame() error = %v, wantErr %v. This is currently a flaky test. ", err, tt.wantErr)
 				return
 			}
 

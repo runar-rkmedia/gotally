@@ -52,7 +52,8 @@ type testApi struct {
 
 const (
 	logSuccess = "✔️"
-	logError   = "️⚠️"
+	logError   = "️🔴"
+	logFatal   = "️🔴🔥"
 	logInfo    = "️ℹ️"
 )
 
@@ -184,7 +185,16 @@ func (ts *testApi) SwipeLeft() *connect.Response[tallyv1.SwipeBoardResponse] {
 	ts.t.Helper()
 	return ts.Swipe(model.SwipeDirection_SWIPE_DIRECTION_LEFT)
 }
-func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tallyv1.SwipeBoardResponse] {
+
+type swipeOpt struct {
+	allowNoChange bool
+}
+
+func (ts *testApi) Swipe(direction model.SwipeDirection, opt ...swipeOpt) *connect.Response[tallyv1.SwipeBoardResponse] {
+	var options swipeOpt
+	if len(opt) > 0 {
+		options = opt[0]
+	}
 	ts.t.Helper()
 	ctx := context.TODO()
 	res, err := ts.client.SwipeBoard(ctx, connect.NewRequest(&model.SwipeBoardRequest{
@@ -195,14 +205,26 @@ func (ts *testApi) Swipe(direction model.SwipeDirection) *connect.Response[tally
 		ts.t.Fatalf("%s Failed during SwipeBoard: %#v", logError, err)
 	}
 	// ts.t.Logf("response %#v", res.Msg)
-	if !res.Msg.DidChange {
+	if !options.allowNoChange && !res.Msg.DidChange {
 		game := ts.Game()
-		ts.t.Fatalf("%s board should have changed during swipe '%s', but did not. Perhaps you meant a different swipe-direction? %v", logError, direction, game.Print())
+		ts.Fatalf("board should have changed during swipe '%s', but did not. Perhaps you meant a different swipe-direction? %v", direction, game.Print())
 	}
 	ts.t.Logf("%s Board Swiped %s", logSuccess, direction)
 	return res
 }
 
+func (ta *testApi) Fatalf(format string, a ...any) {
+	ta.t.Helper()
+	ta.t.Fatalf(logFatal+format, a...)
+}
+func (ta *testApi) Errorf(format string, a ...any) {
+	ta.t.Helper()
+	ta.t.Errorf(logError+format, a...)
+}
+func (ta *testApi) Logf(format string, a ...any) {
+	ta.t.Helper()
+	ta.t.Logf(logInfo+format, a...)
+}
 func (ta *testApi) Session() types.SessionUser {
 	s, err := ta.tally.storage.GetUserBySessionID(context.TODO(), types.GetUserPayload{
 		ID: ta.initialSession.Msg.Session.SessionId,

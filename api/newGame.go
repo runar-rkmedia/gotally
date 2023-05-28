@@ -196,6 +196,9 @@ func (s TallyServer) newGame(ctx context.Context, session *UserState, mode logic
 	payload := types.NewGamePayload{
 		Game: toTypeGame(game, session.UserID),
 	}
+	if err := payload.Game.Validate(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validation-error for game: %w", err))
+	}
 	if template != nil {
 		payload.TemplateID = template.ID
 	}

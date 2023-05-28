@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -472,20 +471,10 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 					// For instance can playwright set properties here to ensure consistant options,
 					// like seeding the randomizer used.
 					// It expect a base64-encoded json in the header
-					if o := r.Header.Get("DEV_GAME_OPTIONS"); o != "" {
+					if o := DevGetGameOptions(l, options, r); o != nil {
+						gameOptions = *o
 						gameMode = tallylogic.GameModeRandom
 						template = nil
-						b, err := base64.StdEncoding.DecodeString(o)
-						if err != nil {
-							l.Warn().Err(err).Str("base64-header", o).Msg("user attempted to set game-options via headers, but the base64-decoding failed")
-						} else {
-							err := json.Unmarshal(b, &gameOptions)
-							if err != nil {
-								l.Warn().Err(err).Str("base64-header", o).Msg("user attempted to set game-options via headers, but the unmarshalling failed")
-							} else {
-								l.Debug().Err(err).Interface("options", gameOptions).Msg("game-options set via headers")
-							}
-						}
 					}
 				}
 				if us, err := NewUserState(gameMode, template, sessionID, gameOptions); err != nil {
@@ -510,7 +499,6 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 						InvalidAfter: now.Add(options.SessionLifeTime),
 						Username:     userState.UserName,
 						Game:         toTypeGame(userState.Game, ""),
-						TemplateID:   template.ID,
 					}
 					if template != nil {
 						payload.TemplateID = template.ID

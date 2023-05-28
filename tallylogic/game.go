@@ -1,14 +1,19 @@
 package tallylogic
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"strconv"
 
+	ecoji "github.com/keith-turner/ecoji/v2"
+
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/runar-rkmedia/gotally/dev"
 	"github.com/runar-rkmedia/gotally/randomizer"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 	"github.com/runar-rkmedia/gotally/tallylogic/cellgenerator"
@@ -49,6 +54,51 @@ type Game struct {
 	History       CompactHistory
 }
 
+func (g Game) PrintSeed() string {
+	seed, state := g.Seed()
+	return PrintSeed(seed, state)
+}
+func PrintSeed(seed, state uint64) string {
+	if seed == 0 && state == 0 {
+		return "ZEROZERO"
+	}
+	if seed == 0 {
+		return "ZERO"
+	}
+	if state == 0 {
+		return "SETZERO"
+	}
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, seed)
+	b2 := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b2, state)
+	b = append(b, b2...)
+	short := []byte{uint8(seed % 256), byte(state % 256)}
+	return HashName(short) + " " + base64.RawStdEncoding.EncodeToString(b)
+}
+
+func HashName(b []byte) string {
+	r := bytes.NewReader(b)
+	w := bytes.NewBuffer([]byte{})
+	err := ecoji.EncodeV2(r, w, 0)
+	if err != nil {
+		panic(err.Error())
+	}
+	s := w.String()
+	// We only want the two first here, since the last one is padding
+	s2 := make([]rune, 2)
+	l := 0
+	for _, v := range s {
+		if l >= 2 {
+			break
+		}
+		s2[l] = v
+		l++
+
+	}
+	return string(s2)
+}
+
 func (g Game) Seed() (uint64, uint64) {
 	return g.cellGenerator.Seed()
 }
@@ -71,7 +121,7 @@ type GameRules struct {
 	RecreateOnSwipe bool
 	// TODO: not implemented
 	WithSuperPowers bool
-	StartingBricks  int
+	StartingCells   int
 	// Whether to allow swipes in the same direction or not, for instance twice up.
 	// This can have an effect if there are new items generated for each swipe
 	NoReswipe bool
@@ -142,6 +192,10 @@ type NewGameOptions struct {
 	State uint64
 }
 
+func (o NewGameOptions) PrintSeed() string {
+	return PrintSeed(o.Seed, o.State)
+}
+
 func RestoreGame(g *types.Game) (Game, error) {
 	var mode GameMode
 
@@ -165,6 +219,7 @@ func RestoreGame(g *types.Game) (Game, error) {
 			GameMode:        mode,
 			SizeX:           int(g.Rules.Columns),
 			SizeY:           int(g.Rules.Rows),
+			StartingCells:   int(g.StartingCells),
 			RecreateOnSwipe: g.Rules.RecreateOnSwipe,
 			TargetCellValue: g.Rules.TargetCellValue,
 			TargetScore:     g.Rules.TargetScore,
@@ -178,8 +233,8 @@ func RestoreGame(g *types.Game) (Game, error) {
 						NoAddition: g.Rules.NoAddition,
 					},
 				},
-				Seed:  g.Seed,
-				State: g.State,
+				Seed:  g.OptionSeed,
+				State: g.OptionState,
 			},
 		},
 		score:         int64(g.Score),
@@ -215,9 +270,10 @@ func RestoreGame(g *types.Game) (Game, error) {
 		return game, fmt.Errorf("not implemented for this gamemode: gameMode: %v typeGameMode: (%v)", game.Rules.GameMode, g.Rules.Mode)
 	}
 
-	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
+	r := randomizer.NewRandomizerFromSeed(g.Seed, g.State)
 	game.cellGenerator = cellgenerator.NewCellGenerator(r)
 	board := RestoreTableBoard(game.Rules.SizeX, game.Rules.SizeY, g.Cells, game.Rules.Options.TableBoardOptions)
+	dev.Println("Restoring game", game.PrintSeed(), game.Rules.Options.PrintSeed())
 	game.board = &board
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
 
@@ -231,7 +287,7 @@ func NewGameRules(mode GameMode, template *GameTemplate, options ...NewGameOptio
 		SizeY:           5,
 		RecreateOnSwipe: true,
 		WithSuperPowers: true,
-		StartingBricks:  5,
+		StartingCells:   5,
 		GameMode:        mode,
 	}
 
@@ -259,6 +315,12 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 
 	r := randomizer.NewRandomizerFromSeed(game.Rules.Options.Seed, game.Rules.Options.State)
 	game.cellGenerator = cellgenerator.NewCellGenerator(r)
+	if game.Rules.Options.Seed == 0 && game.Rules.Options.State == 0 {
+		seed, state := game.Seed()
+		game.Rules.Options.Seed = seed
+		game.Rules.Options.State = state
+	}
+	dev.Println("RANDOMIZERD", game.PrintSeed(), game.Rules.Options.PrintSeed())
 	switch mode {
 	case GameModeRandom:
 		board := NewTableBoard(game.Rules.SizeX, game.Rules.SizeY, game.Rules.Options.TableBoardOptions)
@@ -295,13 +357,15 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 		}
 
 	}
+	game.boardAtStart = game.board.Copy()
 	if allEmpty || len(game.Cells()) == 0 {
-		for i := 0; i < game.Rules.StartingBricks; i++ {
+		for i := 0; i < game.Rules.StartingCells; i++ {
+			dev.Println("new game: generate empty cell", game.PrintWithStats())
 			game.generateCellToEmptyCell()
 		}
 	}
+	dev.Println("new game created", game.PrintWithStats())
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
-	game.boardAtStart = game.board.Copy()
 	if len(game.board.Cells()) != (game.Rules.SizeX * game.Rules.SizeY) {
 		return game, fmt.Errorf("Game has invalid size: %d cells, %dx%d, mode %v template %v", len(game.board.Cells()), game.Rules.SizeX, game.Rules.SizeY, mode, template)
 	}
@@ -395,13 +459,13 @@ func (g *Game) Undo() error {
 	if g.Rules.GameMode == GameModeRandom {
 		board := NewTableBoard(g.Rules.SizeX, g.Rules.SizeY, g.Rules.Options.TableBoardOptions)
 		g.board = &board
-		g.Rules.StartingBricks = 5
-		for i := 0; i < g.Rules.StartingBricks; i++ {
+		for i := 0; i < g.Rules.StartingCells; i++ {
+			dev.Println("generate empty cell", g.PrintWithStats())
 			g.generateCellToEmptyCell()
 		}
+		dev.Println("RANDOM", g.PrintWithStats())
 
 	} else {
-
 		g.board = g.boardAtStart.Copy()
 	}
 	g.History = NewCompactHistory(g.Rules.SizeX, g.Rules.SizeY)
@@ -414,7 +478,6 @@ func (g *Game) Undo() error {
 		}
 		ok := g.Instruct(ins)
 		g.moves--
-		// time.Sleep(1 * time.Millisecond)
 		if !ok {
 			return fmt.Errorf("failed to apply instruction  %d %#v", i, ins)
 		}
@@ -492,6 +555,9 @@ func (g *Game) EvaluateForPath(path []int) bool {
 
 func (g Game) Print() string {
 	return g.board.String()
+}
+func (g Game) PrintWithStats() string {
+	return fmt.Sprintf("Moves: %d Score: %d Seed %s\n%s\n", g.Moves(), g.Score(), g.PrintSeed(), g.board.String())
 }
 func (g Game) PrintForSelection(selection []int) string {
 	return g.board.PrintForSelection(selection)

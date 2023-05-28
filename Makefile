@@ -78,7 +78,7 @@ cover-go-html:
 	go tool cover -html=out.cover
 go-test:
 	@ echo Using $(gotester) as tester
-	$(gotester) -race ./... -count 1
+	$(gotester) -race ./... -count 1 | sed -e 's/\\n/\n/g' -e 's/\\t/\t/g'
 e2e-test:
 	@echo "The development-api-server must be running prior to running e2e-test"
 	@cd frontend && npm run test
@@ -89,8 +89,8 @@ _test: go-test e2e-test web-unit-test
 test:
 	$(MAKE) -j3 go-test e2e-test web-unit-test
 test-watch:
-	fd '.go' | entr -cr richgo test ./... 
-
+	gotestsum --format-hide-empty-pkg ./... -count 1 | sed -e 's/\\n/\n/g' -e 's/\\t/\t/g'
+	gotestsum --watch --format-hide-empty-pkg ./... | sed -e 's/\\n/\n/g' -e 's/\\t/\t/g'
 # web and servers
 web:
 	cd frontend && npm run dev --host -- --clearScreen false 

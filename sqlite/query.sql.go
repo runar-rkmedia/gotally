@@ -12,7 +12,7 @@ import (
 )
 
 const getAllGames = `-- name: GetAllGames :many
-SELECT id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history from game
+SELECT id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, option_seed, option_state, history from game
 `
 
 func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
@@ -39,6 +39,8 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 			&i.PlayState,
 			&i.Data,
 			&i.DataAtStart,
+			&i.OptionSeed,
+			&i.OptionState,
 			&i.History,
 		); err != nil {
 			return nil, err
@@ -55,7 +57,7 @@ func (q *Queries) GetAllGames(ctx context.Context) ([]Game, error) {
 }
 
 const getAllRules = `-- name: GetAllRules :many
-SELECT id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
+SELECT id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, starting_cells, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 `
 
 func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
@@ -79,6 +81,7 @@ func (q *Queries) GetAllRules(ctx context.Context) ([]Rule, error) {
 			&i.MaxMoves,
 			&i.TargetCellValue,
 			&i.TargetScore,
+			&i.StartingCells,
 			&i.RecreateOnSwipe,
 			&i.NoReswipe,
 			&i.NoMultiply,
@@ -259,7 +262,7 @@ func (q *Queries) GetChallengeStatsForUser(ctx context.Context, userID string) (
 }
 
 const getGame = `-- name: GetGame :one
-select id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history from game
+select id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, option_seed, option_state, history from game
 where id == ?
 `
 
@@ -281,6 +284,8 @@ func (q *Queries) GetGame(ctx context.Context, id string) (Game, error) {
 		&i.PlayState,
 		&i.Data,
 		&i.DataAtStart,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.History,
 	)
 	return i, err
@@ -379,7 +384,7 @@ func (q *Queries) GetGameTemplateByChallengeNumber(ctx context.Context, challeng
 }
 
 const getOriginalGame = `-- name: GetOriginalGame :one
-SELECT o.id, o.created_at, o.updated_at, o.name, o.description, o.user_id, o.rule_id, o.based_on_game, o.template_id, o.score, o.moves, o.play_state, o.data, o.data_at_start, o.history
+SELECT o.id, o.created_at, o.updated_at, o.name, o.description, o.user_id, o.rule_id, o.based_on_game, o.template_id, o.score, o.moves, o.play_state, o.data, o.data_at_start, o.option_seed, o.option_state, o.history
   FROM game AS g 
     JOIN game o ON o.id == g.based_on_game
  WHERE g.id = '?'
@@ -403,6 +408,8 @@ func (q *Queries) GetOriginalGame(ctx context.Context) (Game, error) {
 		&i.PlayState,
 		&i.Data,
 		&i.DataAtStart,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.History,
 	)
 	return i, err
@@ -410,7 +417,7 @@ func (q *Queries) GetOriginalGame(ctx context.Context) (Game, error) {
 
 const getRule = `-- name: GetRule :one
 ;
-select id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
+select id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, starting_cells, recreate_on_swipe, no_reswipe, no_multiply, no_addition from rule
 where id == ? or slug == ?
 `
 
@@ -434,6 +441,7 @@ func (q *Queries) GetRule(ctx context.Context, arg GetRuleParams) (Rule, error) 
 		&i.MaxMoves,
 		&i.TargetCellValue,
 		&i.TargetScore,
+		&i.StartingCells,
 		&i.RecreateOnSwipe,
 		&i.NoReswipe,
 		&i.NoMultiply,
@@ -476,6 +484,8 @@ SELECT
        game.updated_at game_updated_at,
        game.description game_description,
        game.name game_Name,
+       game.option_seed game_option_seed,
+       game.option_state game_option_state,
        game.data game_data,
        game.history game_history,
        game.play_state game_play_state,
@@ -502,6 +512,8 @@ type GetUserBySessionIDRow struct {
 	UpdatedAt_2  sql.NullTime
 	Description  sql.NullString
 	Name         sql.NullString
+	OptionSeed   sql.NullInt64
+	OptionState  sql.NullInt64
 	Data         []byte
 	History      []byte
 	PlayState    int64
@@ -526,6 +538,8 @@ func (q *Queries) GetUserBySessionID(ctx context.Context, id string) (GetUserByS
 		&i.UpdatedAt_2,
 		&i.Description,
 		&i.Name,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.Data,
 		&i.History,
 		&i.PlayState,
@@ -589,9 +603,9 @@ func (q *Queries) InserTemplate(ctx context.Context, arg InserTemplateParams) (G
 
 const insertGame = `-- name: InsertGame :one
 INSERT INTO game
-(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
+(id, created_at, updated_at, name, description, user_id, rule_id, score, moves, play_state, data, data_at_start, history, template_id, based_on_game, option_seed, option_state)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, option_seed, option_state, history
 `
 
 type InsertGameParams struct {
@@ -610,6 +624,8 @@ type InsertGameParams struct {
 	History     []byte
 	TemplateID  sql.NullString
 	BasedOnGame sql.NullString
+	OptionSeed  sql.NullInt64
+	OptionState sql.NullInt64
 }
 
 func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, error) {
@@ -629,6 +645,8 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		arg.History,
 		arg.TemplateID,
 		arg.BasedOnGame,
+		arg.OptionSeed,
+		arg.OptionState,
 	)
 	var i Game
 	err := row.Scan(
@@ -646,6 +664,8 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 		&i.PlayState,
 		&i.Data,
 		&i.DataAtStart,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.History,
 	)
 	return i, err
@@ -653,9 +673,9 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (Game, e
 
 const insertRule = `-- name: InsertRule :one
 INSERT INTO rule
-(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, recreate_on_swipe, no_reswipe, no_multiply, no_addition
+(id, slug, created_at, updated_at, description, mode, size_x, size_y, recreate_on_swipe, no_reswipe, no_multiply, no_addition, max_moves, target_cell_value, target_score, starting_cells)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, created_at, updated_at, mode, description, size_x, size_y, max_moves, target_cell_value, target_score, starting_cells, recreate_on_swipe, no_reswipe, no_multiply, no_addition
 `
 
 type InsertRuleParams struct {
@@ -674,6 +694,7 @@ type InsertRuleParams struct {
 	MaxMoves        sql.NullInt64
 	TargetCellValue sql.NullInt64
 	TargetScore     sql.NullInt64
+	StartingCells   sql.NullInt64
 }
 
 func (q *Queries) InsertRule(ctx context.Context, arg InsertRuleParams) (Rule, error) {
@@ -693,6 +714,7 @@ func (q *Queries) InsertRule(ctx context.Context, arg InsertRuleParams) (Rule, e
 		arg.MaxMoves,
 		arg.TargetCellValue,
 		arg.TargetScore,
+		arg.StartingCells,
 	)
 	var i Rule
 	err := row.Scan(
@@ -707,6 +729,7 @@ func (q *Queries) InsertRule(ctx context.Context, arg InsertRuleParams) (Rule, e
 		&i.MaxMoves,
 		&i.TargetCellValue,
 		&i.TargetScore,
+		&i.StartingCells,
 		&i.RecreateOnSwipe,
 		&i.NoReswipe,
 		&i.NoMultiply,
@@ -815,7 +838,7 @@ UPDATE game
 SET updated_at = ?,
     play_state = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, option_seed, option_state, history
 `
 
 type SetPlayStateForGameParams struct {
@@ -842,6 +865,8 @@ func (q *Queries) SetPlayStateForGame(ctx context.Context, arg SetPlayStateForGa
 		&i.PlayState,
 		&i.Data,
 		&i.DataAtStart,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.History,
 	)
 	return i, err
@@ -914,7 +939,7 @@ SET updated_at = ?,
     data       = ?,
     history    = ?
 WHERE id = ?
-RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, history
+RETURNING id, created_at, updated_at, name, description, user_id, rule_id, based_on_game, template_id, score, moves, play_state, data, data_at_start, option_seed, option_state, history
 `
 
 type UpdateGameParams struct {
@@ -957,6 +982,8 @@ func (q *Queries) UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, e
 		&i.PlayState,
 		&i.Data,
 		&i.DataAtStart,
+		&i.OptionSeed,
+		&i.OptionState,
 		&i.History,
 	)
 	return i, err

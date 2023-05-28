@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"runtime/debug"
 	"time"
 
+	"github.com/runar-rkmedia/gotally/dev"
 	"github.com/runar-rkmedia/gotally/tallylogic/cell"
 )
 
@@ -74,17 +74,18 @@ type Dump struct {
 }
 
 type Game struct {
-	ID          string
-	CreatedAt   time.Time
-	UpdatedAt   *time.Time
-	UserID      string
-	Description string
-	Name        string
-	Seed, State uint64
-	Score       uint64
-	Moves       uint
-	Cells       []cell.Cell
-	History     []byte
+	ID                      string
+	CreatedAt               time.Time
+	UpdatedAt               *time.Time
+	UserID                  string
+	Description             string
+	Name                    string
+	Seed, State             uint64
+	OptionSeed, OptionState uint64
+	Score                   uint64
+	Moves                   uint
+	Cells                   []cell.Cell
+	History                 []byte
 	PlayState
 	Rules
 }
@@ -109,10 +110,24 @@ func (p Game) Validate() error {
 		return fmt.Errorf("%w: Game.Cells should have matching lenght for board was %d for %dx%d board", ErrArgumentInvalid, len(p.Cells), p.Rules.Rows, p.Rules.Columns)
 	}
 	if p.Rules.Mode == "" {
-		return fmt.Errorf("%w: Game.Rules.Mode %s", ErrArgumentMissing, debug.Stack())
+		return fmt.Errorf("%w: Game.Rules.Mode %s", ErrArgumentMissing, dev.Stack())
 	}
 	if p.Moves > 0 && p.History == nil {
-		return fmt.Errorf("%w: Game.Rules.History %s", ErrArgumentMissing, debug.Stack())
+		return fmt.Errorf("%w: Game.Rules.History %s", ErrArgumentMissing, dev.Stack())
+	}
+	switch p.Mode {
+	case RuleModeInfiniteEasy, RuleModeInfiniteNormal, RuleModeInfiniteHard:
+		if p.OptionSeed == 0 {
+			return fmt.Errorf("%w: Game.OptionSeed is required in mode %s \n%s", ErrArgumentMissing, p.Mode, dev.Stack())
+		}
+		if p.OptionState == 0 {
+			return fmt.Errorf("%w: Game.OptionState is required in mode %s %s", ErrArgumentMissing, p.Mode, dev.Stack())
+		}
+	}
+
+	err := p.Rules.Validate()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -120,27 +135,52 @@ func (p Game) Validate() error {
 }
 
 type Rules struct {
-	ID              string
-	CreatedAt       time.Time
-	UpdatedAt       *time.Time
-	Description     string
-	Mode            RuleMode
+	ID          string
+	CreatedAt   time.Time
+	UpdatedAt   *time.Time
+	Description string
+	Mode        RuleMode
+	// The player wins if a cell reaches this value. 0 means there is not limit.
 	TargetCellValue uint64
-	TargetScore     uint64
-	MaxMoves        uint64
-	Rows            uint8
-	Columns         uint8
+	// The player wins if the score reaches this value. 0 means there is not limit.
+	TargetScore uint64
+	// The player loses if there are more moves than this. 0 means there is no limit
+	MaxMoves uint64
+	// The number of rows for the board
+	Rows uint8
+	// The number of columns for the board
+	Columns uint8
+	// How many cells that are generated at the start of the game.
+	StartingCells uint8
+	// If set, every time the player swipes, there will be a new cell.
 	RecreateOnSwipe bool
 	NoReSwipe       bool
 	NoMultiply      bool
 	NoAddition      bool
 }
 
+func (r Rules) Validate() error {
+	switch r.Mode {
+	case RuleModeInfiniteEasy, RuleModeInfiniteNormal, RuleModeInfiniteHard:
+		if r.StartingCells == 0 {
+			return fmt.Errorf("%w: Rules.StartingCells required for mode %s %s", ErrArgumentMissing, r.Mode, dev.Stack())
+		}
+	case RuleModeChallenge:
+		if r.TargetCellValue == 0 {
+			return fmt.Errorf("%w: Rules.TargetCellValue required for mode %s %s", ErrArgumentMissing, r.Mode, dev.Stack())
+		}
+	case RuleModeTutorial:
+	default:
+		return fmt.Errorf("%w: Rules.Mode %s", ErrArgumentInvalid, dev.Stack())
+	}
+	return nil
+
+}
 func (r Rules) Hash() string {
 	h := sha256.New()
 	h.Write([]byte(r.Description))
 	h.Write([]byte(r.Mode))
-	h.Write([]byte{r.Rows, r.Columns})
+	h.Write([]byte{r.Rows, r.Columns, r.StartingCells})
 	h.Write(boolsToBytes(r.RecreateOnSwipe, r.NoReSwipe, r.NoMultiply, r.NoAddition))
 	b := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(b)

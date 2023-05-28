@@ -158,12 +158,12 @@ func DefaultGameRules(sizeX, sizeY int) GameRules {
 		SizeY:           sizeY,
 		RecreateOnSwipe: true,
 		WithSuperPowers: true,
-		StartingBricks:  6,
+		StartingCells:   6,
 	}
 }
 func DefaultChallengeGameRules(sizeX, sizeY int, mode GameMode) GameRules {
 	rules := DefaultGameRules(sizeX, sizeY)
-	rules.StartingBricks = 0
+	rules.StartingCells = 0
 	rules.RecreateOnSwipe = false
 	rules.GameMode = mode
 	return rules
@@ -223,7 +223,7 @@ func (t *GameTemplate) Create() GameTemplate {
 			SizeY:           t.Rules.SizeY,
 			RecreateOnSwipe: t.Rules.RecreateOnSwipe,
 			WithSuperPowers: t.Rules.WithSuperPowers,
-			StartingBricks:  t.Rules.StartingBricks,
+			StartingCells:   t.Rules.StartingCells,
 			MaxMoves:        t.Rules.MaxMoves,
 			TargetCellValue: t.Rules.TargetCellValue,
 			TargetScore:     t.Rules.TargetScore,

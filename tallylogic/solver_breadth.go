@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/runar-rkmedia/gotally/dev"
 )
 
 type bruteBreadthSolver struct {
@@ -132,20 +134,20 @@ func (b *bruteBreadthSolver) SolveGame(g Game, quitCh chan struct{}) ([]Game, er
 
 			seen[job.hash] = struct{}{}
 			if job.depth > b.MaxDepth {
-				fmt.Println(job.Game.Print())
+				dev.Println(job.Game.Print())
 				err = NewSolverErr(fmt.Errorf("Game-seen threshold triggered (seen %d) (depth %d)", len(seen), job.depth), false)
 				cancel()
 				continue
 			}
 			// TODO: is there really a difference between this and the depth?
 			if b.MaxMoves > 0 && b.MaxMoves < (g.Moves()-g.moves) {
-				fmt.Println(job.Game.Print())
+				dev.Println(job.Game.Print())
 				err = NewSolverErr(fmt.Errorf("Max-moves threshold triggered: %d, maxmoves %d, depth %d", g.Moves(), b.MaxMoves, job.depth), true)
 				cancel()
 				continue
 			}
 			if len(seen) > b.MaxVisits {
-				fmt.Println("Original game", g.Print())
+				dev.Println("Original game", g.Print())
 				err = NewSolverErr(fmt.Errorf("Game-visits threshold triggered (seen %d) (MaxVisits %d, depth %d)", len(seen), b.MaxVisits, job.depth), false)
 				cancel()
 				continue

@@ -3,6 +3,8 @@ package tallylogic
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/runar-rkmedia/gotally/dev"
 )
 
 func NewSolutionsStats(game Game, solutions []Game) (SolutionStats, error) {
@@ -87,11 +89,11 @@ func calculateStat(original Game, solution Game) (SolutionStat, error) {
 			return s, err
 		}
 	}
-	fmt.Println("Calculating status for solution")
-	fmt.Println(original.Print())
-	fmt.Println(solution.History.Describe())
-	fmt.Printf("solutons has %d moves\n", s.Moves)
-	fmt.Printf("solutons reached a score of %d \n", s.Score)
+	dev.Println("Calculating status for solution")
+	dev.Println(original.Print())
+	dev.Println(solution.History.Describe())
+	dev.Printf("solutons has %d moves\n", s.Moves)
+	dev.Printf("solutons reached a score of %d \n", s.Score)
 
 	return s, nil
 }

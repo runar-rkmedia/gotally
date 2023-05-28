@@ -11,9 +11,11 @@ import (
 	"github.com/MarvinJWendt/testza"
 	"github.com/bufbuild/connect-go"
 	"github.com/go-test/deep"
+	"github.com/runar-rkmedia/gotally/dev"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
 	"github.com/runar-rkmedia/gotally/generated"
 	"github.com/runar-rkmedia/gotally/sqlite"
+	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
 	"gopkg.in/yaml.v3"
 )
@@ -194,7 +196,7 @@ func TestApi_Undo(t *testing.T) {
 
 		testza.AssertEqual(t, m11.Msg.Board.Cells, m1.Msg.Board.Cells)
 		m12 := ts.SwipeDown()
-		fmt.Print(m12)
+		dev.Println(m12)
 		// testza.AssertEqual(t, m12.Msg.Moves, int64(2))
 		ts.CombineCellsByIndexPath(6, 7, 8)
 		ts.Undo()
@@ -209,48 +211,78 @@ func TestApi_Undo(t *testing.T) {
 	})
 }
 func TestApi_UndoInfiniteGame(t *testing.T) {
-	ts := newTestApi(t)
-	t.Log(ts.Game().Print())
-	ts.NewGame(model.GameMode_GAME_MODE_RANDOM)
-	startGame := ts.Game()
-	dirs := []model.SwipeDirection{
-		model.SwipeDirection_SWIPE_DIRECTION_DOWN,
-		// model.SwipeDirection_SWIPE_DIRECTION_LEFT,
-		// model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
-		// model.SwipeDirection_SWIPE_DIRECTION_UP,
-		// model.SwipeDirection_SWIPE_DIRECTION_LEFT,
-		// model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
-		// model.SwipeDirection_SWIPE_DIRECTION_UP,
+	options := newTestApiOptions{
+		NewGameOptions: &tallylogic.NewGameOptions{
+			Seed:  123,
+			State: 123,
+		},
 	}
-	for _, v := range dirs {
-		ts.Swipe(v)
-		t.Log(ts.Game().Print())
-	}
-	game := ts.Game()
-	m := game.Moves()
-	{
-		seed, state := startGame.Seed()
-		t.Log("Startgame seed", seed, state)
-	}
-	{
-		seed, state := game.Seed()
-		t.Log("beforeundo seed", seed, state)
-	}
-	for i := 0; i < m; i++ {
-		ts.Undo()
-	}
+	testFunc := func(t *testing.T, shouldCreateNewGame bool) {
 
-	game = ts.Game()
-	{
-		seed, state := game.Seed()
-		t.Log("Now seed", seed, state)
-	}
-	if startGame.Print() != game.Print() {
-		t.Fatalf("Expected undo-actions to have rolled back to the beginning, but it did not match snapshot. Got: %s Snapshot: %s", game.Print(), startGame.Print())
-	}
+		t.Helper()
+		ts := newTestApi(t, options)
+		if shouldCreateNewGame {
+			ts.NewGame(model.GameMode_GAME_MODE_RANDOM)
 
-	t.Errorf("FFOFOF")
+		} else {
+			t.Log("Creating a new game, forcing seed", options.PrintSeed())
 
+		}
+		startGame := ts.Game()
+		t.Log("Startgame seed", startGame.Rules.Options.PrintSeed(), startGame.PrintWithStats())
+		{
+			optSeed := startGame.Rules.Options.PrintSeed()
+			seed := startGame.PrintSeed()
+			if optSeed == seed {
+				t.Fatalf("For Randomized/Infinite games, the starting-seed and the set opt-seed should not be equal, as startingCells should have advanced the SeedState. This probably means that the Game.Rules.Options.Seed was not set correctly. It was: %q", optSeed)
+			}
+		}
+		dirs := []model.SwipeDirection{
+			model.SwipeDirection_SWIPE_DIRECTION_DOWN,
+			model.SwipeDirection_SWIPE_DIRECTION_LEFT,
+			model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
+			model.SwipeDirection_SWIPE_DIRECTION_UP,
+			model.SwipeDirection_SWIPE_DIRECTION_LEFT,
+			model.SwipeDirection_SWIPE_DIRECTION_RIGHT,
+			model.SwipeDirection_SWIPE_DIRECTION_UP,
+		}
+		seed := ts.Game().PrintSeed()
+		for _, v := range dirs {
+			res := ts.Swipe(v, swipeOpt{allowNoChange: true})
+			if res.Msg.DidChange {
+				g := ts.Game()
+				if seed == g.PrintSeed() {
+					t.Fatalf("The game's seed should have changed after a successful swipe, but it is still the same")
+				}
+				t.Log(g.PrintWithStats())
+			}
+		}
+		game := ts.Game()
+		m := game.Moves()
+		if m == 0 {
+			t.Fatalf("Expected at least on of the swipes to work, but the move-count was still zero")
+		}
+		t.Log("Startgame seed", startGame.PrintSeed())
+		t.Log("beforeundo seed", game.PrintSeed())
+		for i := 0; i < m; i++ {
+			ts.Undo()
+		}
+
+		game = ts.Game()
+		t.Log("Now seed", game.PrintSeed())
+		if startGame.Print() != game.Print() {
+			ts.Fatalf("Expected undo-actions to have rolled back to the beginning, but it did not match snapshot. Got: %s Snapshot: %s", game.Print(), startGame.Print())
+		}
+
+	}
+	t.Run("With initial game", func(t *testing.T) {
+
+		testFunc(t, false)
+	})
+	t.Run("With calling new game", func(t *testing.T) {
+
+		testFunc(t, true)
+	})
 }
 func TestApi_Restart_After_Some_Moves(t *testing.T) {
 

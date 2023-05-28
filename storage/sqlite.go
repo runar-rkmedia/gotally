@@ -10,6 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/runar-rkmedia/go-common/logger"
+	"github.com/runar-rkmedia/gotally/dev"
 	"github.com/runar-rkmedia/gotally/sqlite"
 	"github.com/runar-rkmedia/gotally/types"
 )
@@ -20,6 +21,7 @@ type sqliteStorage struct {
 	// therefore we cache them
 	ruleCache ruleCacheSqLite
 	queries   sqlite.Queries
+	l         logger.AppLogger
 }
 
 func NewSqliteStorage(l logger.AppLogger, dsn string) (*sqliteStorage, error) {
@@ -31,6 +33,7 @@ func NewSqliteStorage(l logger.AppLogger, dsn string) (*sqliteStorage, error) {
 		db,
 		newRuleCacheSqlite(),
 		*sqlite.New(db),
+		l,
 	}
 	_, err = p.queries.InitializeDatabase(context.TODO())
 	if err != nil {
@@ -283,7 +286,10 @@ func (p *sqliteStorage) CreateGameTemplate(ctx context.Context, payload types.Cr
 // This should only be used for new users, not to log in existing users.
 func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.CreateUserSessionPayload) (sess *types.SessionUser, err error) {
 	if payload.TemplateID == "" {
-		panic("TODO: add templateid to all CreateUserSession-calls")
+		p.l.Warn().
+			Str("GameMode", payload.Game.Mode).
+			Msg("Game has now templateID. This is marked as an TODO, and will be turned into an error at a later stage")
+		// panic("TODO: add templateid to all CreateUserSession-calls")
 	}
 	ctx, span := tracerSqlite.Start(ctx, "CreateUserSession")
 	defer func() {
@@ -363,6 +369,8 @@ func (p *sqliteStorage) CreateUserSession(ctx context.Context, payload types.Cre
 		RuleID:      rule.ID,
 		Score:       int64(payload.Game.Score),
 		Moves:       int64(payload.Game.Moves),
+		OptionSeed:  toNullInt64(payload.Game.OptionSeed),
+		OptionState: toNullInt64(payload.Game.OptionState),
 		Name:        sqlString(payload.Game.Name),
 		Description: sqlString(payload.Game.Description),
 		PlayState:   playState,
@@ -395,6 +403,7 @@ func sqlString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries, r types.Rules) (sqlite.Rule, error) {
+
 	slug := r.Hash()
 	existing := p.ruleCache.getCachedRule(slug)
 	if existing != nil {
@@ -421,10 +430,10 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		// return sqlite.Rule{}, fmt.Errorf("The id of the rule cannot be empty")
 		r.ID = createID()
 	}
-	// TODO: this check may not belong here.
-	if r.Mode == types.RuleModeChallenge && r.TargetCellValue == 0 {
-		return sqlite.Rule{}, fmt.Errorf("mode %s requires TargetCellValue", r.Mode)
+	if err := r.Validate(); err != nil {
+		return sqlite.Rule{}, fmt.Errorf("failed to validate rule before inserting in ensureRuleExists: %w", err)
 	}
+
 	insertParams := sqlite.InsertRuleParams{
 		ID:              r.ID,
 		Slug:            slug,
@@ -434,6 +443,7 @@ func (p *sqliteStorage) ensureRuleExists(ctx context.Context, q *sqlite.Queries,
 		SizeX:           int64(r.Columns),
 		SizeY:           int64(r.Rows),
 		RecreateOnSwipe: r.RecreateOnSwipe,
+		StartingCells:   toNullInt64(uint64(r.StartingCells)),
 		NoReswipe:       r.NoReSwipe,
 		NoMultiply:      r.NoMultiply,
 		NoAddition:      r.NoAddition,
@@ -630,6 +640,8 @@ func (p *sqliteStorage) GetUserBySessionID(ctx context.Context, payload types.Ge
 		UserID:      tUser.ID,
 		Seed:        seed,
 		State:       state,
+		OptionState: uint64(sess.OptionState.Int64),
+		OptionSeed:  uint64(sess.OptionSeed.Int64),
 		Score:       uint64(sess.Score),
 		Moves:       uint(sess.Moves),
 		Cells:       cells,
@@ -788,7 +800,10 @@ func (p *sqliteStorage) GetOriginalGame(ctx context.Context, payload types.GetOr
 		return tg, fmt.Errorf("failed to retrieve rule with id '%s': %w", g.RuleID, err)
 	}
 	cells, seed, state, err := UnmarshalInternalDataGame(ctx, g.DataAtStart)
-	fmt.Println("Got original game", cells)
+	if err != nil {
+		return tg, fmt.Errorf("get original game: %w", err)
+	}
+	dev.Println("original game", seed, state)
 	return toTypeGame(&g, &rule, seed, state, cells, playstate)
 
 }
@@ -870,6 +885,8 @@ func (p *sqliteStorage) RestartGame(ctx context.Context, payload types.RestartGa
 		Score:       0,
 		Moves:       0,
 		History:     []byte{},
+		OptionSeed:  g.OptionSeed,
+		OptionState: g.OptionState,
 		Description: g.Description,
 		Name:        g.Name,
 		PlayState:   PlayStateCurrent,
@@ -980,6 +997,8 @@ func (p *sqliteStorage) newGameForUser(ctx context.Context, q *sqlite.Queries, t
 		Moves:       int64(payload.Game.Moves),
 		Name:        sqlString(payload.Game.Name),
 		Description: sqlString(payload.Game.Description),
+		OptionSeed:  toNullInt64(payload.Game.OptionSeed),
+		OptionState: toNullInt64(payload.Game.OptionState),
 		PlayState:   playState,
 		Data:        data,
 		DataAtStart: data,
