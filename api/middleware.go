@@ -17,18 +17,16 @@ import (
 	"time"
 
 	"github.com/bufbuild/connect-go"
-	"github.com/cip8/autoname"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/runar-rkmedia/go-common/logger"
+	"github.com/runar-rkmedia/gotally/namegenerator"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func CORSHandler() MiddleWare {
@@ -363,11 +361,10 @@ type AuthorizationOptions struct {
 	AllowDevelopmentFlags bool
 }
 
-var caser = cases.Title(language.English)
+var nameGenerator = namegenerator.NewNameGenerator()
 
 func GenerateNameForUser() string {
-	name := autoname.Generate(" ")
-	return caser.String(name)
+	return nameGenerator.Name()
 
 }
 

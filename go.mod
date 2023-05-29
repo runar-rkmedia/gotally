@@ -17,10 +17,10 @@ require (
 	github.com/prometheus/client_golang v1.13.0
 	github.com/pyroscope-io/client v0.3.0
 	github.com/runar-rkmedia/go-common v0.0.9
+	github.com/spf13/pflag v1.0.5
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.36.1
 	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/trace v1.10.0
-	golang.org/x/text v0.6.0
 	google.golang.org/genproto v0.0.0-20220930163606-c98284e70a91
 	google.golang.org/grpc v1.50.0
 	google.golang.org/protobuf v1.28.1
@@ -109,12 +109,12 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
+	golang.org/x/text v0.6.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 require (
-	github.com/cip8/autoname v1.0.1
 	github.com/flytam/filenamify v1.1.2
 	github.com/go-test/deep v1.0.8
 	github.com/google/go-cmp v0.5.9 // indirect
