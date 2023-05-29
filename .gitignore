@@ -110,3 +110,6 @@ playwright-report
 test-results
 coverage.html
 *.bench
+./namegenerator/subjectives.go
+./namegenerator/adjectives.go
+./namegenerator/superlatives.go

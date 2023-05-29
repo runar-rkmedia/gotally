@@ -39,10 +39,10 @@ frontend/node_modules: frontend/package.json
 deps_go:
 	go mod tidy
 
-# Runs buf generate
-generate:
+generate: 
 	buf generate
 	$(MAKE) sqlc
+	$(MAKE) gen-names
 # Runs sqc generation
 sqlc:
 	sqlc generate
@@ -140,3 +140,9 @@ fly: build-web
 	fly deploy 
 fly-get-db:
 	fly sftp get /app/data/db.sqlite ./data/bk-fly-$$(date +"%F-%H%M").sqlite
+
+gen-names: ./namegenerator/adjectives.go ./namegenerator/superlatives.go ./namegenerator/subjectives.go
+
+./namegenerator/adjectives.go: ./namegenerator/adjectives ./namegenerator/superlatives ./namegenerator/subjectives
+	./namegenerator/gen.sh
+
