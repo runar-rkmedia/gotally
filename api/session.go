@@ -7,6 +7,7 @@ import (
 	"github.com/bufbuild/connect-go"
 	gonanoid "github.com/jaevor/go-nanoid"
 	model "github.com/runar-rkmedia/gotally/gen/proto/tally/v1"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 func (s *TallyServer) GetSession(
@@ -26,6 +27,25 @@ func (s *TallyServer) GetSession(
 				Mode:        toModelGameMode(session.Rules.GameMode),
 			},
 		},
+	}
+	switch session.PlayState {
+	case types.PlayStateWon:
+		response.Session.Game.PlayState = model.PlayState_PLAYSTATE_WON
+	case types.PlayStateLost:
+		response.Session.Game.PlayState = model.PlayState_PLAYSTATE_LOST
+	case types.PlayStateAbandoned:
+		response.Session.Game.PlayState = model.PlayState_PLAYSTATE_ABANDONED
+	case types.PlayStateCurrent:
+		response.Session.Game.PlayState = model.PlayState_PLAYSTATE_CURRENT
+	case "":
+		s.l.Error().Str("playstate", session.PlayState).Msg("Empty PlayState")
+		if session.Game.IsGameWon() {
+			response.Session.Game.PlayState = model.PlayState_PLAYSTATE_WON
+		} else if session.Game.IsGameOver() {
+			response.Session.Game.PlayState = model.PlayState_PLAYSTATE_LOST
+		}
+	default:
+		s.l.Error().Str("playstate", session.PlayState).Msg("Unhandled PlayState")
 	}
 	res := connect.NewResponse(response)
 	return res, nil

@@ -25,6 +25,46 @@ const (
 	BoardServiceName = "tally.v1.BoardService"
 )
 
+// These constants are the fully-qualified names of the RPCs defined in this package. They're
+// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+//
+// Note that these are different from the fully-qualified method names used by
+// google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
+// reflection-formatted method names, remove the leading slash and convert the remaining slash to a
+// period.
+const (
+	// BoardServiceNewGameProcedure is the fully-qualified name of the BoardService's NewGame RPC.
+	BoardServiceNewGameProcedure = "/tally.v1.BoardService/NewGame"
+	// BoardServiceNewGameFromTemplateProcedure is the fully-qualified name of the BoardService's
+	// NewGameFromTemplate RPC.
+	BoardServiceNewGameFromTemplateProcedure = "/tally.v1.BoardService/NewGameFromTemplate"
+	// BoardServiceGetHintProcedure is the fully-qualified name of the BoardService's GetHint RPC.
+	BoardServiceGetHintProcedure = "/tally.v1.BoardService/GetHint"
+	// BoardServiceUndoProcedure is the fully-qualified name of the BoardService's Undo RPC.
+	BoardServiceUndoProcedure = "/tally.v1.BoardService/Undo"
+	// BoardServiceRestartGameProcedure is the fully-qualified name of the BoardService's RestartGame
+	// RPC.
+	BoardServiceRestartGameProcedure = "/tally.v1.BoardService/RestartGame"
+	// BoardServiceGetSessionProcedure is the fully-qualified name of the BoardService's GetSession RPC.
+	BoardServiceGetSessionProcedure = "/tally.v1.BoardService/GetSession"
+	// BoardServiceSwipeBoardProcedure is the fully-qualified name of the BoardService's SwipeBoard RPC.
+	BoardServiceSwipeBoardProcedure = "/tally.v1.BoardService/SwipeBoard"
+	// BoardServiceCombineCellsProcedure is the fully-qualified name of the BoardService's CombineCells
+	// RPC.
+	BoardServiceCombineCellsProcedure = "/tally.v1.BoardService/CombineCells"
+	// BoardServiceGenerateGameProcedure is the fully-qualified name of the BoardService's GenerateGame
+	// RPC.
+	BoardServiceGenerateGameProcedure = "/tally.v1.BoardService/GenerateGame"
+	// BoardServiceVoteBoardProcedure is the fully-qualified name of the BoardService's VoteBoard RPC.
+	BoardServiceVoteBoardProcedure = "/tally.v1.BoardService/VoteBoard"
+	// BoardServiceGetGameChallengesProcedure is the fully-qualified name of the BoardService's
+	// GetGameChallenges RPC.
+	BoardServiceGetGameChallengesProcedure = "/tally.v1.BoardService/GetGameChallenges"
+	// BoardServiceCreateGameChallengeProcedure is the fully-qualified name of the BoardService's
+	// CreateGameChallenge RPC.
+	BoardServiceCreateGameChallengeProcedure = "/tally.v1.BoardService/CreateGameChallenge"
+)
+
 // BoardServiceClient is a client for the tally.v1.BoardService service.
 type BoardServiceClient interface {
 	NewGame(context.Context, *connect_go.Request[v1.NewGameRequest]) (*connect_go.Response[v1.NewGameResponse], error)
@@ -53,62 +93,62 @@ func NewBoardServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 	return &boardServiceClient{
 		newGame: connect_go.NewClient[v1.NewGameRequest, v1.NewGameResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/NewGame",
+			baseURL+BoardServiceNewGameProcedure,
 			opts...,
 		),
 		newGameFromTemplate: connect_go.NewClient[v1.NewGameFromTemplateRequest, v1.NewGameFromTemplateResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/NewGameFromTemplate",
+			baseURL+BoardServiceNewGameFromTemplateProcedure,
 			opts...,
 		),
 		getHint: connect_go.NewClient[v1.GetHintRequest, v1.GetHintResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/GetHint",
+			baseURL+BoardServiceGetHintProcedure,
 			opts...,
 		),
 		undo: connect_go.NewClient[v1.UndoRequest, v1.UndoResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/Undo",
+			baseURL+BoardServiceUndoProcedure,
 			opts...,
 		),
 		restartGame: connect_go.NewClient[v1.RestartGameRequest, v1.RestartGameResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/RestartGame",
+			baseURL+BoardServiceRestartGameProcedure,
 			opts...,
 		),
 		getSession: connect_go.NewClient[v1.GetSessionRequest, v1.GetSessionResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/GetSession",
+			baseURL+BoardServiceGetSessionProcedure,
 			opts...,
 		),
 		swipeBoard: connect_go.NewClient[v1.SwipeBoardRequest, v1.SwipeBoardResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/SwipeBoard",
+			baseURL+BoardServiceSwipeBoardProcedure,
 			opts...,
 		),
 		combineCells: connect_go.NewClient[v1.CombineCellsRequest, v1.CombineCellsResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/CombineCells",
+			baseURL+BoardServiceCombineCellsProcedure,
 			opts...,
 		),
 		generateGame: connect_go.NewClient[v1.GenerateGameRequest, v1.GenerateGameResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/GenerateGame",
+			baseURL+BoardServiceGenerateGameProcedure,
 			opts...,
 		),
 		voteBoard: connect_go.NewClient[v1.VoteBoardRequest, v1.VoteBoardResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/VoteBoard",
+			baseURL+BoardServiceVoteBoardProcedure,
 			opts...,
 		),
 		getGameChallenges: connect_go.NewClient[v1.GetGameChallengesRequest, v1.GetGameChallengesResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/GetGameChallenges",
+			baseURL+BoardServiceGetGameChallengesProcedure,
 			opts...,
 		),
 		createGameChallenge: connect_go.NewClient[v1.CreateGameChallengeRequest, v1.CreateGameChallengeResponse](
 			httpClient,
-			baseURL+"/tally.v1.BoardService/CreateGameChallenge",
+			baseURL+BoardServiceCreateGameChallengeProcedure,
 			opts...,
 		),
 	}
@@ -213,63 +253,63 @@ type BoardServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBoardServiceHandler(svc BoardServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
 	mux := http.NewServeMux()
-	mux.Handle("/tally.v1.BoardService/NewGame", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/NewGame",
+	mux.Handle(BoardServiceNewGameProcedure, connect_go.NewUnaryHandler(
+		BoardServiceNewGameProcedure,
 		svc.NewGame,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/NewGameFromTemplate", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/NewGameFromTemplate",
+	mux.Handle(BoardServiceNewGameFromTemplateProcedure, connect_go.NewUnaryHandler(
+		BoardServiceNewGameFromTemplateProcedure,
 		svc.NewGameFromTemplate,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/GetHint", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/GetHint",
+	mux.Handle(BoardServiceGetHintProcedure, connect_go.NewUnaryHandler(
+		BoardServiceGetHintProcedure,
 		svc.GetHint,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/Undo", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/Undo",
+	mux.Handle(BoardServiceUndoProcedure, connect_go.NewUnaryHandler(
+		BoardServiceUndoProcedure,
 		svc.Undo,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/RestartGame", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/RestartGame",
+	mux.Handle(BoardServiceRestartGameProcedure, connect_go.NewUnaryHandler(
+		BoardServiceRestartGameProcedure,
 		svc.RestartGame,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/GetSession", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/GetSession",
+	mux.Handle(BoardServiceGetSessionProcedure, connect_go.NewUnaryHandler(
+		BoardServiceGetSessionProcedure,
 		svc.GetSession,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/SwipeBoard", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/SwipeBoard",
+	mux.Handle(BoardServiceSwipeBoardProcedure, connect_go.NewUnaryHandler(
+		BoardServiceSwipeBoardProcedure,
 		svc.SwipeBoard,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/CombineCells", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/CombineCells",
+	mux.Handle(BoardServiceCombineCellsProcedure, connect_go.NewUnaryHandler(
+		BoardServiceCombineCellsProcedure,
 		svc.CombineCells,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/GenerateGame", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/GenerateGame",
+	mux.Handle(BoardServiceGenerateGameProcedure, connect_go.NewUnaryHandler(
+		BoardServiceGenerateGameProcedure,
 		svc.GenerateGame,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/VoteBoard", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/VoteBoard",
+	mux.Handle(BoardServiceVoteBoardProcedure, connect_go.NewUnaryHandler(
+		BoardServiceVoteBoardProcedure,
 		svc.VoteBoard,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/GetGameChallenges", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/GetGameChallenges",
+	mux.Handle(BoardServiceGetGameChallengesProcedure, connect_go.NewUnaryHandler(
+		BoardServiceGetGameChallengesProcedure,
 		svc.GetGameChallenges,
 		opts...,
 	))
-	mux.Handle("/tally.v1.BoardService/CreateGameChallenge", connect_go.NewUnaryHandler(
-		"/tally.v1.BoardService/CreateGameChallenge",
+	mux.Handle(BoardServiceCreateGameChallengeProcedure, connect_go.NewUnaryHandler(
+		BoardServiceCreateGameChallengeProcedure,
 		svc.CreateGameChallenge,
 		opts...,
 	))

@@ -464,6 +464,9 @@ func TestApi_ShouldWin(t *testing.T) {
 		testza.AssertNoError(t, err)
 		testza.AssertEqual(t, dump.ActiveGame.PlayState, types.PlayStateWon)
 
+		session := ts.GetSession()
+		testza.AssertEqual(t, session.Msg.Session.Game.PlayState, model.PlayState_PLAYSTATE_WON, "GetSession should return that the game was won. This action is the same as the user reloading the page")
+
 	})
 }
 func TestApi_Challenges(t *testing.T) {

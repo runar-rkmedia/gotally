@@ -7,6 +7,7 @@ import (
 	"github.com/jfyne/live"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/gotally/tallylogic"
+	"github.com/runar-rkmedia/gotally/types"
 )
 
 type stupidcache struct {
@@ -42,6 +43,7 @@ type UserState struct {
 	UserID    string
 	// Current game being played
 	tallylogic.Game
+	PlayState types.PlayState
 }
 
 func NewUserState(mode tallylogic.GameMode, template *tallylogic.GameTemplate, sessionID string, options ...tallylogic.NewGameOptions) (UserState, error) {

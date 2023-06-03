@@ -314,6 +314,14 @@ func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[mo
 	testza.AssertEqual(ts.t, mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
 	return newGameResponse
 }
+func (ts *testApi) GetSession() (response *connect.Response[model.GetSessionResponse]) {
+	ts.t.Helper()
+	r, err := ts.client.GetSession(ts.context, connect.NewRequest(&model.GetSessionRequest{}))
+	if err != nil {
+		ts.t.Fatalf("Failed to get session %#v", err)
+	}
+	return r
+}
 func (ts *testApi) CombineCellsByIndexPath(indexes ...uint32) (response *connect.Response[model.CombineCellsResponse]) {
 	ts.t.Helper()
 	combineResponse, err := ts.client.CombineCells(ts.context, connect.NewRequest(&model.CombineCellsRequest{

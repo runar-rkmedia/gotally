@@ -437,6 +437,7 @@ func Authorization(store SessionStore, options AuthorizationOptions) MiddleWare 
 							return
 						}
 						userState.Game = g
+						userState.PlayState = us.ActiveGame.PlayState
 					} else {
 						l.Error().Interface("userSession", us).Msg("user does not have an active game")
 

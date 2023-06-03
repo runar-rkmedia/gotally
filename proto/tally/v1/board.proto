@@ -203,7 +203,16 @@ message Game {
   int64 moves = 4;
   GameMode mode = 5;
   string description = 6;
+  PlayState playState = 7;
 }
+
+enum PlayState {
+    PLAYSTATE_UNSPECIFIED = 0;
+    PLAYSTATE_CURRENT= 1;
+    PLAYSTATE_WON = 2;
+    PLAYSTATE_LOST = 3;
+    PLAYSTATE_ABANDONED = 4;
+  }
 
 message Session {
   Game game = 1;
