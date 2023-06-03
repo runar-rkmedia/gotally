@@ -4,11 +4,14 @@
 
 	import { Difficulty, GameMode, type NewGameRequest } from '../connect-web/proto/tally/v1/board_pb'
 	export let open: boolean
+	export let didWin: boolean
 
-	import { storeHandler, store, type Challenge } from '../connect-web/store'
+	import { newGame, storeHandler, store, type Challenge } from '../connect-web/store'
 	import BoardPreview from './BoardPreview.svelte'
 	import ChallengeCard from './ChallengeCard.svelte'
 	import Icon from './Icon.svelte'
+	import { Button } from 'flowbite-svelte'
+	import GameWon from './GameWon.svelte'
 
 	const restartGame = () => {
 		if (!$store?.session.game.moves) {
@@ -16,10 +19,7 @@
 		}
 		return storeHandler.commit(storeHandler.restartGame())
 	}
-	const newGame = async (options: PartialMessage<NewGameRequest>) => {
-		return storeHandler.commit(storeHandler.newGame(options))
-	}
-	let view: 'main' | 'challenges' | 'tutorials' | 'infinite-game' = 'challenges'
+	let view: 'main' | 'challenges' | 'tutorials' | 'infinite-game' = 'main'
 	const close = () => {
 		view = 'main'
 		open = false
@@ -28,6 +28,9 @@
 		if (open === false) {
 			view = 'main'
 		}
+	}
+	$: {
+		console.log('why did you change', view)
 	}
 	let challenges: Challenge[] = []
 	onMount(async () => {
@@ -43,63 +46,63 @@
 	})
 </script>
 
-<div class="container">
+<div class="game-menu">
+	{#if didWin}
+		<GameWon />
+	{/if}
 	{#if view === 'main'}
-		<!-- content here -->
 		<div class="buttons">
-			{#if $store.session.game.moves}
-				<div class="section">
-					<p>Restart the current game?</p>
+			<div class="section">
+				<p>Restart the current game?</p>
 
-					<button
-						disabled={$store.session.game.moves === 0}
-						data-test-id="restart-game"
-						style="--color: var(--color-orange)"
-						on:click={() => {
-							restartGame()
-							close()
-						}}
-					>
-						<Icon icon="restart" />
-						Restart
-					</button>
-				</div>
-			{/if}
+				<Button
+					disabled={$store.session.game.moves === 0}
+					data-test-id="restart-game"
+					color="purple"
+					on:click={() => {
+						restartGame()
+						close()
+					}}
+				>
+					<Icon icon="restart" />
+					Restart
+				</Button>
+			</div>
 			<div class="section">
 				<p>Need som help? How about going through the tutorial?</p>
-				<button
-					style="--color: var(--color-yellow)"
+				<Button
 					on:click={() => {
-						newGame({ mode: GameMode.TUTORIAL })
+						newGame({ mode: GameMode.TUTORIAL, variant: { case: 'levelIndex', value: 0 } })
 						close()
 					}}
 				>
 					<Icon icon="tutorial" />
-					New Tutorial</button
+					New Tutorial</Button
 				>
 			</div>
 			<div class="section">
 				<p>Ready for a challenge? These are also great for learning new strategies!</p>
-				<button
-					style="--color: var(--color-green)"
+				<Button
+					color="green"
 					on:click={() => {
+						console.log('why????')
 						view = 'challenges'
 					}}
 				>
 					<Icon icon="challenge" />
-					New Challenge</button
+					New Challenge</Button
 				>
 			</div>
 			<div class="section">
 				<p>How far can you go?</p>
-				<button
-					style="--color: var(--color-blue)"
+				<Button
+					color="blue"
 					on:click={() => {
 						view = 'infinite-game'
 					}}
 				>
 					<Icon icon="infinite" />
-					New Infinite game</button
+					New Infinite game</Button
 				>
 			</div>
 		</div>
@@ -108,8 +111,8 @@
 		<div class="buttons">
 			<div class="section">
 				<p>For newcomers to the game</p>
-				<button
-					style="--color: var(--color-blue)"
+				<Button
+					color="blue"
 					on:click={() => {
 						newGame({
 							mode: GameMode.RANDOM,
@@ -119,13 +122,13 @@
 							},
 						})
 						close()
-					}}>Easy</button
+					}}>Easy</Button
 				>
 			</div>
 			<div class="section">
 				<p>As the game is intended to be played</p>
-				<button
-					style="--color: var(--color-green)"
+				<Button
+					color="green"
 					on:click={() => {
 						newGame({
 							mode: GameMode.RANDOM,
@@ -135,13 +138,13 @@
 							},
 						})
 						close()
-					}}>Medium</button
+					}}>Medium</Button
 				>
 			</div>
 			<div class="section">
 				<p>Tough and unfair</p>
-				<button
-					style="--color: var(--color-orange)"
+				<Button
+					color="red"
 					on:click={() => {
 						newGame({
 							mode: GameMode.RANDOM,
@@ -151,11 +154,12 @@
 							},
 						})
 						close()
-					}}>Hard</button
+					}}>Hard</Button
 				>
 			</div>
 		</div>
 	{:else if view === 'challenges'}
+		<Button on:click={() => (view = 'main')}>Back</Button>
 		<div class="cards">
 			{#each challenges as c}
 				<div class="card">
@@ -178,20 +182,20 @@
 	{/if}
 	<div class="section">
 		<p>Back to the game</p>
-		<button
-			style="--color: var(--color-gray-700)"
+		<Button
+			color="alternative"
 			on:click={() => {
 				close()
 			}}
 		>
 			<Icon icon="play" />
-			Continue</button
+			Continue</Button
 		>
 	</div>
 </div>
 
 <style lang="scss">
-	.container {
+	.game-menu {
 		margin-top: env(titlebar-area-height);
 		padding: var(--size-8);
 		display: flex;
@@ -204,8 +208,8 @@
 	.buttons {
 		margin-block-start: var(--size-8);
 		display: grid;
-		grid-template-columns: 1fr;
 		gap: var(--size-4);
+		grid-template-columns: 1fr 1fr;
 	}
 	.section {
 		border: 2px solid white;
@@ -220,33 +224,6 @@
 		padding-block-end: 16px;
 	}
 
-	.quote {
-		font-size: var(--scale-fluid-3);
-		margin-inline: auto;
-	}
-	.buttons button {
-		font-size: 15px;
-		padding: 0.7em 2.7em;
-		letter-spacing: 0.06em;
-		font-family: inherit;
-		border-radius: 0.6em;
-		overflow: hidden;
-		transition: all 0.3s;
-		line-height: 1.4em;
-		border: 2px solid var(--color);
-		background: linear-gradient(
-			to right,
-			rgba(27, 253, 156, 0.1) 1%,
-			transparent 40%,
-			transparent 60%,
-			rgba(27, 253, 156, 0.1) 100%
-		);
-		color: var(--color);
-		box-shadow: inset 0 0 10px rgba(27, 253, 156, 0.4), 0 0 9px 3px rgba(27, 253, 156, 0.1);
-		&:disabled {
-			color: var(--color-gray-400);
-		}
-	}
 	.cards {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -264,7 +241,7 @@
 		.buttons {
 			grid-template-columns: 1fr;
 		}
-		.container {
+		.game-menu {
 			padding: var(--size-2);
 			/* gap: var(--size-4); */
 		}
@@ -276,9 +253,5 @@
 		.section p {
 			padding-block-end: var(--size-0);
 		}
-	}
-	.preview {
-		overflow: hidden;
-		border: 1px solid var(--color-black);
 	}
 </style>

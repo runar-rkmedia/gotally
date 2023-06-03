@@ -2,7 +2,12 @@ import type { ConnectError, CallOptions } from '@bufbuild/connect-web'
 import type Buf from '@bufbuild/protobuf'
 import { writable } from 'svelte/store'
 import { client, go, handleError, type GoPromise } from './client'
-import type { Instruction, SwipeDirection } from './proto/tally/v1/board_pb'
+import {
+	PlayState,
+	type Instruction,
+	type NewGameRequest,
+	type SwipeDirection,
+} from './proto/tally/v1/board_pb'
 import type Api from './proto/tally/v1/board_pb'
 import { objectKeys } from 'simplytyped'
 import type { Message, PartialMessage } from '@bufbuild/protobuf'
@@ -44,11 +49,11 @@ type Primitive = string | number | bigint | boolean | null | undefined
 
 type Replaced<T, TReplace, TWith, TKeep = Primitive> = T extends TReplace | TKeep
 	? T extends TReplace
-		? TWith | Exclude<T, TReplace>
-		: T
+	? TWith | Exclude<T, TReplace>
+	: T
 	: {
-			[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
-	  }
+		[P in keyof T]: Replaced<T[P], TReplace, TWith, TKeep>
+	}
 
 const strip = <ReturnType>(obj: any): ReturnType => {
 	const {
@@ -458,7 +463,11 @@ class ApiStore implements ApiType {
 		}
 		const result = strip<Session>(_session)
 		const commit = async () => {
-			store.update((s) => ({ ...s, session: result as any }))
+			store.update((s) => ({
+				...s,
+				didWin: result.game.playState === PlayState.PLAYSTATE_WON,
+				session: result as any,
+			}))
 		}
 		return [result, commit, err]
 	}
@@ -537,6 +546,9 @@ export type HttpStateStore = {
 }
 
 export const storeHandler: ApiType = new ApiStore()
+export const newGame = async (options: PartialMessage<NewGameRequest>) => {
+	return storeHandler.commit(storeHandler.newGame(options))
+}
 export const httpStateStore = writable<HttpStateStore>({
 	loading: objectKeys(storeHandler).reduce(
 		(r, k) => ({ ...r, [k]: 0 }),

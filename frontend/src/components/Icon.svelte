@@ -33,6 +33,9 @@
 	// your script goes here
 
 	const getColor = (color: Color) => {
+		if (!color) {
+			return 'currentColor'
+		}
 		switch (color) {
 			case 'primary':
 			case 'secondary':
@@ -46,38 +49,59 @@
 	}
 	$: c = (color && getColor(color)) || 'currentColor'
 	let size = '1.8em'
-	// https://lucide.dev/?search=
+	let Ic = Cog
+
+	switch (icon) {
+		case 'settings':
+			Ic = Cog
+			break
+		case 'help':
+			Ic = HelpCircle
+			break
+		case 'undo':
+			Ic = Undo2
+			break
+		case 'tutorial':
+			Ic = GraduationCapIcon
+			break
+		case 'challenge':
+			Ic = Sword
+			break
+		case 'infinite':
+			Ic = InfinityIcon
+			break
+		case 'restart':
+			Ic = RefreshCcw
+			break
+		case 'continue':
+			Ic = RefreshCcw
+			break
+		case 'github':
+			Ic = GithubIcon
+			break
+		case 'play':
+			Ic = PlayIcon
+			break
+		case 'star':
+			Ic = StarIcon
+			break
+		case 'star-half':
+			Ic = StarHalfIcon
+			break
+		case 'lock':
+			Ic = LockIcon
+			break
+		default:
+			throw new Error('unmapped icon ' + icon)
+	}
 </script>
 
-{#if icon === 'settings'}
-	<Cog color={c} {size} />
-{:else if icon === 'help'}
-	<HelpCircle color={c} {size} />
-{:else if icon === 'undo'}
-	<Undo2 color={c} {size} />
-{:else if icon === 'tutorial'}
-	<GraduationCapIcon color={c} {size} />
-{:else if icon === 'challenge'}
-	<Sword color={c} {size} />
-{:else if icon === 'infinite'}
-	<InfinityIcon color={c} {size} />
-{:else if icon === 'restart'}
-	<RefreshCcw color={c} {size} />
-{:else if icon === 'continue'}
-	<RefreshCcw color={c} {size} />
-{:else if icon === 'github'}
-	<GithubIcon color={c} {size} />
-{:else if icon === 'play'}
-	<PlayIcon color={c} {size} />
-{:else if icon === 'star'}
-	<StarIcon color={c} {size} />
-{:else if icon === 'star-half'}
-	<StarHalfIcon color={c} {size} />
-{:else if icon === 'lock'}
-	<LockIcon color={c} {size} />
-{:else}
-	No icon named {icon}
-{/if}
+<Ic
+	color={c}
+	{size}
+	class={$$props.class === undefined ? 'mr-2 -ml-1 w-5 h-5' : $$props.class}
+	{...$$props}
+/>
 
 <style>
 	:global(svg) {

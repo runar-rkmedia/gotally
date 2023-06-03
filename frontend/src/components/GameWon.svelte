@@ -1,14 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
 
-	import { GameMode } from '../connect-web'
-
 	import { store, storeHandler } from '../connect-web/store'
 	import FancyText from './FancyText.svelte'
 
-	import Giphy from './Giphy.svelte'
-	import Pyro from './Pyro.svelte'
-	export let open = true
 	let seed = 0
 	let userName = ''
 	function newSeed() {
@@ -62,6 +57,7 @@
 		[4, '😊', 'Good'],
 		[5, '🤗', 'Great'],
 	] as const
+	let enableVote = false
 </script>
 
 <div class="wrapper">
@@ -74,12 +70,7 @@
 
 	<p>You are a fantastic person and deserve a big hug!</p>
 
-	{#if open}
-		<!-- Pyro component is a bit expensive to mount, so we don't preload it -->
-		<Pyro />
-	{/if}
-	<hr />
-	{#if $store.session.game.board?.id}
+	{#if enableVote && $store.session.game.board?.id}
 		<p>Would you like to have your nickname on the scoreboard?</p>
 
 		<form on:submit|preventDefault={submitToBoard}>
@@ -118,20 +109,7 @@
 				{/each}
 			</div>
 		{/if}
-		<hr />
 	{/if}
-
-	<button on:click={() => storeHandler.commit(storeHandler.newGame({ mode: GameMode.RANDOM }))}
-		>New Random game</button
-	>
-	<button on:click={() => storeHandler.commit(storeHandler.newGame({ mode: GameMode.TUTORIAL }))}
-		>New Tutorial</button
-	>
-	<button
-		on:click={() => storeHandler.commit(storeHandler.newGame({ mode: GameMode.RANDOM_CHALLENGE }))}
-		>New Challenge</button
-	>
-	<Giphy tag={tag.gif || tag.headline} />
 </div>
 
 <style>

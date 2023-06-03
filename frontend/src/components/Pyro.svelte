@@ -1,8 +1,9 @@
 <script lang="ts">
 	// By Eddie Lin https://codepen.io/yshlin/pen/WNMmQX
+	let speed = Math.floor(Math.random() * 500) + 750
 </script>
 
-<div class="pyro">
+<div class="pyro" style={`--a: ${speed}ms;`}>
 	<div class="before" />
 	<div class="after" />
 </div>
@@ -32,29 +33,13 @@
 			244px -170.66667px #0062ff, 224px -142.66667px #b300ff, 141px -208.66667px #9000ff,
 			211px -285.66667px #ff6600, 181px -128.66667px #1e00ff, 90px -123.66667px #c800ff,
 			189px 70.33333px #00ffc8, -18px -383.66667px #00ff33, 100px -6.66667px #ff008c;
-		-moz-animation: 1s bang ease-out infinite backwards, 1s gravity ease-in infinite backwards,
-			5s position linear infinite backwards;
-		-webkit-animation: 1s bang ease-out infinite backwards, 1s gravity ease-in infinite backwards,
-			5s position linear infinite backwards;
-		-o-animation: 1s bang ease-out infinite backwards, 1s gravity ease-in infinite backwards,
-			5s position linear infinite backwards;
-		-ms-animation: 1s bang ease-out infinite backwards, 1s gravity ease-in infinite backwards,
-			5s position linear infinite backwards;
 		animation: 1s bang ease-out infinite backwards, 1s gravity ease-in infinite backwards,
 			5s position linear infinite backwards;
 	}
 
 	.pyro > .after {
-		-moz-animation-delay: 1.25s, 1.25s, 1.25s;
-		-webkit-animation-delay: 1.25s, 1.25s, 1.25s;
-		-o-animation-delay: 1.25s, 1.25s, 1.25s;
-		-ms-animation-delay: 1.25s, 1.25s, 1.25s;
-		animation-delay: 1.25s, 1.25s, 1.25s;
-		-moz-animation-duration: 1.25s, 1.25s, 6.25s;
-		-webkit-animation-duration: 1.25s, 1.25s, 6.25s;
-		-o-animation-duration: 1.25s, 1.25s, 6.25s;
-		-ms-animation-duration: 1.25s, 1.25s, 6.25s;
-		animation-duration: 1.25s, 1.25s, 6.25s;
+		animation-delay: var(--a), var(--a), var(--a);
+		animation-duration: var(--a), var(--a), calc(var(--a) * 5);
 	}
 
 	@-webkit-keyframes bang {

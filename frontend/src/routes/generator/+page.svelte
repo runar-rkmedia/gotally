@@ -482,4 +482,7 @@
 	.tips {
 		padding: var(--size-4);
 	}
+	input {
+		color: blue;
+	}
 </style>

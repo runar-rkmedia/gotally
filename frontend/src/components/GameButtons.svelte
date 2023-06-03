@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte'
 	import Icon from './Icon.svelte'
+	import { GradientButton as Button } from 'flowbite-svelte'
 
 	const dispatch = createEventDispatcher()
 	export let didWin: boolean
@@ -8,29 +9,24 @@
 </script>
 
 <div class="bottom-controls">
-	<button data-testid="undo" on:click={() => dispatch('undo')} disabled={didWin || moves <= 0}>
-		<Icon icon="undo" color="white" /> Undo
-	</button>
-	<button data-testid="hint" on:click={() => dispatch('hint')} disabled={didWin}>
-		<Icon icon="help" color="white" /> Hint
-	</button>
+	<Button
+		color="greenToBlue"
+		size="xl"
+		on:click={() => dispatch('undo')}
+		disabled={didWin || moves <= 0}
+	>
+		<Icon icon="undo" /> Undo
+	</Button>
+	<Button color="red" size="xl" on:click={() => dispatch('hint')} disabled={didWin}>
+		<Icon icon="help" /> Hint
+	</Button>
 </div>
 
 <style>
 	.bottom-controls {
 		display: flex;
 		justify-content: center;
-		flex-direction: column;
-	}
-	button:disabled {
-		opacity: 0.4;
-	}
-	button {
-		cursor: pointer;
-		transition: opacity 70ms var(--easing-standard);
-		min-width: 52px;
-		min-height: 52px;
-		color: var(--color-white);
-		background-color: var(--color-primary);
+		flex-direction: row;
+		gap: var(--size-2);
 	}
 </style>

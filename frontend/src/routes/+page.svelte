@@ -6,7 +6,7 @@
 	import { browser } from '$app/environment'
 	import { animateSwipe, coordToIndex, createSelectionDirectionMap, ValidatePath } from '../logic'
 	import type { PartialMessage } from '@bufbuild/protobuf/dist/types/message'
-	import { ErrNoChange, store, storeHandler } from '../connect-web/store'
+	import { newGame, ErrNoChange, store, storeHandler } from '../connect-web/store'
 	import SwipeHint from '../components/board/SwipeHint.svelte'
 	import Board from '../components/Board.svelte'
 	import GameWon from '../components/GameWon.svelte'
@@ -19,6 +19,8 @@
 	import GameHeader from '../components/GameHeader.svelte'
 	import GameButtons from '../components/GameButtons.svelte'
 	import SelectionInfo from '../components/SelectionInfo.svelte'
+	import Pyro from '../components/Pyro.svelte'
+	import { Button, GradientButton } from 'flowbite-svelte'
 
 	$: {
 		// when user wins a game, refresh the challenge
@@ -37,6 +39,7 @@
 		return storeHandler.commit(storeHandler.undo())
 	}
 	let lastNumberKey: number | null = null
+	let tutorialIndex = 0
 
 	const selectByNumber = (n: number) => {
 		// Threat as if the coordinate-system starts at 1
@@ -416,14 +419,31 @@
 	}
 	let didDrag: Date | null = null
 	let canSelectNonNeighbours = false
+	/** When the user wins, the menu should automatically open, with a message indicating this.
+	 * But the user should also be able to close that menu.
+	 * This property is here to track that the menu is automatically opened at most once per game.
+	 */
+	let didOpenForWin = false
+	let openMenuForWin = false
+	$: $store.didWin,
+		(() => {
+			if (!openMenuForWin) {
+				return
+			}
+			if (!$store.didWin) {
+				return
+			}
+			if (didOpenForWin) {
+				return
+			}
+			didOpenForWin = true
+			showGameMenu = true
+		})()
 </script>
 
 {#if $store?.session?.game?.board}
-	<Dialog bind:open={$store.didWin} let:open>
-		<GameWon {open} />
-	</Dialog>
 	<Dialog bind:open={showGameMenu}>
-		<GameMenu bind:open={showGameMenu} />
+		<GameMenu bind:open={showGameMenu} didWin={$store.didWin} />
 	</Dialog>
 {/if}
 <div class="gameView">
@@ -436,6 +456,9 @@
 					instruction={nextHint?.instructionOneof.value}
 					active={nextHint?.instructionOneof.case === 'swipe'}
 				/>
+			{/if}
+			{#if $store.didWin}
+				<Pyro />
 			{/if}
 			<Board {select} {selection} {selectionMap} {resetSelection} {isSwiping} bind:boardDiv {swipe}>
 				{#each $store.session.game.board.cells as c, i}
@@ -531,10 +554,34 @@
 			</Board>
 		</div>
 		<SelectionInfo {selectionProduct} {selectionSum} {lastSelectionValue} />
+		{#if $store.didWin}
+			<h4>You won! Great job!</h4>
+			{#if $store.session.game.mode === GameMode.TUTORIAL}
+				<Button
+					on:click={() => {
+						tutorialIndex++
+						newGame({
+							mode: GameMode.TUTORIAL,
+							variant: { case: 'levelIndex', value: tutorialIndex },
+						})
+					}}>Next</Button
+				>
+			{:else}
+				<GradientButton
+					color="greenToBlue"
+					on:click={() => {
+						showGameMenu = true
+					}}>Menu</GradientButton
+				>
+			{/if}
+		{/if}
 
 		<p>
 			{$store.session.game.description}
 		</p>
+		{#if $store.didWin}
+			<Pyro />
+		{/if}
 		<GameButtons
 			on:undo={() => undo()}
 			on:hint={() => getHint()}
