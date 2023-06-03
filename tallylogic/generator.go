@@ -255,19 +255,23 @@ func (gb GameGenerator) GenerateGame(ctx context.Context) (Game, []Game, error) 
 		expectedToBeDone := time.Duration(float64(gb.MaxIterations)/ratePerSecond) * time.Second
 		expectedToBeDoneAt := start.Add(expectedToBeDone)
 		uniques := len(jobHash)
-		_, err := writer.WriteString(
-			fmt.Sprintf("[%5.1f%% in %s (%s)] %.2f g/s. Unique: %d Skipped: %d, Failure: %5.1f%%, ErrorMap: %v\n",
-				perc*100,
-				(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
-				expectedToBeDoneAt.Format("15:04:05"),
-				ratePerSecond,
-				uniques,
-				skipped,
-				float64(errorCount)/float64(total)*100,
-				errors),
-		)
-		if err != nil {
-			panic(err)
+		if sinceStart > time.Second {
+
+			_, err := writer.WriteString(
+				fmt.Sprintf("[%5.1f%% in % 12s (%s)] % 8.2f g/s. Found: % 6d Unique: % 12d Skipped: % 12d, Failure: % 12.1f%%, ErrorMap: %v\n",
+					perc*100,
+					(expectedToBeDone - sinceStart).Round(100*time.Millisecond).String(),
+					expectedToBeDoneAt.Format("15:04:05"),
+					ratePerSecond,
+					solvableGames,
+					uniques,
+					skipped,
+					float64(errorCount)/float64(total)*100,
+					errors),
+			)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 	ticker := time.NewTicker(time.Millisecond * 500)

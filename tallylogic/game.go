@@ -320,7 +320,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 		game.Rules.Options.Seed = seed
 		game.Rules.Options.State = state
 	}
-	dev.Println("RANDOMIZERD", game.PrintSeed(), game.Rules.Options.PrintSeed())
 	switch mode {
 	case GameModeRandom:
 		board := NewTableBoard(game.Rules.SizeX, game.Rules.SizeY, game.Rules.Options.TableBoardOptions)
@@ -364,7 +363,6 @@ func NewGame(mode GameMode, template *GameTemplate, options ...NewGameOptions) (
 			game.generateCellToEmptyCell()
 		}
 	}
-	dev.Println("new game created", game.PrintWithStats())
 	game.Hinter = NewHintCalculator(game.board, game.board, game.board)
 	if len(game.board.Cells()) != (game.Rules.SizeX * game.Rules.SizeY) {
 		return game, fmt.Errorf("Game has invalid size: %d cells, %dx%d, mode %v template %v", len(game.board.Cells()), game.Rules.SizeX, game.Rules.SizeY, mode, template)
