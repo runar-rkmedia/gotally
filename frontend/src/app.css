@@ -1,0 +1,15 @@
+/* Write your global styles here, in PostCSS syntax */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+	@font-face {
+		/* --font-sans: 'Recharge', 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', */
+		/* 	'Lucida Sans Unicode', Geneva, Verdana, sans-serif; */
+		font-family: 'Recharge';
+		font-display: fallback;
+		font-style: normal;
+		font-weight: 500;
+		src: local('Recharge'), url('/fonts/recharge_bd.otf');
+	}
+}

@@ -11,6 +11,18 @@ const config = {
 
 	theme: {
 		extend: {
+			fontFamily: {
+				sans: [
+					'Recharge',
+					'Lucida Sans',
+					'Lucida Sans Regular',
+					'Lucida Grande',
+					'Lucida Sans Unicode',
+					'Geneva',
+					'Verdana',
+					'sans-serif',
+				],
+			},
 			colors: {
 				// flowbite-svelte
 				primary: {

@@ -1,5 +1,5 @@
 <script>
-	import '../app.postcss'
+	import '../app.css'
 	export const ssr = false
 	import 'pollen-css'
 	import { httpErrorStore } from '../connect-web'
@@ -35,10 +35,6 @@
 		--color-danger: var(--color-orange-500);
 		--color-error: var(--color-red-500);
 		--color-white: var(--color-grey-50);
-	}
-	:global(body) {
-		font-family: 'Rechage', 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande',
-			'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
 	}
 	.errors {
 		position: fixed;

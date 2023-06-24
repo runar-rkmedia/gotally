@@ -4,12 +4,15 @@ import {
 	type Interceptor,
 	type ConnectTransportOptions,
 	Code,
+	type UnaryResponse,
+	type StreamResponse,
 } from '@bufbuild/connect-web'
 import { BoardService } from './'
 import { ConnectError } from '@bufbuild/connect-web'
 import * as appEnv from '$app/environment'
 import { writable } from 'svelte/store'
 import type { ApiType } from './store'
+import type { AnyMessage } from '@bufbuild/protobuf'
 
 const state = {
 	authHeader: appEnv.browser && localStorage.getItem('sessionID'),
@@ -27,12 +30,58 @@ export const httpErrorStore = writable<ErrorStore>({ errors: [] })
 
 const retrier: Interceptor =
 	(next, retries = 0) =>
-	async (req) => {
-		try {
+		async (req) => {
 			if (state.authHeader) {
 				req.header.set('Authorization', state.authHeader)
 			}
-			const res = await next(req)
+			const [res, err] = await go(next(req))
+			if (err) {
+				if (err instanceof ConnectError) {
+					console.log('!!connecterr', err.cause, err)
+					// TODO: lookup the docs here. Seems a bit strange that this is not decoded.
+					for (const d of err.details) {
+						// The observed value here is ascii 6,10(Acknowledge, Line Feed) followed by plain message
+						console.log('detail', d, d.value.toString(), new TextDecoder().decode(d.value))
+					}
+					console.dir({ CONNECTOERR: err, headers: [...err.metadata.entries()] }, { depth: null })
+					switch (err.code) {
+						case Code.NotFound:
+					}
+				}
+				if (err instanceof Error) {
+					httpErrorStore.update((e) => ({
+						...e,
+						errors: [{ time: new Date(), error: err as any, url: req.url }],
+					}))
+					setTimeout(() => {
+						const cutoff = new Date().getTime() - 10000
+						httpErrorStore.update((e) => ({
+							...e,
+							errors: e.errors.filter((err) => err.time.getTime() > cutoff),
+						}))
+					}, 10500)
+					if (err.message.includes('NetworkError')) {
+						const waitPeriod = Math.min(100 * retries, 3000)
+						await new Promise((r) => setTimeout(r, waitPeriod))
+						return (retrier as any)(next, ++retries)(req)
+					} else if (err instanceof ConnectError) {
+						switch (err.code) {
+							case Code.Unauthenticated: {
+								if (appEnv.browser) {
+									localStorage.removeItem('sessionID')
+									state.authHeader = ''
+									req.header.delete('Authorization')
+									if (retries < 5) {
+										return (retrier as any)(next, ++retries)(req)
+									}
+								}
+							}
+						}
+					}
+				}
+
+				throw err
+			}
 			if (appEnv.browser) {
 				const authHeader = res.header.get('Authorization')
 				if (authHeader) {
@@ -47,7 +96,7 @@ const retrier: Interceptor =
 					...res,
 
 					async read() {
-						const msg = await res.read()
+						const msg = res.stream && (await res.read())
 						console.debug('streaming response', msg)
 						return msg
 					},
@@ -58,42 +107,7 @@ const retrier: Interceptor =
 				errors: e.errors.filter((err) => err.url === req.url),
 			}))
 			return res
-		} catch (err: unknown) {
-			if (err instanceof Error) {
-				httpErrorStore.update((e) => ({
-					...e,
-					errors: [{ time: new Date(), error: err as any, url: req.url }],
-				}))
-				setTimeout(() => {
-					const cutoff = new Date().getTime() - 10000
-					httpErrorStore.update((e) => ({
-						...e,
-						errors: e.errors.filter((err) => err.time.getTime() > cutoff),
-					}))
-				}, 10500)
-				if (err.message.includes('NetworkError')) {
-					const waitPeriod = Math.min(100 * retries, 3000)
-					await new Promise((r) => setTimeout(r, waitPeriod))
-					return (retrier as any)(next, ++retries)(req)
-				} else if (err instanceof ConnectError) {
-					switch (err.code) {
-						case Code.Unauthenticated: {
-							if (appEnv.browser) {
-								localStorage.removeItem('sessionID')
-								state.authHeader = ''
-								req.header.delete('Authorization')
-								if (retries < 5) {
-									return (retrier as any)(next, ++retries)(req)
-								}
-							}
-						}
-					}
-				}
-			}
-
-			throw err
 		}
-	}
 
 const isHttps = appEnv.browser && document.location.protocol.includes('https')
 const isTest = (appEnv as any).mode === 'test'
@@ -103,13 +117,13 @@ const transportOptions: ConnectTransportOptions = {
 		(isHttps
 			? '/'
 			: import.meta.env?.VITE_DEV_API ||
-			  `http://${appEnv.browser ? window.location.hostname : 'localhost'}:8080/`),
+			`http://${appEnv.browser ? window.location.hostname : 'localhost'}:8080/`),
 	interceptors: [retrier],
 	useBinaryFormat: isTest
 		? false
 		: appEnv.browser
-		? !window.location.search.includes('json=1')
-		: true,
+			? !window.location.search.includes('json=1')
+			: true,
 }
 console.debug({ transportOptions, meta: import.meta, appEnv })
 
