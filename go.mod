@@ -7,10 +7,11 @@ require (
 	github.com/XSAM/otelsql v0.16.0
 	github.com/bufbuild/connect-go v1.0.0
 	github.com/carlmjohnson/versioninfo v0.22.4
+	github.com/ghodss/yaml v1.0.0
 	github.com/gookit/color v1.5.2
 	github.com/honeycombio/honeycomb-opentelemetry-go v0.2.0
 	github.com/honeycombio/opentelemetry-go-contrib/launcher v0.0.0-20220824095536-e0b3dd3fbfe7
-	github.com/jfyne/live v0.15.2
+	github.com/jaswdr/faker v1.18.0
 	github.com/keith-turner/ecoji/v2 v2.0.1
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/mattn/go-sqlite3 v1.14.15
@@ -21,7 +22,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.36.1
 	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/trace v1.10.0
-	golang.org/x/text v0.6.0
+	golang.org/x/text v0.9.0
 	google.golang.org/genproto v0.0.0-20220930163606-c98284e70a91
 	google.golang.org/grpc v1.50.0
 	google.golang.org/protobuf v1.28.1
@@ -43,7 +44,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -109,7 +109,7 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
-	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
+	golang.org/x/term v0.6.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
@@ -118,17 +118,10 @@ require (
 	github.com/cip8/autoname v1.0.1
 	github.com/flytam/filenamify v1.1.2
 	github.com/go-test/deep v1.0.8
-	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/gorilla/securecookie v1.1.1 // indirect
-	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/jaevor/go-nanoid v1.3.0
-	github.com/klauspost/compress v1.15.11 // indirect
-	github.com/rs/xid v1.4.0 // indirect
 	github.com/runar-rkmedia/skiver v0.8.3
 	github.com/xo/dburl v0.12.4
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/net v0.0.0-20221004154528-8021a29435af
-	golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875 // indirect
-	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
-	nhooyr.io/websocket v1.8.7 // indirect
+	golang.org/x/net v0.8.0
+	golang.org/x/sys v0.6.0 // indirect
 )
