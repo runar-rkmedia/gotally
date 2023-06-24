@@ -213,10 +213,19 @@ func (tb TableBoard) Hash() string {
 }
 
 func (tb TableBoard) cellRow(i int) int {
-	return i / tb.columns
+	return cellRow(i, tb.columns)
+}
+func cellRow(i, columns int) int {
+	return i / columns
 }
 func (tb TableBoard) cellColumn(i int) int {
-	return i % tb.columns
+	return cellColumn(i, tb.columns)
+}
+func cellColumn(i, columns int) int {
+	return i % columns
+}
+func IndexToCord(i, columns int) (column int, row int) {
+	return cellColumn(i, columns), cellRow(i, columns)
 }
 func (tb TableBoard) IndexToCord(i int) (column int, row int) {
 	return tb.cellColumn(i), tb.cellRow(i)
@@ -529,18 +538,21 @@ func (pp NegCellRange) Len() int           { return len(pp) }
 func (pp NegCellRange) Swap(i, j int)      { pp[i], pp[j] = pp[j], pp[i] }
 
 func (tb TableBoard) AreNeighboursByIndex(a, b int) bool {
+	return AreNeighboursByIndex(a, b, tb.rows, tb.columns)
+}
+func AreNeighboursByIndex(a, b, rows, columns int) bool {
 	if a == b {
 		return false
 	}
 	if a < 0 || b < 0 {
 		return false
 	}
-	max := len(tb.cells)
+	max := rows * columns
 	if a >= max || b >= max {
 		return false
 	}
-	ac, ar := tb.IndexToCord(a)
-	bc, br := tb.IndexToCord(b)
+	ac, ar := IndexToCord(a, columns)
+	bc, br := IndexToCord(b, columns)
 
 	diffc := ac - bc
 	diffr := ar - br
