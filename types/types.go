@@ -3,6 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -178,20 +179,46 @@ func (r Rules) Validate() error {
 }
 func (r Rules) Hash() string {
 	h := sha256.New()
-	h.Write([]byte(r.Description))
-	h.Write([]byte(r.Mode))
+	if r.Description != "" {
+		h.Write([]byte(r.Description))
+	} else {
+		h.Write([]byte{0x01})
+	}
+	if r.Mode != "" {
+		h.Write([]byte(r.Mode))
+	} else {
+		h.Write([]byte{0x02})
+	}
 	h.Write([]byte{r.Rows, r.Columns, r.StartingCells})
-	h.Write(boolsToBytes(r.RecreateOnSwipe, r.NoReSwipe, r.NoMultiply, r.NoAddition))
+	{
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(r.TargetCellValue))
+		h.Write(b)
+	}
+	{
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(r.TargetScore))
+		h.Write(b)
+	}
+	{
+		b := make([]byte, 8)
+		binary.LittleEndian.PutUint64(b, uint64(r.MaxMoves))
+		h.Write(b)
+	}
+	h.Write(boolsToBytes(false, r.RecreateOnSwipe, r.NoReSwipe, r.NoMultiply, r.NoAddition))
 	b := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func boolsToBytes(t ...bool) []byte {
+func boolsToBytes(debug bool, t ...bool) []byte {
 	b := make([]byte, (len(t)+7)/8)
 	for i, x := range t {
 		if x {
 			b[i/8] |= 0x80 >> uint(i%8)
 		}
+	}
+	if debug {
+		fmt.Println("bools", t, b)
 	}
 	return b
 }
