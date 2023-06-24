@@ -112,9 +112,12 @@ func (ic IndexedCells) PrintIndexes(targetIndex int) string {
 }
 
 func NewIndexedCells(cells []cell.Cell) IndexedCells {
-	values := make(IndexedCells, len(cells))
+	values := IndexedCells{}
 	for i := 0; i < len(cells); i++ {
-		values[i] = cellIndex{value: cells[i].Value(), index: i}
+		if cells[i].IsEmpty() {
+			continue
+		}
+		values = append(values, cellIndex{value: cells[i].Value(), index: i})
 	}
 	return values
 
