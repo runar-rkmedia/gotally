@@ -129,14 +129,16 @@ func toTypeMode(mode logic.GameMode) types.RuleMode {
 	}
 	return ""
 }
-func toModelInstruction(instructions logic.CompactHistory) ([]*model.Instruction, error) {
+func toModelInstruction(instructions logic.CompactHistory, offset int) ([]*model.Instruction, error) {
 	all, err := instructions.FilterForUndo(false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map instructions: %w", err)
 	}
-	ins := make([]*model.Instruction, len(all))
+	ins := make([]*model.Instruction, len(all)-offset)
+	fmt.Println("ins", len(ins), len(all), offset, len(all)-offset)
 	for i := 0; i < len(ins); i++ {
-		h := all[i]
+		h := all[i+offset]
+		fmt.Println("super", i, h)
 		switch {
 		case h.IsSwipe:
 			ins[i] = &model.Instruction{

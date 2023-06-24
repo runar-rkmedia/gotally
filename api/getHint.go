@@ -40,6 +40,26 @@ func (s *TallyServer) GetHint(
 	}
 	// Get a single hint. Does not look ahead to do swipes etc.
 	if session.Game.Rules.GameMode == tallylogic.GameModeRandom {
+		session.Game.GetCombineHints(func(path []int, method tallylogic.EvalMethod) bool {
+
+			indexes := make([]uint32, len(path))
+			for i := 0; i < len(path); i++ {
+				indexes[i] = uint32(path[i])
+			}
+			response.Instructions = []*model.Instruction{{
+				InstructionOneof: &model.Instruction_Combine{
+					Combine: &model.Indexes{
+						Index: indexes,
+					},
+				},
+			}}
+
+			return true
+		})
+		if len(response.Instructions) > 0 {
+			res := connect.NewResponse(response)
+			return res, nil
+		}
 		hints := session.GetHint()
 		if len(hints) > 0 {
 
@@ -64,7 +84,6 @@ func (s *TallyServer) GetHint(
 			}
 		}
 	}
-	response.Instructions = make([]*model.Instruction, 1)
 	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
 	// h := tallylogic.NewHintCalculator(session.Game, session.Game, session.Game)
 	games, err := tallylogic.SolveGame(tallylogic.SolveOptions{
@@ -76,13 +95,35 @@ func (s *TallyServer) GetHint(
 		MaxTime:      time.Second * 10,
 	}, session.Game, nil)
 	if err != nil {
+
+		session.Game.GetCombineHints(func(path []int, method tallylogic.EvalMethod) bool {
+
+			indexes := make([]uint32, len(path))
+			for i := 0; i < len(path); i++ {
+				indexes[i] = uint32(path[i])
+			}
+			response.Instructions = []*model.Instruction{{
+				InstructionOneof: &model.Instruction_Combine{
+					Combine: &model.Indexes{
+						Index: indexes,
+					},
+				},
+			}}
+
+			return true
+		})
 		s.l.Error().
 			Err(err).
-			Msg("Failed to generate hint")
+			Int("instruction-count", len(response.Instructions)).
+			Msg("Failed to generate hint, returning fallback hint (if any)")
+		if len(response.Instructions) > 0 {
+			res := connect.NewResponse(response)
+			return res, nil
+		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to generate hint"))
 	}
+	response.Instructions = make([]*model.Instruction, 1)
 	s.l.Debug().
-		Bool("deep", true).
 		Int("solutions", len(games)).
 		Msg("Solver returned solutiosn")
 	if len(games) == 0 {
@@ -98,6 +139,7 @@ func (s *TallyServer) GetHint(
 			req.Msg.HintPreference = model.HintPreference_HINT_PREFERENCE_SHORT
 		}
 	}
+	historyOffset := session.Game.History.Length()
 	switch req.Msg.HintPreference {
 	case model.HintPreference_HINT_PREFERENCE_HIGHEST_SCORE:
 		sort.Slice(games, func(i, j int) bool {
@@ -112,12 +154,24 @@ func (s *TallyServer) GetHint(
 			var swipeI int
 			var swipeJ int
 			games[i].History.Iterate(
-				func(dir tallylogic.SwipeDirection, i int) error { swipeI++; return nil },
+				func(dir tallylogic.SwipeDirection, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					swipeI++
+					return nil
+				},
 				func(path []int, i int) error { return nil },
 				func(helper tallylogic.Helper, i int) error { return nil },
 			)
 			games[j].History.Iterate(
-				func(dir tallylogic.SwipeDirection, i int) error { swipeJ++; return nil },
+				func(dir tallylogic.SwipeDirection, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					swipeJ++
+					return nil
+				},
 				func(path []int, i int) error { return nil },
 				func(helper tallylogic.Helper, i int) error { return nil },
 			)
@@ -131,6 +185,9 @@ func (s *TallyServer) GetHint(
 			games[i].History.Iterate(
 				func(dir tallylogic.SwipeDirection, i int) error { return nil },
 				func(path []int, i int) error {
+					if i < historyOffset {
+						return nil
+					}
 					combineIndexI = i
 					return fmt.Errorf("stop")
 				},
@@ -139,6 +196,9 @@ func (s *TallyServer) GetHint(
 			games[j].History.Iterate(
 				func(dir tallylogic.SwipeDirection, i int) error { return nil },
 				func(path []int, i int) error {
+					if i < historyOffset {
+						return nil
+					}
 					combineIndexJ = i
 					return fmt.Errorf("stop")
 				},
@@ -156,13 +216,37 @@ func (s *TallyServer) GetHint(
 			var combineI float32
 			var combineJ float32
 			games[i].History.Iterate(
-				func(dir tallylogic.SwipeDirection, i int) error { swipeI++; return nil },
-				func(path []int, i int) error { combineI++; return nil },
+				func(dir tallylogic.SwipeDirection, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					swipeI++
+					return nil
+				},
+				func(path []int, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					combineI++
+					return nil
+				},
 				func(helper tallylogic.Helper, i int) error { return nil },
 			)
 			games[j].History.Iterate(
-				func(dir tallylogic.SwipeDirection, i int) error { swipeJ++; return nil },
-				func(path []int, i int) error { combineJ++; return nil },
+				func(dir tallylogic.SwipeDirection, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					swipeJ++
+					return nil
+				},
+				func(path []int, i int) error {
+					if i < historyOffset {
+						return nil
+					}
+					combineJ++
+					return nil
+				},
 				func(helper tallylogic.Helper, i int) error { return nil },
 			)
 			ratioI := swipeI / combineI
@@ -171,12 +255,12 @@ func (s *TallyServer) GetHint(
 		})
 	}
 	bestInstructions := games[0].History
-	var length int = bestInstructions.Length()
+	var length int = bestInstructions.Length() - historyOffset
 	if req.Msg.MaxLength > 0 && req.Msg.MaxLength < uint32(length) {
 		length = int(req.Msg.MaxLength)
 	}
-	response.Instructions = make([]*model.Instruction, length)
-	ins, err := toModelInstruction(bestInstructions)
+	fmt.Println("length", length, historyOffset, bestInstructions.Describe())
+	ins, err := toModelInstruction(bestInstructions, historyOffset)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to map instructions: %#v", err))
 	}
