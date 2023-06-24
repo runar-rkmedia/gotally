@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+
+	"github.com/carlmjohnson/versioninfo"
 )
 
 //go:embed all:static
@@ -18,6 +20,27 @@ func StaticWebHandler() http.Handler {
 	html, _ := fs.Sub(fsys, "static")
 	fileserver := http.FileServer(http.FS(html))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("\n\npaht", r.URL.Path)
+		switch r.URL.Path {
+		case "version":
+			content := "Revision: " + versioninfo.Revision + "\n"
+			content += "Version: " + versioninfo.Version + "\n"
+			if versioninfo.LastCommit.Year() > 2020 {
+				content += "LastCommit: " + versioninfo.LastCommit.String() + "\n"
+			}
+			content += "Short: " + versioninfo.Short() + "\n"
+			content += "Dirty: "
+			if versioninfo.DirtyBuild {
+				content += "Yes\n"
+			} else {
+				content += "No\n"
+
+			}
+			fmt.Println(versioninfo.Version)
+			w.Write([]byte(content))
+			return
+		}
 
 		w.Header().Set("Vary", "Accept-Encoding")
 		if hashedFileRegex.MatchString(r.URL.Path) {
