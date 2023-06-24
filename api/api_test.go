@@ -437,7 +437,7 @@ func TestApi_NewGame(t *testing.T) {
 func TestApi_ShouldWin(t *testing.T) {
 	t.Run("Should win game after solving it", func(t *testing.T) {
 		ts := newTestApi(t)
-		ts.NewGame(model.GameMode_GAME_MODE_TUTORIAL)
+		ts.NewGameTutorial(0)
 		t.Logf("New game: %s", ts.Game().Print())
 		{
 			swipeResponse := ts.CombineCellsByIndexPath(2, 5, 8)
@@ -468,6 +468,20 @@ func TestApi_ShouldWin(t *testing.T) {
 		testza.AssertEqual(t, session.Msg.Session.Game.PlayState, model.PlayState_PLAYSTATE_WON, "GetSession should return that the game was won. This action is the same as the user reloading the page")
 
 	})
+}
+
+// There was a bug here, where the returned TargetCellValue was the same value as from the first tutorial (36), but it should have been 1000
+func TestTutorialNumber1(t *testing.T) {
+	ts := newTestApi(t)
+	testza.AssertEqual(t, uint64(36), ts.Session().ActiveGame.TargetCellValue, "Currently, the first tutorial has a TargetCellValue of 36")
+	ts.SwipeUp()
+	ts.NewGameTutorial(1)
+	newGame := ts.Game()
+	testza.AssertEqual(t, uint64(1000), newGame.Rules.TargetCellValue, "The first and second tutorial should not have the same TargetCellValue")
+	sess := ts.GetSession()
+	testza.AssertEqual(t, int64(0), sess.Msg.Session.Game.Moves, "The move-count should be reset")
+	testza.AssertEqual(t, model.PlayState_PLAYSTATE_CURRENT, sess.Msg.Session.Game.PlayState, "The game should not be won yet")
+
 }
 func TestApi_Challenges(t *testing.T) {
 	t.Run("Should return the challenges after creation", func(t *testing.T) {

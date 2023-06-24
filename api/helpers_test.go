@@ -304,14 +304,22 @@ func (ta *testApi) GetDBDump() sqliteDump {
 	}
 }
 func (ts *testApi) NewGame(mode tallyv1.GameMode) (response *connect.Response[model.NewGameResponse]) {
+	return ts.NewGameFromPayload(&model.NewGameRequest{Mode: mode})
+}
+func (ts *testApi) NewGameTutorial(lvl int) (response *connect.Response[model.NewGameResponse]) {
+	return ts.NewGameFromPayload(&model.NewGameRequest{Mode: model.GameMode_GAME_MODE_TUTORIAL,
+		Variant: &model.NewGameRequest_LevelIndex{
+			LevelIndex: uint32(lvl),
+		},
+	})
+}
+func (ts *testApi) NewGameFromPayload(payload *model.NewGameRequest) (response *connect.Response[model.NewGameResponse]) {
 	ts.t.Helper()
-	newGameResponse, err := ts.client.NewGame(ts.context, connect.NewRequest(&model.NewGameRequest{
-		Mode: mode,
-	}))
+	newGameResponse, err := ts.client.NewGame(ts.context, connect.NewRequest(payload))
 	if err != nil {
-		ts.t.Fatalf("new game failed for mode %v: %v", mode, err)
+		ts.t.Fatalf("new game failed for mode %v (%v): %v", payload.Mode, payload.Variant, err)
 	}
-	testza.AssertEqual(ts.t, mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
+	testza.AssertEqual(ts.t, payload.Mode, newGameResponse.Msg.Mode, "Expected modes to be equal")
 	return newGameResponse
 }
 func (ts *testApi) GetSession() (response *connect.Response[model.GetSessionResponse]) {

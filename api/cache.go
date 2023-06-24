@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/jfyne/live"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/runar-rkmedia/gotally/tallylogic"
 	"github.com/runar-rkmedia/gotally/types"
@@ -34,7 +33,6 @@ var (
 	Store stupidcache = stupidcache{
 		games: map[string]*UserState{},
 	}
-	CookieStore = live.NewCookieStore("cookie", []byte("eeeee"))
 )
 
 type UserState struct {

@@ -52,12 +52,13 @@ func (s *TallyServer) CombineCells(
 	ok := session.Game.EvaluateForPath(path)
 	if !ok {
 		cerr := connect.NewError(connect.CodeNotFound, fmt.Errorf("path does evaluate to the final item the selection"))
-		details := &errdetails.BadRequest_FieldViolation{
-			Field: "NoEval",
+		reason := errdetails.ErrorInfo{
+			Reason: "NoEval",
 		}
-		if details, detailErr := connect.NewErrorDetail(details); detailErr == nil {
+		if details, detailErr := connect.NewErrorDetail(&reason); detailErr == nil {
 			cerr.AddDetail(details)
 		}
+		cerr.Meta().Add("hide-from-user", "1")
 		return nil, cerr
 	}
 	seed, state := session.Game.Seed()
