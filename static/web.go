@@ -2,13 +2,18 @@ package web
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"path"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/carlmjohnson/versioninfo"
+	"github.com/ghodss/yaml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 //go:embed all:static
@@ -21,24 +26,58 @@ func StaticWebHandler() http.Handler {
 	fileserver := http.FileServer(http.FS(html))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		fmt.Println("\n\npaht", r.URL.Path)
 		switch r.URL.Path {
-		case "version":
-			content := "Revision: " + versioninfo.Revision + "\n"
-			content += "Version: " + versioninfo.Version + "\n"
-			if versioninfo.LastCommit.Year() > 2020 {
-				content += "LastCommit: " + versioninfo.LastCommit.String() + "\n"
+		case "version", "version.json", "version.toml", "version.yaml":
+			data := struct {
+				Version      string     `json:"version"`
+				Revision     string     `json:"revision"`
+				Short        string     `json:"short"`
+				Dirty        bool       `json:"dirty"`
+				LastCommit   *time.Time `json:"last_commit,omitempty"`
+				IssueTracker string     `json:"issue_tracker"`
+				Repository   string     `json:"repository"`
+			}{
+				Version:      versioninfo.Version,
+				Revision:     versioninfo.Revision,
+				Short:        versioninfo.Short(),
+				Dirty:        versioninfo.DirtyBuild,
+				IssueTracker: "https://github.com/runar-rkmedia/gotally/issues",
+				Repository:   "https://github.com/runar-rkmedia/gotally",
 			}
-			content += "Short: " + versioninfo.Short() + "\n"
-			content += "Dirty: "
-			if versioninfo.DirtyBuild {
-				content += "Yes\n"
-			} else {
-				content += "No\n"
+			if versioninfo.LastCommit.Year() > 1 {
+				data.LastCommit = &versioninfo.LastCommit
+			}
+			type Encoer interface {
+				Encode(j any) error
+			}
 
+			switch {
+			case strings.HasSuffix(r.URL.Path, "toml"):
+				b, err := toml.Marshal(data)
+				if err != nil {
+					w.Write([]byte(err.Error()))
+					return
+				}
+				w.Header().Set("Content-Type", "application/toml")
+				w.Write(b)
+
+			case strings.HasSuffix(r.URL.Path, "yaml"):
+				b, err := yaml.Marshal(data)
+				if err != nil {
+					w.Write([]byte(err.Error()))
+					return
+				}
+				w.Header().Set("Content-Type", "application/yaml")
+				w.Write(b)
+			default:
+				b, err := json.Marshal(data)
+				if err != nil {
+					w.Write([]byte(err.Error()))
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(b)
 			}
-			fmt.Println(versioninfo.Version)
-			w.Write([]byte(content))
 			return
 		}
 
