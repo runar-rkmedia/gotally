@@ -43,14 +43,24 @@ func GameSolverFactory(options GameSolverFactoryOptions) Solver {
 	s := NewBruteDepthSolver(options.SolveOptions)
 	return &s
 }
-func SolveGame(options SolveOptions, game Game, quitCh chan struct{}) ([]Game, error) {
+
+type HintMethod = string
+
+const (
+	HintMethodBreadthFirst = "BreadthFirst"
+	HintMethodDepthFirst   = "DepthFirst"
+)
+
+func SolveGame(options SolveOptions, game Game, quitCh chan struct{}) (HintMethod, []Game, error) {
 	// The breadth-first is not very good at solving infinite games
 	// so we use the depth-first for these games
 	if game.Rules.GameMode == GameModeRandom {
 		s := NewBruteDepthSolver(options)
-		return s.SolveGame(game, quitCh)
+		g, err := s.SolveGame(game, quitCh)
+		return HintMethodDepthFirst, g, err
 	}
 
 	s := NewBruteBreadthSolver(options)
-	return s.SolveGame(game, quitCh)
+	g, err := s.SolveGame(game, quitCh)
+	return HintMethodBreadthFirst, g, err
 }

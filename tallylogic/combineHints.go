@@ -123,6 +123,9 @@ func NewIndexedCells(cells []cell.Cell) IndexedCells {
 
 }
 func FindAllValidMultiplications(p processor, A IndexedCells, rows, columns int, t int64, tIndex int) bool {
+	if t == 1 {
+		return false
+	}
 	return findAllValidMultiplications(p, A, rows, columns, t, tIndex, IndexedCells{})
 }
 func FindAllValidAdditions(p processor, A IndexedCells, rows, columns int, t int64, tIndex int) bool {

@@ -96,7 +96,17 @@ message UndoResponse {
   int64 score = 2;
   int64 moves = 4;
 }
-message GetHintResponse { repeated Instruction instructions = 1; }
+
+enum HintMethod {
+    HINT_METHOD_UNSPECIFIED = 0;
+    HINT_METHOD_DEPTH_FIRST = 1;
+    HINT_METHOD_BREADTH_FIRST = 2;
+    HINT_METHOD_FALLBACK = 3;
+  }
+message GetHintResponse { 
+  repeated Instruction instructions = 1;
+  HintMethod method = 2; 
+  }
 message GetSessionRequest {}
 message RestartGameRequest {}
 message NewGameRequest {

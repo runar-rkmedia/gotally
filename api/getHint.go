@@ -57,6 +57,7 @@ func (s *TallyServer) GetHint(
 			return true
 		})
 		if len(response.Instructions) > 0 {
+			response.Method = model.HintMethod_HINT_METHOD_FALLBACK
 			res := connect.NewResponse(response)
 			return res, nil
 		}
@@ -75,6 +76,7 @@ func (s *TallyServer) GetHint(
 				}
 				best[k] = h
 				response.Instructions = toModelHint(best)
+				response.Method = *model.HintMethod_HINT_METHOD_DEPTH_FIRST.Enum()
 				return connect.NewResponse(response), nil
 			}
 			for k, h := range hints {
@@ -86,7 +88,7 @@ func (s *TallyServer) GetHint(
 	}
 	// Deeper hint, looking ahead to find better hints, attempting to solve the game if possible.
 	// h := tallylogic.NewHintCalculator(session.Game, session.Game, session.Game)
-	games, err := tallylogic.SolveGame(tallylogic.SolveOptions{
+	hintMethod, games, err := tallylogic.SolveGame(tallylogic.SolveOptions{
 		MaxDepth:     10,
 		MaxVisits:    6000,
 		MinMoves:     0,
@@ -94,6 +96,12 @@ func (s *TallyServer) GetHint(
 		MaxSolutions: 1,
 		MaxTime:      time.Second * 10,
 	}, session.Game, nil)
+	switch hintMethod {
+	case tallylogic.HintMethodBreadthFirst:
+		response.Method = model.HintMethod_HINT_METHOD_BREADTH_FIRST
+	case tallylogic.HintMethodDepthFirst:
+		response.Method = model.HintMethod_HINT_METHOD_DEPTH_FIRST
+	}
 	if err != nil {
 
 		session.Game.GetCombineHints(func(path []int, method tallylogic.EvalMethod) bool {
@@ -117,6 +125,7 @@ func (s *TallyServer) GetHint(
 			Int("instruction-count", len(response.Instructions)).
 			Msg("Failed to generate hint, returning fallback hint (if any)")
 		if len(response.Instructions) > 0 {
+			response.Method = model.HintMethod_HINT_METHOD_FALLBACK
 			res := connect.NewResponse(response)
 			return res, nil
 		}
@@ -125,7 +134,7 @@ func (s *TallyServer) GetHint(
 	response.Instructions = make([]*model.Instruction, 1)
 	s.l.Debug().
 		Int("solutions", len(games)).
-		Msg("Solver returned solutiosn")
+		Msg("Solver returned solutions")
 	if len(games) == 0 {
 		return connect.NewResponse(response), nil
 	}
